@@ -1,0 +1,225 @@
+{
+  "name": "RAG Query (Typebot Integration)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-rag",
+      "name": "Webhook: POST /rag-query",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\n\nif (!body.tenant_slug) throw new Error('tenant_slug fehlt');\nif (!body.query || body.query.length < 3) throw new Error('query zu kurz oder fehlt');\n\nreturn [{ json: {\n  tenant_slug: body.tenant_slug,\n  query: body.query,\n  session_id: body.session_id || `session-${Date.now()}`,\n  bot_id: body.bot_id || null,\n  top_k: body.top_k || 5,\n  min_similarity: body.min_similarity || 0.55,\n  doc_type: body.doc_type || null,\n  model: body.model || 'llama3.2:3b',\n  started_at: Date.now()\n}}];"
+      },
+      "id": "validate-query",
+      "name": "Validate Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT schema_name FROM public.tenants WHERE slug = '{{ $json.tenant_slug }}' AND status = 'active' LIMIT 1;",
+        "options": {}
+      },
+      "id": "get-tenant-schema",
+      "name": "Get Tenant Schema",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [400, 0],
+      "credentials": {
+        "postgres": {
+          "name": "PostgreSQL RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.OLLAMA_BASE_URL }}/api/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer={{ $env.OLLAMA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $('Validate Query').first().json.query }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "embed-query",
+      "name": "Embed Query (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.search_chunks(\n  '{{ $('Get Tenant Schema').first().json.schema_name }}',\n  '{{ JSON.stringify($json.embedding) }}'::vector(768),\n  {{ $('Validate Query').first().json.top_k }},\n  {{ $('Validate Query').first().json.min_similarity }},\n  'nomic-embed-text',\n  {{ $('Validate Query').first().json.doc_type ? `'${$('Validate Query').first().json.doc_type}'` : 'NULL' }},\n  'public'\n);",
+        "options": {}
+      },
+      "id": "vector-search",
+      "name": "Vector Search",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [800, 0],
+      "credentials": {
+        "postgres": {
+          "name": "PostgreSQL RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunks = $input.all().map(i => i.json);\nconst query = $('Validate Query').first().json.query;\n\nif (chunks.length === 0) {\n  return [{ json: {\n    system_prompt: 'Du bist ein hilfreicher Assistent. Es wurden keine relevanten Informationen gefunden. Weise den Nutzer höflich darauf hin und bitte um eine konkretere Frage.',\n    user_message: query,\n    chunks_used: [],\n    no_context: true\n  }}];\n}\n\nconst MAX_CHARS = 4000;\nlet contextParts = [];\nlet totalChars = 0;\n\nfor (const chunk of chunks) {\n  const part = `[${chunk.document_title || 'Quelle'} | ${chunk.doc_type || ''} | Seite ${chunk.page_number || '?'} | Ähnlichkeit: ${(chunk.similarity * 100).toFixed(0)}%]:\\n${chunk.content}`;\n  if (totalChars + part.length > MAX_CHARS) break;\n  contextParts.push(part);\n  totalChars += part.length;\n}\n\nconst context = contextParts.join('\\n\\n---\\n\\n');\n\nreturn [{ json: {\n  system_prompt: `Du bist ein hilfreicher Kundenservice-Assistent. Beantworte die Frage ausschließlich auf Basis der folgenden Quellen. Wenn die Antwort nicht in den Quellen enthalten ist, sage klar: \"Dazu habe ich leider keine Information.\". Antworte auf Deutsch, präzise und freundlich.\\n\\nQUELLEN:\\n${context}`,\n  user_message: query,\n  chunks_used: chunks.map(c => ({ chunk_id: c.chunk_id, similarity: c.similarity, document_title: c.document_title }))\n}}];"
+      },
+      "id": "build-context",
+      "name": "Build RAG Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.OLLAMA_BASE_URL }}/api/chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer={{ $env.OLLAMA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $('Validate Query').first().json.model }}\",\n  \"stream\": false,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.user_message) }} }\n  ],\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_ctx\": 4096\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "llm-call",
+      "name": "LLM Call (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const llmResponse = $input.first().json;\nconst context = $('Build RAG Context').first().json;\nconst queryData = $('Validate Query').first().json;\nconst schema = $('Get Tenant Schema').first().json.schema_name;\n\nconst answer = llmResponse.message?.content || llmResponse.choices?.[0]?.message?.content || 'Keine Antwort erhalten';\nconst latencyMs = Date.now() - queryData.started_at;\n\nreturn [{ json: {\n  schema_name: schema,\n  session_id: queryData.session_id,\n  bot_id: queryData.bot_id,\n  query: queryData.query,\n  answer,\n  chunks_used: context.chunks_used.map(c => c.chunk_id),\n  model: queryData.model,\n  latency_ms: latencyMs,\n  sources: context.chunks_used\n}}];"
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 0]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "={{ $json.schema_name }}.conversations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.session_id }}",
+            "bot_id": "={{ $json.bot_id }}",
+            "query": "={{ $json.query }}",
+            "response": "={{ $json.answer }}",
+            "chunks_used": "={{ JSON.stringify($json.chunks_used) }}",
+            "model": "={{ $json.model }}",
+            "latency_ms": "={{ $json.latency_ms }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "log-conversation",
+      "name": "Log Conversation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1600, 0],
+      "credentials": {
+        "postgres": {
+          "name": "PostgreSQL RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ answer: $json.answer, sources: $json.sources, model: $json.model, latency_ms: $json.latency_ms }) }}"
+      },
+      "id": "respond-to-typebot",
+      "name": "Respond to Typebot",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 0]
+    }
+  ],
+  "connections": {
+    "Webhook: POST /rag-query": {
+      "main": [[{ "node": "Validate Query", "type": "main", "index": 0 }]]
+    },
+    "Validate Query": {
+      "main": [[{ "node": "Get Tenant Schema", "type": "main", "index": 0 }]]
+    },
+    "Get Tenant Schema": {
+      "main": [[{ "node": "Embed Query (Ollama)", "type": "main", "index": 0 }]]
+    },
+    "Embed Query (Ollama)": {
+      "main": [[{ "node": "Vector Search", "type": "main", "index": 0 }]]
+    },
+    "Vector Search": {
+      "main": [[{ "node": "Build RAG Context", "type": "main", "index": 0 }]]
+    },
+    "Build RAG Context": {
+      "main": [[{ "node": "LLM Call (Ollama)", "type": "main", "index": 0 }]]
+    },
+    "LLM Call (Ollama)": {
+      "main": [[{ "node": "Prepare Response", "type": "main", "index": 0 }]]
+    },
+    "Prepare Response": {
+      "main": [[{ "node": "Log Conversation", "type": "main", "index": 0 }]]
+    },
+    "Log Conversation": {
+      "main": [[{ "node": "Respond to Typebot", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": ["rag", "query", "typebot"],
+  "active": false
+}
