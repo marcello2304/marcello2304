@@ -1,0 +1,113 @@
+# docker-compose.yml für Server 2 (LLM + Voice)
+# Server 2: Ollama + LiveKit
+
+version: '3.8'
+
+networks:
+  ai-net:
+    name: ai-net
+    driver: bridge
+
+volumes:
+  ollama-data:
+  livekit-data:
+
+services:
+
+  # ── Nginx (Reverse Proxy für Server 2) ────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro  # Let's Encrypt via certbot
+      - /var/www/certbot:/var/www/certbot:ro
+    networks:
+      - ai-net
+    depends_on:
+      - ollama
+      - livekit
+
+  # ── Certbot (Let's Encrypt für Nginx) ─────────────────────────────────
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./nginx/certs:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    # Einmalig: docker-compose run certbot certonly --webroot
+    #           --webroot-path=/var/www/certbot
+    #           -d ollama.deine-domain.de -d voice.deine-domain.de
+
+  # ── Ollama (LLM Inference) ────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    # GPU-Unterstützung (falls NVIDIA GPU vorhanden):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - ai-net
+    # KEIN externer Port — nur via Nginx/Proxy erreichbar
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/version || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    environment:
+      OLLAMA_HOST: "0.0.0.0:11434"
+      OLLAMA_KEEP_ALIVE: "5m"
+      OLLAMA_NUM_PARALLEL: "2"
+      # OLLAMA_GPU_MEMORY_FRACTION: "0.9"
+
+  # ── LiveKit Server ────────────────────────────────────────────────────
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit
+    restart: unless-stopped
+    ports:
+      - "7880:7880"     # HTTP/WS
+      - "7881:7881"     # RTC TCP
+      - "50000-50100:50000-50100/udp"  # RTC UDP (Range begrenzen!)
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    command: --config /etc/livekit.yaml
+    networks:
+      - ai-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7880/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── LiveKit Agent (Voice Bot Worker) ──────────────────────────────────
+  livekit-agent:
+    image: livekit/agents-playground:latest
+    container_name: livekit-agent
+    restart: unless-stopped
+    environment:
+      LIVEKIT_URL: "ws://livekit:7880"
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      # STT/TTS Konfiguration (Whisper via Ollama oder extern)
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    networks:
+      - ai-net
+    depends_on:
+      - livekit
+      - ollama

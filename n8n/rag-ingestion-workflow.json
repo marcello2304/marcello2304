@@ -1,0 +1,282 @@
+{
+  "name": "RAG Document Ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingest",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-ingest",
+      "name": "Webhook: POST /ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Eingabe validieren\nconst body = $input.first().json;\n\nconst required = ['tenant_slug', 'name', 'source_type'];\nfor (const field of required) {\n  if (!body[field]) {\n    throw new Error(`Pflichtfeld fehlt: ${field}`);\n  }\n}\n\nif (!['file', 'url', 'manual'].includes(body.source_type)) {\n  throw new Error('source_type muss file, url oder manual sein');\n}\n\nif (body.source_type === 'file' && !body.file_base64) {\n  throw new Error('file_base64 fehlt bei source_type=file');\n}\n\nif (body.source_type === 'url' && !body.origin_url) {\n  throw new Error('origin_url fehlt bei source_type=url');\n}\n\nreturn [{ json: body }];"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, slug, schema_name, s3_prefix, status FROM public.tenants WHERE slug = '{{ $json.tenant_slug }}' AND status = 'active' LIMIT 1;",
+        "options": {}
+      },
+      "id": "get-tenant",
+      "name": "Get Tenant from DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [400, 0],
+      "credentials": {
+        "postgres": {
+          "name": "PostgreSQL RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const tenant = $input.first().json;\nif (!tenant || !tenant.id) {\n  throw new Error(`Tenant nicht gefunden oder nicht aktiv: ${$('Validate Input').first().json.tenant_slug}`);\n}\nconst input = $('Validate Input').first().json;\nreturn [{ json: { ...input, tenant } }];"
+      },
+      "id": "check-tenant",
+      "name": "Check Tenant Exists",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source_type }}",
+              "value2": "file"
+            }
+          ]
+        }
+      },
+      "id": "switch-source-type",
+      "name": "Source Type?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [800, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.origin_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "download-url",
+      "name": "Download URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 100]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "={{ $env.S3_BUCKET }}",
+        "fileName": "={{ $json.tenant.s3_prefix }}docs/{{ $now.format('yyyy/MM') }}/{{ $json.source_id }}-{{ $json.file_name || 'document.txt' }}",
+        "binaryPropertyName": "data",
+        "options": {
+          "region": "={{ $env.S3_REGION }}"
+        }
+      },
+      "id": "upload-s3",
+      "name": "Upload to S3",
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 1,
+      "position": [1200, 0],
+      "credentials": {
+        "aws": {
+          "name": "Hetzner S3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "={{ $json.tenant.schema_name }}.sources",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name }}",
+            "source_type": "={{ $json.source_type }}",
+            "origin_url": "={{ $json.origin_url || null }}",
+            "s3_key": "={{ $json.s3_key }}",
+            "file_name": "={{ $json.file_name || null }}",
+            "file_type": "={{ $json.file_type || 'txt' }}",
+            "file_size": "={{ $json.file_size || null }}",
+            "status": "processing",
+            "created_by": "n8n-ingestion",
+            "tags": "={{ JSON.stringify($json.tags || []) }}",
+            "metadata": "={{ JSON.stringify({ workflow_id: $workflow.id, doc_type: $json.doc_type }) }}"
+          }
+        },
+        "options": {
+          "returnFields": "id"
+        }
+      },
+      "id": "insert-source",
+      "name": "Insert Source",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1400, 0],
+      "credentials": {
+        "postgres": {
+          "name": "PostgreSQL RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Text-Extraktion aus verschiedenen Formaten\n// Für PDF: n8n Extract from File Node oder externe API nötig\n// Für HTML: eingebaut\n// Für TXT/MD: direkt\n\nconst item = $input.first().json;\nconst fileType = item.file_type || 'txt';\nlet extractedText = '';\n\nif (fileType === 'txt' || fileType === 'md') {\n  // Direkt aus Binary Data\n  extractedText = Buffer.from(item.file_base64 || '', 'base64').toString('utf-8');\n} else if (fileType === 'html') {\n  const raw = Buffer.from(item.file_base64 || '', 'base64').toString('utf-8');\n  // Einfaches HTML-Stripping\n  extractedText = raw\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/\\s+/g, ' ')\n    .trim();\n} else if (fileType === 'pdf') {\n  // PDF-Extraktion benötigt externen Service oder n8n PDF-Node\n  // TODO: HTTP Request zu pdf-parser oder nutze n8n 'Extract From File'\n  extractedText = item.extracted_text_from_pdf || '';\n  if (!extractedText) {\n    throw new Error('PDF-Extraktion nicht implementiert — nutze n8n Extract from File Node vor diesem Node');\n  }\n} else {\n  // Fallback: URL-Download Ergebnis\n  extractedText = item.url_content || Buffer.from(item.file_base64 || '', 'base64').toString('utf-8');\n}\n\nif (!extractedText || extractedText.length < 10) {\n  throw new Error('Kein Text extrahiert — Datei leer oder Format nicht unterstützt');\n}\n\nreturn [{ json: { ...item, extracted_text: extractedText, char_count: extractedText.length } }];"
+      },
+      "id": "extract-text",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Text in Chunks aufteilen\nconst CHUNK_SIZE = 1000;\nconst CHUNK_OVERLAP = 150;\n\nfunction chunkText(text, size, overlap) {\n  const chunks = [];\n  let start = 0;\n  let index = 0;\n  text = text.replace(/\\r\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n  while (start < text.length) {\n    let end = start + size;\n    if (end < text.length) {\n      const lastPeriod = text.lastIndexOf('.', end);\n      const lastNewline = text.lastIndexOf('\\n', end);\n      const boundary = Math.max(lastPeriod, lastNewline);\n      if (boundary > start + size * 0.5) end = boundary + 1;\n    }\n    const content = text.substring(start, Math.min(end, text.length)).trim();\n    if (content.length > 50) {\n      chunks.push({ chunk_index: index, content, char_count: content.length });\n      index++;\n    }\n    start = end - overlap;\n    if (start <= 0 || start >= text.length) break;\n  }\n  return chunks;\n}\n\nconst item = $input.first().json;\nconst chunks = chunkText(item.extracted_text, CHUNK_SIZE, CHUNK_OVERLAP);\n\nreturn chunks.map(chunk => ({\n  json: { ...item, ...chunk, total_chunks: chunks.length }\n}));"
+      },
+      "id": "chunk-text",
+      "name": "Chunk Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.OLLAMA_BASE_URL }}/api/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer={{ $env.OLLAMA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.content }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "get-embeddings",
+      "name": "Get Embeddings (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE {{ $json.tenant.schema_name }}.sources SET status='indexed', updated_at=NOW() WHERE id='{{ $json.source_id }}';",
+        "options": {}
+      },
+      "id": "update-source-status",
+      "name": "Update Source: indexed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2600, 0],
+      "credentials": {
+        "postgres": {
+          "name": "PostgreSQL RAG"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, source_id: $json.source_id, chunk_count: $json.total_chunks, tenant: $json.tenant_slug }) }}"
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2800, 0]
+    }
+  ],
+  "connections": {
+    "Webhook: POST /ingest": {
+      "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]]
+    },
+    "Validate Input": {
+      "main": [[{ "node": "Get Tenant from DB", "type": "main", "index": 0 }]]
+    },
+    "Get Tenant from DB": {
+      "main": [[{ "node": "Check Tenant Exists", "type": "main", "index": 0 }]]
+    },
+    "Check Tenant Exists": {
+      "main": [[{ "node": "Source Type?", "type": "main", "index": 0 }]]
+    },
+    "Source Type?": {
+      "main": [
+        [{ "node": "Upload to S3", "type": "main", "index": 0 }],
+        [{ "node": "Download URL", "type": "main", "index": 0 }]
+      ]
+    },
+    "Download URL": {
+      "main": [[{ "node": "Upload to S3", "type": "main", "index": 0 }]]
+    },
+    "Upload to S3": {
+      "main": [[{ "node": "Insert Source", "type": "main", "index": 0 }]]
+    },
+    "Insert Source": {
+      "main": [[{ "node": "Extract Text", "type": "main", "index": 0 }]]
+    },
+    "Extract Text": {
+      "main": [[{ "node": "Chunk Text", "type": "main", "index": 0 }]]
+    },
+    "Chunk Text": {
+      "main": [[{ "node": "Get Embeddings (Ollama)", "type": "main", "index": 0 }]]
+    },
+    "Get Embeddings (Ollama)": {
+      "main": [[{ "node": "Update Source: indexed", "type": "main", "index": 0 }]]
+    },
+    "Update Source: indexed": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": ""
+  },
+  "tags": ["rag", "ingestion"],
+  "active": false
+}
