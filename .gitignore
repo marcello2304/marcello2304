@@ -1,0 +1,26 @@
+# Secrets — NIEMALS committen
+.env
+.env.local
+.env.production
+
+# Diagnose-Outputs
+diagnose-output.txt
+*.dump
+*.sql.gz
+
+# Lokale Backups
+/opt/backups/
+
+# Node / Build
+node_modules/
+.next/
+dist/
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo

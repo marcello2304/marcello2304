@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(docker:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker network:*)",
+      "Bash(docker run:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker pull:*)",
+      "Bash(docker compose:*)",
+      "Bash(bash scripts/diagnose-domains.sh:*)",
+      "Bash(bash scripts/check-prerequisites.sh:*)",
+      "Bash(bash scripts/create-tenant.sh:*)",
+      "Bash(bash scripts/backup-postgres.sh:*)",
+      "Bash(bash setup.sh:*)",
+      "Bash(chmod +x:*)",
+      "Bash(cp coolify/env-templates/*:*)",
+      "Bash(openssl rand:*)",
+      "Bash(curl:*)",
+      "Bash(dig:*)",
+      "Bash(ss -tlnp:*)",
+      "Bash(ufw status:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(DROP DATABASE:*)",
+      "Bash(ufw disable:*)"
+    ]
+  }
+}
