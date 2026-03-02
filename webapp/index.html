@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Test — ProManager Support</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar: Konfiguration -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">⚡ RAG Test</div>
+      <div class="logo-sub">Hetzner Self-Hosted</div>
+    </div>
+
+    <div class="config-section">
+      <label class="config-label">n8n Webhook URL</label>
+      <input type="text" id="webhookUrl" class="config-input"
+        placeholder="https://n8n.deine-domain.de/webhook/rag-query"
+        value="">
+      <div class="config-hint">Lokaler Test: http://localhost:5678/webhook/rag-query</div>
+    </div>
+
+    <div class="config-section">
+      <label class="config-label">Tenant Slug</label>
+      <input type="text" id="tenantSlug" class="config-input"
+        placeholder="demo" value="demo">
+    </div>
+
+    <div class="config-section">
+      <label class="config-label">Modell</label>
+      <select id="model" class="config-input">
+        <option value="llama3.2:3b">llama3.2:3b (schnell)</option>
+        <option value="llama3.1:8b">llama3.1:8b (besser)</option>
+        <option value="mistral:7b">mistral:7b</option>
+        <option value="qwen2.5:7b">qwen2.5:7b</option>
+      </select>
+    </div>
+
+    <div class="config-section">
+      <label class="config-label">Top-K Chunks</label>
+      <input type="range" id="topK" min="1" max="10" value="5" class="slider">
+      <span id="topKVal">5</span>
+    </div>
+
+    <div class="config-section">
+      <label class="config-label">Min. Ähnlichkeit</label>
+      <input type="range" id="minSim" min="0" max="100" value="50" class="slider">
+      <span id="minSimVal">0.50</span>
+    </div>
+
+    <div class="config-section">
+      <label class="config-label">Direkt-Modus</label>
+      <div class="toggle-row">
+        <input type="checkbox" id="directMode" class="toggle">
+        <label for="directMode" class="toggle-label">Postgres direkt abfragen</label>
+      </div>
+      <div class="config-hint">Ohne n8n — nur Vektorsearch, kein LLM</div>
+    </div>
+
+    <div class="config-section">
+      <label class="config-label">Postgres API</label>
+      <input type="text" id="pgApiUrl" class="config-input"
+        placeholder="http://localhost:3001/query"
+        value="">
+      <div class="config-hint">Nur für Direkt-Modus (pg-api Server)</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn-secondary" onclick="clearChat()">Chat leeren</button>
+      <button class="btn-secondary" onclick="showStats()">DB-Stats</button>
+    </div>
+  </aside>
+
+  <!-- Hauptbereich: Chat -->
+  <main class="main">
+    <div class="chat-header">
+      <div class="chat-title">ProManager Support-Bot</div>
+      <div class="chat-subtitle" id="statusIndicator">
+        <span class="dot dot-gray"></span> Nicht verbunden
+      </div>
+    </div>
+
+    <div class="chat-body" id="chatBody">
+      <!-- Willkommens-Nachricht -->
+      <div class="msg msg-bot">
+        <div class="msg-avatar">🤖</div>
+        <div class="msg-content">
+          <div class="msg-bubble">
+            Hallo! Ich bin der RAG-Test-Bot für ProManager.
+            Stelle mir Fragen zu Preisen, Installation, Features oder Support.
+            <br><br>
+            <strong>Beispiel-Fragen:</strong>
+            <div class="quick-questions">
+              <button class="quick-btn" onclick="askQuestion(this)">Was kostet das Pro-Paket?</button>
+              <button class="quick-btn" onclick="askQuestion(this)">Wie installiere ich ProManager?</button>
+              <button class="quick-btn" onclick="askQuestion(this)">Welche Integrationen gibt es?</button>
+              <button class="quick-btn" onclick="askQuestion(this)">Wie sicher sind meine Daten?</button>
+              <button class="quick-btn" onclick="askQuestion(this)">Gibt es einen NGO-Rabatt?</button>
+              <button class="quick-btn" onclick="askQuestion(this)">Wie viele Nutzer kann ich einladen?</button>
+            </div>
+          </div>
+          <div class="msg-time">Jetzt</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <textarea id="queryInput" class="chat-input"
+        placeholder="Frage stellen... (Enter = Senden, Shift+Enter = Neue Zeile)"
+        rows="1"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendQuery()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </main>
+
+  <!-- Rechts: Quellen-Panel -->
+  <aside class="sources-panel" id="sourcesPanel">
+    <div class="sources-header">Quellen & Kontext</div>
+    <div id="sourcesBody">
+      <div class="sources-empty">Sende eine Anfrage, um die verwendeten Quellen zu sehen.</div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Stats Modal -->
+<div class="modal-overlay" id="statsModal" onclick="closeStats()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>Datenbank-Statistiken</span>
+      <button onclick="closeStats()" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="statsBody">Lade...</div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
