@@ -1,0 +1,257 @@
+{
+  "name": "RAG Chat – EPPCOM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-rag-chat",
+      "name": "Webhook: POST /rag-chat",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Headers und Body auslesen\nconst input = $input.first().json;\nconst headers = input.headers || {};\nconst body = input.body || input;\n\n// Headers case-insensitive lesen\nconst tenantId = (headers['x-tenant-id'] || headers['X-Tenant-ID'] || '').trim();\nconst apiKey = (headers['x-api-key'] || headers['X-API-Key'] || '').trim();\n\n// Query aus Body\nconst query = (body.query || body.question || '').trim();\nconst sessionId = body.session_id || null;\n\n// Validierung\nif (!tenantId) throw new Error('X-Tenant-ID Header fehlt');\nif (!apiKey) throw new Error('X-API-Key Header fehlt');\nif (!query || query.length < 1) throw new Error('query oder question fehlt im Request Body');\n\nreturn [{ json: { tenantId, apiKey, query, sessionId, startedAt: Date.now() } }];"
+      },
+      "id": "auth-prepare",
+      "name": "Auth vorbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant = '{{ $json.tenantId }}';\nSELECT t.id, t.name, t.slug\nFROM tenants t\nWHERE t.id = '{{ $json.tenantId }}'::uuid\n  AND t.is_active = true\n  AND EXISTS (\n    SELECT 1 FROM api_keys k\n    WHERE k.tenant_id = '{{ $json.tenantId }}'::uuid\n      AND k.key_hash = encode(sha256('{{ $json.apiKey }}'::bytea), 'hex')\n      AND k.is_active = true\n      AND (k.expires_at IS NULL OR k.expires_at > NOW())\n  )\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "pg-tenant-auth",
+      "name": "PG: Tenant Auth",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "alwaysOutputData": true,
+      "position": [440, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "auth-check-condition",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "auth-check",
+      "name": "Auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"error\": \"Unauthorized\", \"message\": \"Invalid tenant ID or API key\" }",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "unauthorized",
+      "name": "401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [880, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tenant-Info mit ursprünglicher Anfrage zusammenführen\nconst tenant = $input.first().json;\nconst authData = $('Auth vorbereiten').first().json;\n\nif (!tenant || !tenant.id) {\n  throw new Error('Tenant-Authentifizierung fehlgeschlagen');\n}\n\nreturn [{ json: {\n  tenantId: tenant.id,\n  tenantName: tenant.name,\n  tenantSlug: tenant.slug,\n  query: authData.query,\n  sessionId: authData.sessionId,\n  startedAt: authData.startedAt\n}}];"
+      },
+      "id": "merge-auth-query",
+      "name": "Merge Auth + Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.0.3:11434/api/embed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3-embedding:0.6b"
+            },
+            {
+              "name": "input",
+              "value": "={{ $json.query }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ollama-embed",
+      "name": "Ollama: Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Embedding-Array in PostgreSQL-Vector-Format umwandeln\nconst embedResult = $input.first().json;\nconst authQuery = $('Merge Auth + Query').first().json;\n\n// /api/embed gibt { embeddings: [[...]] } zurück\nconst embeddingArray = embedResult.embeddings?.[0] || embedResult.embedding || [];\n\nif (!Array.isArray(embeddingArray) || embeddingArray.length === 0) {\n  throw new Error('Kein Embedding von Ollama erhalten: ' + JSON.stringify(embedResult));\n}\n\nif (embeddingArray.length !== 1024) {\n  throw new Error(`Falsche Embedding-Dimension: ${embeddingArray.length} (erwartet: 1024)`);\n}\n\n// Format für PostgreSQL vector(1024): '[0.1, 0.2, ...]'\nconst vectorStr = '[' + embeddingArray.map(v => v.toFixed(8)).join(',') + ']';\n\nreturn [{ json: {\n  ...authQuery,\n  vectorStr\n}}];"
+      },
+      "id": "format-embedding",
+      "name": "Embedding formatieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant = '{{ $json.tenantId }}';\nSELECT\n  c.id AS chunk_id,\n  c.content,\n  c.chunk_index,\n  c.metadata,\n  e.similarity,\n  s.name AS source_title,\n  s.source_type\nFROM search_similar(\n  '{{ $json.tenantId }}'::uuid,\n  '{{ $json.vectorStr }}'::vector(1024),\n  5,\n  0.3\n) e\nJOIN chunks c ON c.id = e.chunk_id\nJOIN documents d ON d.id = c.document_id\nJOIN sources s ON s.id = d.source_id\nORDER BY e.similarity DESC;",
+        "options": {}
+      },
+      "id": "pg-vector-search",
+      "name": "PG: Vektor-Suche",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "alwaysOutputData": true,
+      "position": [1540, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Chunks zu Kontext zusammenbauen\nconst chunks = $input.all().map(i => i.json);\nconst authQuery = $('Embedding formatieren').first().json;\n\n// Kein Ergebnis: leeres Ergebnis zurückgeben (nicht stoppen)\nconst hasResults = chunks && chunks.length > 0 && chunks[0].chunk_id;\n\nif (!hasResults) {\n  return [{ json: {\n    ...authQuery,\n    context: '',\n    sources: [],\n    chunksUsed: 0,\n    hasContext: false\n  }}];\n}\n\n// Kontext-String aufbauen (max. 6000 Zeichen)\nconst MAX_CHARS = 6000;\nlet contextParts = [];\nlet totalChars = 0;\n\nfor (const chunk of chunks) {\n  const part = `[Quelle: ${chunk.source_title || 'Dokument'} | Ähnlichkeit: ${(chunk.similarity * 100).toFixed(0)}%]\\n${chunk.content}`;\n  if (totalChars + part.length > MAX_CHARS) break;\n  contextParts.push(part);\n  totalChars += part.length;\n}\n\nconst context = contextParts.join('\\n\\n---\\n\\n');\n\nconst sources = chunks.map(c => ({\n  title: c.source_title || 'Unbekannt',\n  type: c.source_type || 'text',\n  similarity: Math.round((c.similarity || 0) * 100) / 100,\n  chunk_index: c.chunk_index || 0\n}));\n\nreturn [{ json: {\n  ...authQuery,\n  context,\n  sources,\n  chunksUsed: contextParts.length,\n  hasContext: true\n}}];",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "context-assembly",
+      "name": "Context Assembly",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "position": [1760, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ollama Chat-Anfrage mit this.helpers.httpRequest (fetch/crypto blockiert in n8n 2.9.4)\nconst data = $input.first().json;\n\nconst systemPrompt = data.hasContext\n  ? `Du bist ein hilfreicher Kundenservice-Assistent von EPPCOM GmbH. ` +\n    `Beantworte die folgende Frage NUR basierend auf dem Kontext unten. ` +\n    `Wenn die Antwort nicht im Kontext ist, sage: \"Dazu habe ich leider keine Information in meiner Wissensdatenbank.\" ` +\n    `Antworte immer auf Deutsch, präzise und freundlich.\\n\\nKONTEXT:\\n${data.context}`\n  : `Du bist ein hilfreicher Kundenservice-Assistent von EPPCOM GmbH. ` +\n    `Es wurden keine relevanten Dokumente zu dieser Frage gefunden. ` +\n    `Erkläre das freundlich und schlage vor, die Frage anders zu formulieren oder direkt Kontakt aufzunehmen.`;\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: 'http://10.0.0.3:11434/api/chat',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    model: 'qwen3-nothink',\n    stream: false,\n    messages: [\n      { role: 'system', content: systemPrompt },\n      { role: 'user', content: data.query }\n    ],\n    options: { temperature: 0.1, num_ctx: 4096 }\n  }),\n  json: false\n});\n\nconst parsed = typeof response === 'string' ? JSON.parse(response) : response;\n\nreturn [{ json: {\n  ...data,\n  rawAnswer: parsed.message?.content || '',\n  evalCount: parsed.eval_count || 0,\n  totalDuration: parsed.total_duration || 0\n}}];"
+      },
+      "id": "ollama-chat",
+      "name": "Ollama Chat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// <think>-Tags entfernen und Response formatieren\nconst data = $input.first().json;\n\nlet answer = (data.rawAnswer || '')\n  .replace(/<think>[\\s\\S]*?<\\/think>\\s*/g, '')\n  .trim();\n\n// Fallback wenn Antwort leer\nif (!answer) {\n  answer = data.hasContext\n    ? 'Es tut mir leid, ich konnte keine passende Antwort generieren. Bitte versuchen Sie es mit einer anderen Formulierung.'\n    : 'Es wurden keine relevanten Informationen zu Ihrer Frage gefunden. Bitte kontaktieren Sie uns direkt.';\n}\n\nconst totalMs = Date.now() - (data.startedAt || Date.now());\nconst evalDurationMs = Math.round((data.totalDuration || 0) / 1000000);\n\nreturn [{ json: {\n  answer,\n  sources: data.sources || [],\n  chunks_used: data.chunksUsed || 0,\n  model: 'qwen3-nothink',\n  tenant: data.tenantName || 'EPPCOM',\n  session_id: data.sessionId,\n  timing: {\n    total_duration_ms: totalMs,\n    eval_count: data.evalCount || 0\n  }\n}}];"
+      },
+      "id": "format-response",
+      "name": "Response formatieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "success-response",
+      "name": "200 Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2420, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: POST /rag-chat": {
+      "main": [[{ "node": "Auth vorbereiten", "type": "main", "index": 0 }]]
+    },
+    "Auth vorbereiten": {
+      "main": [[{ "node": "PG: Tenant Auth", "type": "main", "index": 0 }]]
+    },
+    "PG: Tenant Auth": {
+      "main": [[{ "node": "Auth OK?", "type": "main", "index": 0 }]]
+    },
+    "Auth OK?": {
+      "main": [
+        [{ "node": "Merge Auth + Query", "type": "main", "index": 0 }],
+        [{ "node": "401 Unauthorized", "type": "main", "index": 0 }]
+      ]
+    },
+    "Merge Auth + Query": {
+      "main": [[{ "node": "Ollama: Embedding", "type": "main", "index": 0 }]]
+    },
+    "Ollama: Embedding": {
+      "main": [[{ "node": "Embedding formatieren", "type": "main", "index": 0 }]]
+    },
+    "Embedding formatieren": {
+      "main": [[{ "node": "PG: Vektor-Suche", "type": "main", "index": 0 }]]
+    },
+    "PG: Vektor-Suche": {
+      "main": [[{ "node": "Context Assembly", "type": "main", "index": 0 }]]
+    },
+    "Context Assembly": {
+      "main": [[{ "node": "Ollama Chat", "type": "main", "index": 0 }]]
+    },
+    "Ollama Chat": {
+      "main": [[{ "node": "Response formatieren", "type": "main", "index": 0 }]]
+    },
+    "Response formatieren": {
+      "main": [[{ "node": "200 Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["rag", "chat", "eppcom"],
+  "active": true
+}
