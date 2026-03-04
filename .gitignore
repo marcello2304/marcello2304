@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.production
+docker/server2.env
 
 # Diagnose-Outputs
 diagnose-output.txt
