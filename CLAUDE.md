@@ -33,7 +33,7 @@ Führe beim Start **immer automatisch** folgende Schritte aus — frage nicht, o
 ## Projekt-Kontext
 
 **Server 1** (94.130.170.167): Coolify · Traefik · PostgreSQL+pgvector · n8n · Typebot
-**Server 2** (`<SERVER2_IP>`): Ollama · LiveKit · Nginx
+**Server 2** (46.224.54.65): Ollama · LiveKit · Nginx
 
 **Multi-Tenant Strategie:** Schema-per-Tenant in PostgreSQL
 - Schema-Name: `tenant_<slug>` (z.B. `tenant_acme`)
