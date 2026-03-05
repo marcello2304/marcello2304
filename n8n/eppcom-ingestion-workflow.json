@@ -1,0 +1,249 @@
+{
+  "name": "Document Ingestion – EPPCOM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-ingest",
+      "name": "Webhook: POST /ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst headers = input.headers || {};\nconst body = input.body || input;\n\nconst tenantId = (headers['x-tenant-id'] || headers['X-Tenant-ID'] || '').trim();\nconst apiKey = (headers['x-api-key'] || headers['X-API-Key'] || '').trim();\n\nconst content = (body.content || body.text || '').trim();\nconst name = (body.name || 'Unbenanntes Dokument').trim();\nconst sourceType = (body.source_type || 'manual').trim();\nconst s3Key = body.s3_key || null;\nconst s3Bucket = body.s3_bucket || null;\nconst metadata = body.metadata || {};\n\nif (!tenantId) throw new Error('X-Tenant-ID Header fehlt');\nif (!apiKey) throw new Error('X-API-Key Header fehlt');\nif (!content || content.length < 10) throw new Error('content/text Feld fehlt oder zu kurz (min. 10 Zeichen)');\nif (!['manual', 'file', 'url', 'pdf'].includes(sourceType)) throw new Error('source_type muss manual/file/url/pdf sein');\n\nreturn [{ json: { tenantId, apiKey, content, name, sourceType, s3Key, s3Bucket, metadata, startedAt: Date.now() } }];"
+      },
+      "id": "validate-input",
+      "name": "Input validieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant = '{{ $json.tenantId }}';\nSELECT t.id, t.name, t.slug, t.s3_prefix\nFROM tenants t\nWHERE t.id = '{{ $json.tenantId }}'::uuid\n  AND t.is_active = true\n  AND EXISTS (\n    SELECT 1 FROM api_keys k\n    WHERE k.tenant_id = '{{ $json.tenantId }}'::uuid\n      AND k.key_hash = encode(sha256('{{ $json.apiKey }}'::bytea), 'hex')\n      AND k.is_active = true\n      AND (k.expires_at IS NULL OR k.expires_at > NOW())\n  )\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "pg-tenant-auth",
+      "name": "PG: Tenant Auth",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "alwaysOutputData": true,
+      "position": [440, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "auth-check-ingest",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "auth-check",
+      "name": "Auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"error\": \"Unauthorized\", \"message\": \"Invalid tenant ID or API key\" }",
+        "options": { "responseCode": 401 }
+      },
+      "id": "unauthorized",
+      "name": "401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [880, 480]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant = '{{ $('Input validieren').first().json.tenantId }}';\n\n-- Source anlegen\nWITH new_source AS (\n  INSERT INTO sources (id, tenant_id, name, source_type, s3_key, s3_bucket, status)\n  VALUES (\n    gen_random_uuid(),\n    '{{ $input.first().json.id }}'::uuid,\n    '{{ $('Input validieren').first().json.name }}',\n    '{{ $('Input validieren').first().json.sourceType }}',\n    {{ $('Input validieren').first().json.s3Key ? '''' + $('Input validieren').first().json.s3Key + '''' : 'NULL' }},\n    {{ $('Input validieren').first().json.s3Bucket ? '''' + $('Input validieren').first().json.s3Bucket + '''' : 'NULL' }},\n    'processing'\n  )\n  RETURNING id\n),\n-- Document anlegen\nnew_doc AS (\n  INSERT INTO documents (id, source_id, tenant_id, content)\n  SELECT gen_random_uuid(), s.id, '{{ $input.first().json.id }}'::uuid,\n         '{{ $('Input validieren').first().json.content.replace(/'/g, \"''\") }}'\n  FROM new_source s\n  RETURNING id, source_id\n)\nSELECT\n  (SELECT id FROM new_source) AS source_id,\n  (SELECT id FROM new_doc) AS document_id,\n  '{{ $input.first().json.id }}' AS tenant_id,\n  '{{ $input.first().json.name }}' AS tenant_name;",
+        "options": {}
+      },
+      "id": "pg-create-source-doc",
+      "name": "PG: Source + Document anlegen",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [880, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Text in Chunks aufteilen (2000 Zeichen, 200 Overlap)\nconst CHUNK_SIZE = 2000;\nconst OVERLAP = 200;\n\nconst pgResult = $input.first().json;\nconst inputData = $('Input validieren').first().json;\nconst tenantAuth = $('PG: Tenant Auth').first().json;\n\nconst sourceId = pgResult.source_id;\nconst documentId = pgResult.document_id;\nconst tenantId = inputData.tenantId;\nconst text = inputData.content.replace(/\\r\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n\nif (!sourceId || !documentId) {\n  throw new Error('Source/Document konnte nicht angelegt werden: ' + JSON.stringify(pgResult));\n}\n\n// Chunking\nconst chunks = [];\nlet start = 0;\nlet idx = 0;\nwhile (start < text.length) {\n  let end = Math.min(start + CHUNK_SIZE, text.length);\n  if (end < text.length) {\n    const lastNl = text.lastIndexOf('\\n', end);\n    const lastDot = text.lastIndexOf('.', end);\n    const boundary = Math.max(lastNl, lastDot);\n    if (boundary > start + CHUNK_SIZE * 0.5) end = boundary + 1;\n  }\n  const chunk = text.substring(start, end).trim();\n  if (chunk.length >= 20) {\n    chunks.push({\n      chunkIndex: idx,\n      content: chunk,\n      tokenCount: Math.ceil(chunk.length / 4),\n      documentId,\n      sourceId,\n      tenantId\n    });\n    idx++;\n  }\n  start = end - OVERLAP;\n  if (start >= text.length) break;\n}\n\nif (chunks.length === 0) throw new Error('Keine Chunks erzeugt — Text zu kurz?');\n\nreturn chunks.map(c => ({ json: c }));"
+      },
+      "id": "chunk-text",
+      "name": "Text chunken",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.0.3:11434/api/embed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "qwen3-embedding:0.6b" },
+            { "name": "input", "value": "={{ $json.content }}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "id": "ollama-embed",
+      "name": "Ollama: Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const embedResult = $input.first().json;\nconst chunkData = $('Text chunken').item.json;\n\nconst embeddingArray = embedResult.embeddings?.[0] || embedResult.embedding || [];\n\nif (!Array.isArray(embeddingArray) || embeddingArray.length !== 1024) {\n  throw new Error(`Embedding-Fehler: ${embeddingArray.length} Dimensionen (erwartet 1024)`);\n}\n\nconst vectorStr = '[' + embeddingArray.map(v => v.toFixed(8)).join(',') + ']';\n\nreturn [{ json: {\n  ...chunkData,\n  vectorStr\n}}];"
+      },
+      "id": "format-embedding",
+      "name": "Embedding formatieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant = '{{ $json.tenantId }}';\nWITH new_chunk AS (\n  INSERT INTO chunks (id, document_id, tenant_id, content, chunk_index, token_count)\n  VALUES (\n    gen_random_uuid(),\n    '{{ $json.documentId }}'::uuid,\n    '{{ $json.tenantId }}'::uuid,\n    '{{ $json.content.replace(/'/g, \"''\") }}',\n    {{ $json.chunkIndex }},\n    {{ $json.tokenCount }}\n  )\n  RETURNING id\n)\nINSERT INTO embeddings (chunk_id, tenant_id, embedding, model_name)\nSELECT id, '{{ $json.tenantId }}'::uuid, '{{ $json.vectorStr }}'::vector(1024), 'qwen3-embedding:0.6b'\nFROM new_chunk\nRETURNING chunk_id;",
+        "options": {}
+      },
+      "id": "pg-insert-chunk-embedding",
+      "name": "PG: Chunk + Embedding speichern",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1760, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alle Chunks sammeln und Status aktualisieren\nconst allItems = $input.all();\nconst chunkIds = allItems.map(i => i.json.chunk_id).filter(Boolean);\nconst inputData = $('Input validieren').first().json;\nconst pgResult = $('PG: Source + Document anlegen').first().json;\n\nreturn [{ json: {\n  sourceId: pgResult.source_id,\n  documentId: pgResult.document_id,\n  tenantId: inputData.tenantId,\n  chunksCreated: chunkIds.length,\n  chunkIds\n}}];"
+      },
+      "id": "collect-results",
+      "name": "Ergebnisse sammeln",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SET app.current_tenant = '{{ $json.tenantId }}';\nUPDATE sources SET status = 'completed', updated_at = NOW()\nWHERE id = '{{ $json.sourceId }}'::uuid;\nSELECT '{{ $json.chunksCreated }}' AS chunks_created;",
+        "options": {}
+      },
+      "id": "pg-mark-completed",
+      "name": "PG: Status auf completed setzen",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2200, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, source_id: $('Ergebnisse sammeln').first().json.sourceId, document_id: $('Ergebnisse sammeln').first().json.documentId, chunks_created: $('Ergebnisse sammeln').first().json.chunksCreated, model: 'qwen3-embedding:0.6b', timing_ms: Date.now() - $('Input validieren').first().json.startedAt }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "success-response",
+      "name": "200 Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2420, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: POST /ingest": {
+      "main": [[{ "node": "Input validieren", "type": "main", "index": 0 }]]
+    },
+    "Input validieren": {
+      "main": [[{ "node": "PG: Tenant Auth", "type": "main", "index": 0 }]]
+    },
+    "PG: Tenant Auth": {
+      "main": [[{ "node": "Auth OK?", "type": "main", "index": 0 }]]
+    },
+    "Auth OK?": {
+      "main": [
+        [{ "node": "PG: Source + Document anlegen", "type": "main", "index": 0 }],
+        [{ "node": "401 Unauthorized", "type": "main", "index": 0 }]
+      ]
+    },
+    "PG: Source + Document anlegen": {
+      "main": [[{ "node": "Text chunken", "type": "main", "index": 0 }]]
+    },
+    "Text chunken": {
+      "main": [[{ "node": "Ollama: Embedding", "type": "main", "index": 0 }]]
+    },
+    "Ollama: Embedding": {
+      "main": [[{ "node": "Embedding formatieren", "type": "main", "index": 0 }]]
+    },
+    "Embedding formatieren": {
+      "main": [[{ "node": "PG: Chunk + Embedding speichern", "type": "main", "index": 0 }]]
+    },
+    "PG: Chunk + Embedding speichern": {
+      "main": [[{ "node": "Ergebnisse sammeln", "type": "main", "index": 0 }]]
+    },
+    "Ergebnisse sammeln": {
+      "main": [[{ "node": "PG: Status auf completed setzen", "type": "main", "index": 0 }]]
+    },
+    "PG: Status auf completed setzen": {
+      "main": [[{ "node": "200 Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": ["rag", "ingestion", "eppcom"],
+  "active": true
+}

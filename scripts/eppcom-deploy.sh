@@ -427,6 +427,67 @@ fi
 # ──────────────────────────────────────────────────────────────────────────────
 # SCHRITT 7: Typebot Setup Anleitung
 # ──────────────────────────────────────────────────────────────────────────────
+step "6b/7: Admin UI deployen (Docker)"
+
+ADMIN_UI_DIR="$PROJECT_DIR/admin-ui"
+ADMIN_UI_PORT="${ADMIN_UI_PORT:-8080}"
+
+if [ -d "$ADMIN_UI_DIR" ]; then
+  # .env für Admin UI erzeugen falls nicht vorhanden
+  if [ ! -f "$ADMIN_UI_DIR/.env" ]; then
+    info "  → Erstelle Admin UI .env ..."
+    # Werte aus Hauptprojekt .env übernehmen
+    MAIN_ENV="$PROJECT_DIR/.env"
+    PG_PASS=""
+    if [ -f "$MAIN_ENV" ]; then
+      PG_PASS=$(grep "^POSTGRES_PASSWORD=" "$MAIN_ENV" | cut -d= -f2- | tr -d '"' | tr -d "'")
+    fi
+    ADMIN_KEY_VAL="$(openssl rand -hex 24 2>/dev/null || echo 'admin-key-change-me-now')"
+    cat > "$ADMIN_UI_DIR/.env" <<ADMINENV
+DATABASE_URL=postgresql://appuser:${PG_PASS:-changeme}@postgres:5432/appdb
+N8N_URL=${N8N_URL}
+OLLAMA_URL=${OLLAMA_HOST}
+EMBED_MODEL=${EMBED_MODEL}
+ADMIN_API_KEY=${ADMIN_KEY_VAL}
+S3_ENDPOINT=https://nbg1.your-objectstorage.com
+S3_BUCKET=typebot-assets
+ADMINENV
+    ok "  .env erstellt — ADMIN_API_KEY: $ADMIN_KEY_VAL"
+    warn "  Diesen Key sicher notieren!"
+  fi
+
+  # Container stoppen und neu bauen
+  info "  → Baue Admin UI Docker Image ..."
+  docker build -q -t eppcom-admin-ui "$ADMIN_UI_DIR" 2>&1 | tail -3
+
+  # Alten Container entfernen
+  docker rm -f eppcom-admin-ui 2>/dev/null || true
+
+  # Starten (mit Zugriff auf das Docker-Netz von PostgreSQL)
+  POSTGRES_NETWORK=$(docker inspect "$PG_CONTAINER" 2>/dev/null \
+    | python3 -c "import json,sys; d=json.load(sys.stdin)[0]; nets=list(d.get('NetworkSettings',{}).get('Networks',{}).keys()); print(nets[0] if nets else 'coolify')" 2>/dev/null || echo "coolify")
+
+  docker run -d \
+    --name eppcom-admin-ui \
+    --network "$POSTGRES_NETWORK" \
+    --env-file "$ADMIN_UI_DIR/.env" \
+    -p "${ADMIN_UI_PORT}:8080" \
+    --restart unless-stopped \
+    eppcom-admin-ui > /dev/null 2>&1
+
+  sleep 3
+  ADMIN_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${ADMIN_UI_PORT}/api/health" 2>/dev/null || echo "000")
+  if [ "$ADMIN_HEALTH" = "200" ]; then
+    ok "  Admin UI läuft auf http://localhost:${ADMIN_UI_PORT}"
+    ok "  Admin Key: $(grep ADMIN_API_KEY "$ADMIN_UI_DIR/.env" | cut -d= -f2)"
+  else
+    warn "  Admin UI gestartet aber Health-Check: HTTP $ADMIN_HEALTH"
+    warn "  Logs: docker logs eppcom-admin-ui"
+  fi
+else
+  warn "  admin-ui/ Verzeichnis nicht gefunden — übersprungen"
+fi
+
 step "7/7: Typebot Setup (manuell)"
 
 echo ""

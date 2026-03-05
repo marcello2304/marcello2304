@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPPCOM RAG Admin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<style>
+  [x-cloak] { display: none !important; }
+  .tab-active { @apply border-b-2 border-blue-500 text-blue-600; }
+  pre { white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="app()" x-init="init()" x-cloak>
+
+<!-- Login -->
+<div x-show="!authenticated" class="min-h-screen flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">EPPCOM RAG Admin</h1>
+    <p class="text-gray-500 text-sm mb-6">Gib deinen Admin-Key ein</p>
+    <input type="password" x-model="adminKey" placeholder="Admin API Key"
+           class="w-full border rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+           @keyup.enter="login()">
+    <button @click="login()" class="w-full bg-blue-600 text-white rounded-lg py-3 font-semibold hover:bg-blue-700 transition">
+      Anmelden
+    </button>
+    <p x-show="loginError" class="text-red-500 text-sm mt-3" x-text="loginError"></p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div x-show="authenticated" class="flex flex-col min-h-screen">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow-sm border-b px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">E</div>
+      <span class="font-semibold text-gray-800">EPPCOM RAG Admin</span>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" x-show="health.db">DB ✓</span>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" x-show="health.ollama">Ollama ✓</span>
+      <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full" x-show="!health.ollama">Ollama ✗</span>
+    </div>
+    <button @click="logout()" class="text-sm text-gray-500 hover:text-gray-800">Abmelden</button>
+  </nav>
+
+  <!-- Stats Bar -->
+  <div class="bg-white border-b px-6 py-3 flex gap-6 text-sm">
+    <span class="text-gray-500">Tenants: <strong x-text="stats.tenants ?? '—'"></strong></span>
+    <span class="text-gray-500">Quellen: <strong x-text="stats.sources ?? '—'"></strong></span>
+    <span class="text-gray-500">Chunks: <strong x-text="stats.chunks ?? '—'"></strong></span>
+    <span class="text-gray-500">Embeddings: <strong x-text="stats.embeddings ?? '—'"></strong></span>
+    <span class="text-gray-500">API-Keys aktiv: <strong x-text="stats.active_keys ?? '—'"></strong></span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="bg-white border-b px-6 flex gap-6 text-sm font-medium">
+    <button @click="tab='tenants'" :class="tab==='tenants' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Tenants</button>
+    <button @click="tab='documents'" :class="tab==='documents' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Dokumente</button>
+    <button @click="tab='chunks'" :class="tab==='chunks' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Chunks</button>
+    <button @click="tab='chat'" :class="tab==='chat' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Chat-Tester</button>
+    <button @click="tab='apikeys'" :class="tab==='apikeys' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">API-Keys</button>
+  </div>
+
+  <!-- Content -->
+  <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
+
+    <!-- ── TENANTS ── -->
+    <div x-show="tab==='tenants'">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">Tenants / Kunden</h2>
+        <button @click="showNewTenant=true" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+          + Neuer Tenant
+        </button>
+      </div>
+
+      <!-- New Tenant Form -->
+      <div x-show="showNewTenant" class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
+        <h3 class="font-semibold text-gray-800 mb-3">Neuen Tenant anlegen</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <input x-model="newTenant.name" placeholder="Name (z.B. Muster GmbH)" class="border rounded-lg px-3 py-2 text-sm">
+          <input x-model="newTenant.slug" placeholder="Slug (z.B. muster-gmbh)" class="border rounded-lg px-3 py-2 text-sm">
+          <input x-model="newTenant.email" placeholder="E-Mail" class="border rounded-lg px-3 py-2 text-sm">
+          <select x-model="newTenant.plan" class="border rounded-lg px-3 py-2 text-sm">
+            <option>starter</option><option>pro</option><option>enterprise</option>
+          </select>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button @click="createTenant()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Anlegen</button>
+          <button @click="showNewTenant=false" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300">Abbrechen</button>
+        </div>
+        <p x-show="formMsg" class="text-sm mt-2" :class="formErr ? 'text-red-600' : 'text-green-600'" x-text="formMsg"></p>
+      </div>
+
+      <!-- Tenant Table -->
+      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b">
+            <tr>
+              <th class="px-4 py-3 text-left text-gray-600 font-medium">Name</th>
+              <th class="px-4 py-3 text-left text-gray-600 font-medium">Slug</th>
+              <th class="px-4 py-3 text-left text-gray-600 font-medium">Plan</th>
+              <th class="px-4 py-3 text-center text-gray-600 font-medium">Quellen</th>
+              <th class="px-4 py-3 text-center text-gray-600 font-medium">Chunks</th>
+              <th class="px-4 py-3 text-center text-gray-600 font-medium">Keys</th>
+              <th class="px-4 py-3 text-left text-gray-600 font-medium">Status</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="t in tenants" :key="t.id">
+              <tr class="border-b hover:bg-gray-50 cursor-pointer" @click="selectTenant(t)">
+                <td class="px-4 py-3 font-medium text-gray-800" x-text="t.name"></td>
+                <td class="px-4 py-3 text-gray-500 font-mono text-xs" x-text="t.slug"></td>
+                <td class="px-4 py-3">
+                  <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs" x-text="t.plan"></span>
+                </td>
+                <td class="px-4 py-3 text-center" x-text="t.source_count"></td>
+                <td class="px-4 py-3 text-center" x-text="t.chunk_count"></td>
+                <td class="px-4 py-3 text-center" x-text="t.key_count"></td>
+                <td class="px-4 py-3">
+                  <span :class="t.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" class="px-2 py-0.5 rounded text-xs" x-text="t.is_active ? 'Aktiv' : 'Inaktiv'"></span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <button @click.stop="goToDocuments(t)" class="text-blue-600 hover:underline text-xs mr-2">Dokumente</button>
+                  <button @click.stop="goToChat(t)" class="text-green-600 hover:underline text-xs">Chat</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── DOKUMENTE ── -->
+    <div x-show="tab==='documents'">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800">Dokumente hochladen</h2>
+          <p class="text-sm text-gray-500 mt-1">Tenant: <strong x-text="selectedTenant?.name ?? 'Keiner ausgewählt'"></strong></p>
+        </div>
+        <select x-model="selectedTenantId" @change="loadSources()" class="border rounded-lg px-3 py-2 text-sm">
+          <option value="">Tenant wählen...</option>
+          <template x-for="t in tenants" :key="t.id">
+            <option :value="t.id" x-text="t.name"></option>
+          </template>
+        </select>
+      </div>
+
+      <div x-show="selectedTenantId" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Upload Card -->
+        <div class="bg-white rounded-xl shadow-sm p-5">
+          <h3 class="font-semibold text-gray-800 mb-4">Dokument einpflegen</h3>
+
+          <!-- API Key for this tenant -->
+          <div class="mb-3">
+            <label class="block text-xs text-gray-500 mb-1">API-Key für diesen Tenant</label>
+            <input x-model="uploadApiKey" placeholder="test-key-123 oder ***API_KEY_REMOVED***"
+                   class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+
+          <!-- Tabs: File vs Text -->
+          <div class="flex gap-2 mb-3">
+            <button @click="uploadMode='file'" :class="uploadMode==='file' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-lg text-xs font-medium">Datei hochladen</button>
+            <button @click="uploadMode='text'" :class="uploadMode==='text' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-lg text-xs font-medium">Text direkt eingeben</button>
+          </div>
+
+          <!-- File Upload -->
+          <div x-show="uploadMode==='file'">
+            <input type="file" @change="handleFileSelect($event)" accept=".txt,.md,.pdf,.csv"
+                   class="w-full border rounded-lg px-3 py-2 text-sm mb-2">
+            <p class="text-xs text-gray-400">Unterstützt: .txt, .md, .pdf, .csv</p>
+          </div>
+
+          <!-- Text Input -->
+          <div x-show="uploadMode==='text'">
+            <input x-model="uploadName" placeholder="Dokumentname" class="w-full border rounded-lg px-3 py-2 text-sm mb-2">
+            <textarea x-model="uploadText" placeholder="Füge hier den Text ein, der in die Wissensdatenbank soll..."
+                      class="w-full border rounded-lg px-3 py-2 text-sm h-32 resize-none"></textarea>
+          </div>
+
+          <button @click="uploadDocument()" :disabled="uploadLoading"
+                  class="w-full mt-3 bg-green-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition">
+            <span x-show="!uploadLoading">Einpflegen & Embedden</span>
+            <span x-show="uploadLoading">Wird verarbeitet... (kann 30-60s dauern)</span>
+          </button>
+
+          <!-- Result -->
+          <div x-show="uploadResult" class="mt-3 p-3 rounded-lg" :class="uploadError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
+            <p class="text-sm font-medium" x-text="uploadError ? 'Fehler:' : 'Erfolg!'"></p>
+            <pre class="text-xs mt-1" x-text="uploadResult"></pre>
+          </div>
+        </div>
+
+        <!-- Sources List -->
+        <div class="bg-white rounded-xl shadow-sm p-5">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold text-gray-800">Vorhandene Quellen</h3>
+            <button @click="loadSources()" class="text-xs text-blue-600 hover:underline">Aktualisieren</button>
+          </div>
+          <div x-show="sources.length === 0" class="text-gray-400 text-sm text-center py-8">Noch keine Dokumente</div>
+          <div class="space-y-2 max-h-96 overflow-y-auto">
+            <template x-for="s in sources" :key="s.id">
+              <div class="border rounded-lg p-3 hover:bg-gray-50">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="font-medium text-sm text-gray-800" x-text="s.name"></p>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                      <span x-text="s.source_type"></span> ·
+                      <span x-text="s.chunk_count + ' Chunks'"></span> ·
+                      <span :class="s.status==='completed' ? 'text-green-600' : 'text-yellow-600'" x-text="s.status"></span>
+                    </p>
+                  </div>
+                  <button @click="deleteSource(s.id)" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CHUNKS ── -->
+    <div x-show="tab==='chunks'">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">Chunks Browser</h2>
+        <select x-model="selectedTenantId" @change="loadChunks()" class="border rounded-lg px-3 py-2 text-sm">
+          <option value="">Tenant wählen...</option>
+          <template x-for="t in tenants" :key="t.id">
+            <option :value="t.id" x-text="t.name"></option>
+          </template>
+        </select>
+      </div>
+
+      <div x-show="chunks.total > 0" class="text-sm text-gray-500 mb-3">
+        <span x-text="chunks.total + ' Chunks gesamt'"></span>
+      </div>
+
+      <div class="space-y-2">
+        <template x-for="c in chunks.chunks" :key="c.id">
+          <div class="bg-white rounded-xl shadow-sm p-4">
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex gap-2 items-center">
+                <span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-mono" x-text="'#' + c.chunk_index"></span>
+                <span class="text-xs text-gray-500" x-text="c.source_name"></span>
+                <span class="text-xs px-1.5 py-0.5 rounded" :class="c.has_embedding ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'" x-text="c.has_embedding ? 'Embedded ✓' : 'Kein Embedding'"></span>
+              </div>
+              <span class="text-xs text-gray-400" x-text="c.token_count + ' Tokens'"></span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed" x-text="c.content_preview + (c.content_preview.length >= 200 ? '...' : '')"></p>
+          </div>
+        </template>
+      </div>
+
+      <div x-show="chunks.total > 50" class="flex justify-center mt-4 gap-2">
+        <button @click="chunksOffset=Math.max(0,chunksOffset-50); loadChunks()" :disabled="chunksOffset===0"
+                class="px-3 py-1.5 border rounded text-sm disabled:opacity-40">← Zurück</button>
+        <button @click="chunksOffset+=50; loadChunks()" :disabled="chunksOffset+50>=chunks.total"
+                class="px-3 py-1.5 border rounded text-sm disabled:opacity-40">Weiter →</button>
+      </div>
+    </div>
+
+    <!-- ── CHAT TESTER ── -->
+    <div x-show="tab==='chat'" class="max-w-3xl">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">RAG Chat Tester</h2>
+
+      <div class="bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Tenant</label>
+          <select x-model="chatTenantId" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value="">Tenant wählen...</option>
+            <template x-for="t in tenants" :key="t.id">
+              <option :value="t.id" x-text="t.name"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">API-Key</label>
+          <input x-model="chatApiKey" placeholder="***API_KEY_REMOVED***" class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+      </div>
+
+      <!-- Chat Messages -->
+      <div class="bg-white rounded-xl shadow-sm p-4 min-h-64 mb-3 max-h-96 overflow-y-auto" id="chat-messages">
+        <div x-show="chatMessages.length===0" class="text-gray-400 text-sm text-center py-12">
+          Stelle eine Frage um den RAG Chat zu testen
+        </div>
+        <template x-for="m in chatMessages" :key="m.id">
+          <div class="mb-4">
+            <div :class="m.role==='user' ? 'text-right' : 'text-left'">
+              <div :class="m.role==='user' ? 'bg-blue-600 text-white ml-12' : 'bg-gray-100 text-gray-800 mr-12'"
+                   class="inline-block rounded-2xl px-4 py-2.5 text-sm" x-text="m.content"></div>
+              <template x-if="m.role==='assistant' && m.sources && m.sources.length > 0">
+                <div class="mt-1 ml-1">
+                  <template x-for="s in m.sources" :key="s.title">
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mr-1"
+                          x-text="s.title + ' (' + Math.round(s.similarity*100) + '%)'"></span>
+                  </template>
+                </div>
+              </template>
+              <template x-if="m.timing">
+                <p class="text-xs text-gray-400 mt-0.5" x-text="m.timing.total_duration_ms + 'ms · ' + (m.chunks_used||0) + ' Chunks'"></p>
+              </template>
+            </div>
+          </div>
+        </template>
+        <div x-show="chatLoading" class="text-gray-400 text-sm">Antwort wird generiert...</div>
+      </div>
+
+      <div class="flex gap-2">
+        <input x-model="chatInput" @keyup.enter="sendChat()" placeholder="Frage eingeben..."
+               class="flex-1 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <button @click="sendChat()" :disabled="chatLoading || !chatTenantId || !chatApiKey"
+                class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40">
+          Senden
+        </button>
+        <button @click="chatMessages=[]" class="bg-gray-200 text-gray-700 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-300">
+          Löschen
+        </button>
+      </div>
+    </div>
+
+    <!-- ── API KEYS ── -->
+    <div x-show="tab==='apikeys'">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">API-Key Verwaltung</h2>
+        <select x-model="selectedTenantId" @change="loadApiKeys()" class="border rounded-lg px-3 py-2 text-sm">
+          <option value="">Tenant wählen...</option>
+          <template x-for="t in tenants" :key="t.id">
+            <option :value="t.id" x-text="t.name"></option>
+          </template>
+        </select>
+      </div>
+
+      <div x-show="selectedTenantId">
+        <!-- New Key Form -->
+        <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+          <h3 class="font-semibold text-gray-800 mb-3">Neuen API-Key erstellen</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <input x-model="newKey.name" placeholder="Name (z.B. Production Key)" class="border rounded-lg px-3 py-2 text-sm">
+            <input x-model="newKey.key_plaintext" placeholder="Plaintext Key (z.B. mein-sicherer-key-2025)" class="border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <button @click="createApiKey()" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+            Key erstellen (SHA256 wird gespeichert)
+          </button>
+          <p x-show="keyMsg" class="text-sm mt-2" :class="keyErr ? 'text-red-600' : 'text-green-600'" x-text="keyMsg"></p>
+        </div>
+
+        <!-- Keys List -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b">
+              <tr>
+                <th class="px-4 py-3 text-left text-gray-600 font-medium">Name</th>
+                <th class="px-4 py-3 text-left text-gray-600 font-medium">Status</th>
+                <th class="px-4 py-3 text-left text-gray-600 font-medium">Erstellt</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="k in apiKeys" :key="k.id">
+                <tr class="border-b">
+                  <td class="px-4 py-3 font-medium text-gray-800" x-text="k.name"></td>
+                  <td class="px-4 py-3">
+                    <span :class="k.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                          class="px-2 py-0.5 rounded text-xs" x-text="k.is_active ? 'Aktiv' : 'Inaktiv'"></span>
+                  </td>
+                  <td class="px-4 py-3 text-gray-500 text-xs" x-text="new Date(k.created_at).toLocaleString('de-DE')"></td>
+                  <td class="px-4 py-3 text-right">
+                    <button @click="deleteApiKey(k.id)" class="text-red-400 hover:text-red-600 text-xs">Deaktivieren</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+function app() {
+  return {
+    // Auth
+    authenticated: false,
+    adminKey: '',
+    loginError: '',
+
+    // State
+    tab: 'tenants',
+    stats: {},
+    health: {},
+    tenants: [],
+    sources: [],
+    chunks: { total: 0, chunks: [] },
+    chunksOffset: 0,
+    apiKeys: [],
+    selectedTenantId: '',
+    selectedTenant: null,
+
+    // Forms
+    showNewTenant: false,
+    newTenant: { name: '', slug: '', email: '', plan: 'starter' },
+    formMsg: '', formErr: false,
+
+    // Upload
+    uploadMode: 'text',
+    uploadFile: null,
+    uploadName: '',
+    uploadText: '',
+    uploadApiKey: '***API_KEY_REMOVED***',
+    uploadLoading: false,
+    uploadResult: '',
+    uploadError: false,
+
+    // Chat
+    chatTenantId: '',
+    chatApiKey: '***API_KEY_REMOVED***',
+    chatInput: '',
+    chatMessages: [],
+    chatLoading: false,
+
+    // API Keys
+    newKey: { name: '', key_plaintext: '' },
+    keyMsg: '', keyErr: false,
+
+    async init() {
+      // Gespeicherten Key laden
+      const stored = localStorage.getItem('eppcom_admin_key');
+      if (stored) {
+        this.adminKey = stored;
+        await this.login();
+      }
+    },
+
+    async login() {
+      try {
+        const r = await this.api('/api/stats');
+        this.stats = r;
+        this.authenticated = true;
+        localStorage.setItem('eppcom_admin_key', this.adminKey);
+        this.loginError = '';
+        await this.loadAll();
+      } catch (e) {
+        this.loginError = 'Falscher Admin-Key';
+        localStorage.removeItem('eppcom_admin_key');
+      }
+    },
+
+    logout() {
+      this.authenticated = false;
+      this.adminKey = '';
+      localStorage.removeItem('eppcom_admin_key');
+    },
+
+    async loadAll() {
+      await Promise.all([
+        this.loadTenants(),
+        this.loadHealth(),
+        this.refreshStats(),
+      ]);
+    },
+
+    async refreshStats() {
+      this.stats = await this.api('/api/stats');
+    },
+
+    async loadHealth() {
+      try { this.health = await this.api('/api/health'); } catch(e) {}
+    },
+
+    async loadTenants() {
+      this.tenants = await this.api('/api/tenants');
+    },
+
+    async createTenant() {
+      try {
+        const r = await this.api('/api/tenants', 'POST', this.newTenant);
+        this.formMsg = `Tenant "${this.newTenant.name}" angelegt (ID: ${r.id})`;
+        this.formErr = false;
+        this.newTenant = { name: '', slug: '', email: '', plan: 'starter' };
+        await this.loadTenants();
+        await this.refreshStats();
+      } catch (e) {
+        this.formMsg = e.message;
+        this.formErr = true;
+      }
+    },
+
+    async loadSources() {
+      if (!this.selectedTenantId) return;
+      this.sources = await this.api(`/api/tenants/${this.selectedTenantId}/sources`);
+    },
+
+    async loadChunks() {
+      if (!this.selectedTenantId) return;
+      this.chunks = await this.api(`/api/tenants/${this.selectedTenantId}/chunks?limit=50&offset=${this.chunksOffset}`);
+    },
+
+    async loadApiKeys() {
+      if (!this.selectedTenantId) return;
+      this.apiKeys = await this.api(`/api/tenants/${this.selectedTenantId}/apikeys`);
+    },
+
+    selectTenant(t) {
+      this.selectedTenant = t;
+      this.selectedTenantId = t.id;
+    },
+
+    goToDocuments(t) {
+      this.selectTenant(t);
+      this.tab = 'documents';
+      this.loadSources();
+    },
+
+    goToChat(t) {
+      this.selectTenant(t);
+      this.chatTenantId = t.id;
+      this.tab = 'chat';
+    },
+
+    handleFileSelect(event) {
+      this.uploadFile = event.target.files[0];
+      if (this.uploadFile && this.uploadName === '') {
+        this.uploadName = this.uploadFile.name;
+      }
+    },
+
+    async uploadDocument() {
+      if (!this.selectedTenantId || !this.uploadApiKey) return;
+      this.uploadLoading = true;
+      this.uploadResult = '';
+      this.uploadError = false;
+
+      try {
+        const fd = new FormData();
+        fd.append('api_key', this.uploadApiKey);
+
+        if (this.uploadMode === 'file' && this.uploadFile) {
+          fd.append('file', this.uploadFile);
+          fd.append('name', this.uploadName || this.uploadFile.name);
+        } else {
+          fd.append('text_content', this.uploadText);
+          fd.append('name', this.uploadName || 'Direkteingabe');
+        }
+
+        const r = await fetch(`/api/tenants/${this.selectedTenantId}/upload`, {
+          method: 'POST',
+          headers: { 'X-Admin-Key': this.adminKey },
+          body: fd,
+        });
+        const data = await r.json();
+
+        if (!r.ok) {
+          this.uploadError = true;
+          this.uploadResult = JSON.stringify(data, null, 2);
+        } else {
+          this.uploadResult = `✓ ${data.chunks_created} Chunks indexiert\nSource-ID: ${data.source_id}`;
+          await this.loadSources();
+          await this.refreshStats();
+        }
+      } catch (e) {
+        this.uploadError = true;
+        this.uploadResult = e.message;
+      } finally {
+        this.uploadLoading = false;
+      }
+    },
+
+    async deleteSource(sourceId) {
+      if (!confirm('Quelle und alle Chunks/Embeddings löschen?')) return;
+      await this.api(`/api/sources/${sourceId}`, 'DELETE');
+      await this.loadSources();
+      await this.refreshStats();
+    },
+
+    async sendChat() {
+      if (!this.chatInput || !this.chatTenantId || !this.chatApiKey) return;
+      const question = this.chatInput;
+      this.chatInput = '';
+      this.chatLoading = true;
+
+      this.chatMessages.push({ id: Date.now(), role: 'user', content: question });
+
+      try {
+        const data = await this.api('/api/chat', 'POST', {
+          tenant_id: this.chatTenantId,
+          api_key: this.chatApiKey,
+          query: question,
+        });
+        this.chatMessages.push({
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: data.answer || JSON.stringify(data),
+          sources: data.sources || [],
+          chunks_used: data.chunks_used,
+          timing: data.timing,
+        });
+      } catch (e) {
+        this.chatMessages.push({ id: Date.now() + 1, role: 'assistant', content: '⚠ Fehler: ' + e.message });
+      } finally {
+        this.chatLoading = false;
+        this.$nextTick(() => {
+          const el = document.getElementById('chat-messages');
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      }
+    },
+
+    async createApiKey() {
+      try {
+        const r = await this.api(`/api/tenants/${this.selectedTenantId}/apikeys`, 'POST', this.newKey);
+        this.keyMsg = `Key "${this.newKey.name}" erstellt. Plaintext "${this.newKey.key_plaintext}" sicher speichern!`;
+        this.keyErr = false;
+        this.newKey = { name: '', key_plaintext: '' };
+        await this.loadApiKeys();
+      } catch (e) {
+        this.keyMsg = e.message;
+        this.keyErr = true;
+      }
+    },
+
+    async deleteApiKey(keyId) {
+      if (!confirm('API-Key deaktivieren?')) return;
+      await this.api(`/api/apikeys/${keyId}`, 'DELETE');
+      await this.loadApiKeys();
+    },
+
+    async api(path, method = 'GET', body = null) {
+      const opts = {
+        method,
+        headers: { 'X-Admin-Key': this.adminKey },
+      };
+      if (body) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      const r = await fetch(path, opts);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+      return data;
+    },
+  };
+}
+</script>
+</body>
+</html>

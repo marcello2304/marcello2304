@@ -1,0 +1,170 @@
+{
+  "version": "6",
+  "name": "EPPCOM Assistent",
+  "icon": {
+    "type": "emoji",
+    "emoji": "🤖"
+  },
+  "theme": {
+    "general": {
+      "font": "Inter",
+      "background": { "type": "Color", "content": "#F8FAFC" }
+    },
+    "chat": {
+      "hostAvatar": { "isEnabled": true },
+      "guestBubbles": {
+        "backgroundColor": "#2563EB",
+        "color": "#FFFFFF"
+      },
+      "hostBubbles": {
+        "backgroundColor": "#FFFFFF",
+        "color": "#1E293B"
+      },
+      "inputs": {
+        "backgroundColor": "#FFFFFF",
+        "color": "#1E293B",
+        "placeholderColor": "#94A3B8"
+      },
+      "buttons": {
+        "backgroundColor": "#2563EB",
+        "color": "#FFFFFF"
+      }
+    }
+  },
+  "settings": {
+    "general": {
+      "isBrandingEnabled": false,
+      "isInputPrefillEnabled": true,
+      "isHideQueryParamsEnabled": false,
+      "rememberUser": {
+        "isEnabled": true,
+        "storage": "session"
+      }
+    },
+    "typingEmulation": {
+      "enabled": true,
+      "speed": 350,
+      "maxDelay": 1.5
+    }
+  },
+  "groups": [
+    {
+      "id": "start",
+      "title": "Start",
+      "blocks": [
+        {
+          "id": "welcome-msg",
+          "type": "text",
+          "content": {
+            "richText": [
+              {
+                "type": "p",
+                "children": [{ "text": "👋 Hallo! Ich bin Ihr KI-Assistent." }]
+              },
+              {
+                "type": "p",
+                "children": [{ "text": "Ich habe Zugriff auf unsere Wissensdatenbank und beantworte Ihre Fragen präzise und datenschutzkonform." }]
+              }
+            ]
+          }
+        },
+        {
+          "id": "set-session-id",
+          "type": "script",
+          "content": {
+            "code": "const id = 'session_' + Math.random().toString(36).substr(2, 12);\nsetVariable('sessionId', id);"
+          }
+        },
+        {
+          "id": "ask-question",
+          "type": "text input",
+          "options": {
+            "labels": {
+              "placeholder": "Ihre Frage...",
+              "button": "Absenden"
+            },
+            "isLong": false,
+            "variableId": "userQuestion"
+          }
+        }
+      ],
+      "edges": [{ "to": { "groupId": "rag-call" } }]
+    },
+    {
+      "id": "rag-call",
+      "title": "RAG API Call",
+      "blocks": [
+        {
+          "id": "thinking-msg",
+          "type": "text",
+          "content": {
+            "richText": [{ "type": "p", "children": [{ "text": "⏳ Einen Moment, ich suche in der Wissensdatenbank..." }] }]
+          }
+        },
+        {
+          "id": "http-request",
+          "type": "http request",
+          "options": {
+            "url": "https://workflows.eppcom.de/webhook/rag-chat",
+            "method": "POST",
+            "headers": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Tenant-ID", "value": "{{tenantId}}" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "body": "{\"query\": \"{{userQuestion}}\", \"session_id\": \"{{sessionId}}\"}",
+            "responseVariableMapping": [
+              { "bodyPath": "answer", "variableId": "ragAnswer" },
+              { "bodyPath": "chunks_used", "variableId": "chunksUsed" },
+              { "bodyPath": "sources", "variableId": "ragSources" }
+            ]
+          }
+        }
+      ],
+      "edges": [{ "to": { "groupId": "show-answer" } }]
+    },
+    {
+      "id": "show-answer",
+      "title": "Antwort zeigen",
+      "blocks": [
+        {
+          "id": "answer-bubble",
+          "type": "text",
+          "content": {
+            "richText": [{ "type": "p", "children": [{ "text": "{{ragAnswer}}" }] }]
+          }
+        },
+        {
+          "id": "follow-up-msg",
+          "type": "text",
+          "content": {
+            "richText": [{ "type": "p", "children": [{ "text": "Haben Sie weitere Fragen? 😊" }] }]
+          }
+        },
+        {
+          "id": "ask-followup",
+          "type": "text input",
+          "options": {
+            "labels": {
+              "placeholder": "Nächste Frage...",
+              "button": "Absenden"
+            },
+            "isLong": false,
+            "variableId": "userQuestion"
+          }
+        }
+      ],
+      "edges": [{ "to": { "groupId": "rag-call" } }]
+    }
+  ],
+  "variables": [
+    { "id": "v-tenant-id", "name": "tenantId" },
+    { "id": "v-api-key", "name": "apiKey" },
+    { "id": "v-session-id", "name": "sessionId" },
+    { "id": "v-user-question", "name": "userQuestion" },
+    { "id": "v-rag-answer", "name": "ragAnswer" },
+    { "id": "v-chunks-used", "name": "chunksUsed" },
+    { "id": "v-rag-sources", "name": "ragSources" }
+  ],
+  "edges": []
+}
