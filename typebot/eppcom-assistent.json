@@ -8,17 +8,19 @@
   "theme": {
     "general": {
       "font": "Inter",
-      "background": { "type": "Color", "content": "#F8FAFC" }
+      "background": { "type": "Color", "content": "#FFFFFF" }
     },
     "chat": {
       "hostAvatar": { "isEnabled": true },
       "guestBubbles": {
         "backgroundColor": "#2563EB",
-        "color": "#FFFFFF"
+        "color": "#FFFFFF",
+        "borderRadius": 12
       },
       "hostBubbles": {
-        "backgroundColor": "#FFFFFF",
-        "color": "#1E293B"
+        "backgroundColor": "#F1F5F9",
+        "color": "#1E293B",
+        "borderRadius": 12
       },
       "inputs": {
         "backgroundColor": "#FFFFFF",
@@ -35,74 +37,82 @@
     "general": {
       "isBrandingEnabled": false,
       "isInputPrefillEnabled": true,
-      "isHideQueryParamsEnabled": false,
+      "isHideQueryParamsEnabled": true,
       "rememberUser": {
-        "isEnabled": true,
-        "storage": "session"
+        "isEnabled": false
       }
     },
     "typingEmulation": {
       "enabled": true,
-      "speed": 350,
+      "speed": 400,
       "maxDelay": 1.5
     }
   },
   "groups": [
     {
-      "id": "start",
-      "title": "Start",
+      "id": "grp-init",
+      "title": "Init — Variablen setzen",
       "blocks": [
         {
-          "id": "welcome-msg",
+          "id": "blk-set-vars",
+          "type": "script",
+          "content": {
+            "code": "// Tenant & API-Key setzen (wird über prefilledVariables überschrieben wenn vom Embed übergeben)\nif (!getVariable('tenantId') || getVariable('tenantId') === '') {\n  setVariable('tenantId', 'a0000000-0000-0000-0000-000000000001');\n}\nif (!getVariable('apiKey') || getVariable('apiKey') === '') {\n  setVariable('apiKey', '***API_KEY_REMOVED***');\n}\n// Session-ID generieren\nconst id = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);\nsetVariable('sessionId', id);"
+          }
+        }
+      ],
+      "edges": [{ "to": { "groupId": "grp-welcome" } }]
+    },
+    {
+      "id": "grp-welcome",
+      "title": "Begrüßung",
+      "blocks": [
+        {
+          "id": "blk-welcome",
           "type": "text",
           "content": {
             "richText": [
               {
                 "type": "p",
-                "children": [{ "text": "👋 Hallo! Ich bin Ihr KI-Assistent." }]
+                "children": [{ "text": "👋 Hallo! Wie kann ich Ihnen helfen?" }]
               },
               {
                 "type": "p",
-                "children": [{ "text": "Ich habe Zugriff auf unsere Wissensdatenbank und beantworte Ihre Fragen präzise und datenschutzkonform." }]
+                "children": [{ "text": "Ich beantworte Fragen direkt aus unserer Wissensdatenbank — schnell, präzise und DSGVO-konform." }]
               }
             ]
           }
         },
         {
-          "id": "set-session-id",
-          "type": "script",
-          "content": {
-            "code": "const id = 'session_' + Math.random().toString(36).substr(2, 12);\nsetVariable('sessionId', id);"
-          }
-        },
-        {
-          "id": "ask-question",
+          "id": "blk-ask-question",
           "type": "text input",
           "options": {
             "labels": {
-              "placeholder": "Ihre Frage...",
+              "placeholder": "Ihre Frage eingeben...",
               "button": "Absenden"
             },
             "isLong": false,
-            "variableId": "userQuestion"
+            "variableId": "v-user-question"
           }
         }
       ],
-      "edges": [{ "to": { "groupId": "rag-call" } }]
+      "edges": [{ "to": { "groupId": "grp-rag-call" } }]
     },
     {
-      "id": "rag-call",
-      "title": "RAG API Call",
+      "id": "grp-rag-call",
+      "title": "RAG-Abfrage",
       "blocks": [
         {
-          "id": "thinking-msg",
+          "id": "blk-thinking",
           "type": "text",
           "content": {
-            "richText": [{ "type": "p", "children": [{ "text": "⏳ Einen Moment, ich suche in der Wissensdatenbank..." }] }]
+            "richText": [
+              { "type": "p", "children": [{ "text": "⏳ Ich suche in der Wissensdatenbank..." }] }
+            ]
           }
         },
         {
-          "id": "http-request",
+          "id": "blk-http",
           "type": "http request",
           "options": {
             "url": "https://workflows.eppcom.de/webhook/rag-chat",
@@ -114,35 +124,46 @@
             ],
             "body": "{\"query\": \"{{userQuestion}}\", \"session_id\": \"{{sessionId}}\"}",
             "responseVariableMapping": [
-              { "bodyPath": "answer", "variableId": "ragAnswer" },
-              { "bodyPath": "chunks_used", "variableId": "chunksUsed" },
-              { "bodyPath": "sources", "variableId": "ragSources" }
-            ]
+              { "bodyPath": "answer", "variableId": "v-rag-answer" },
+              { "bodyPath": "chunks_used", "variableId": "v-chunks-used" }
+            ],
+            "isAdvancedConfig": false,
+            "timeout": 30000
           }
         }
       ],
-      "edges": [{ "to": { "groupId": "show-answer" } }]
+      "edges": [
+        {
+          "id": "edge-to-answer",
+          "from": { "blockId": "blk-http" },
+          "to": { "groupId": "grp-show-answer" }
+        }
+      ]
     },
     {
-      "id": "show-answer",
-      "title": "Antwort zeigen",
+      "id": "grp-show-answer",
+      "title": "Antwort anzeigen",
       "blocks": [
         {
-          "id": "answer-bubble",
+          "id": "blk-answer",
           "type": "text",
           "content": {
-            "richText": [{ "type": "p", "children": [{ "text": "{{ragAnswer}}" }] }]
+            "richText": [
+              { "type": "p", "children": [{ "text": "{{ragAnswer}}" }] }
+            ]
           }
         },
         {
-          "id": "follow-up-msg",
+          "id": "blk-followup-prompt",
           "type": "text",
           "content": {
-            "richText": [{ "type": "p", "children": [{ "text": "Haben Sie weitere Fragen? 😊" }] }]
+            "richText": [
+              { "type": "p", "children": [{ "text": "Haben Sie noch eine Frage?" }] }
+            ]
           }
         },
         {
-          "id": "ask-followup",
+          "id": "blk-followup-input",
           "type": "text input",
           "options": {
             "labels": {
@@ -150,21 +171,44 @@
               "button": "Absenden"
             },
             "isLong": false,
-            "variableId": "userQuestion"
+            "variableId": "v-user-question"
           }
         }
       ],
-      "edges": [{ "to": { "groupId": "rag-call" } }]
+      "edges": [{ "to": { "groupId": "grp-rag-call" } }]
     }
   ],
   "variables": [
-    { "id": "v-tenant-id", "name": "tenantId" },
-    { "id": "v-api-key", "name": "apiKey" },
-    { "id": "v-session-id", "name": "sessionId" },
-    { "id": "v-user-question", "name": "userQuestion" },
-    { "id": "v-rag-answer", "name": "ragAnswer" },
-    { "id": "v-chunks-used", "name": "chunksUsed" },
-    { "id": "v-rag-sources", "name": "ragSources" }
+    {
+      "id": "v-tenant-id",
+      "name": "tenantId",
+      "value": "a0000000-0000-0000-0000-000000000001"
+    },
+    {
+      "id": "v-api-key",
+      "name": "apiKey",
+      "value": "***API_KEY_REMOVED***"
+    },
+    {
+      "id": "v-session-id",
+      "name": "sessionId",
+      "value": ""
+    },
+    {
+      "id": "v-user-question",
+      "name": "userQuestion",
+      "value": ""
+    },
+    {
+      "id": "v-rag-answer",
+      "name": "ragAnswer",
+      "value": ""
+    },
+    {
+      "id": "v-chunks-used",
+      "name": "chunksUsed",
+      "value": ""
+    }
   ],
   "edges": []
 }

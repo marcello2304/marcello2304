@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<!--
+  EPPCOM Chatbot — Homepage Embed
+  ================================
+  Diese Datei enthält 3 Varianten für den Einbau auf der Homepage.
+  Wähle eine Variante und kopiere den Code in deine Website.
+
+  Voraussetzungen:
+    1. Typebot Bot importiert in https://admin-bot.eppcom.de
+    2. Bot-Slug: "eppcom-assistent" (entspricht dem "name" im JSON)
+    3. n8n Workflow "RAG Chat – EPPCOM" aktiv
+
+  CORS-Hinweis:
+    Typebot's HTTP-Request-Block läuft SERVER-SEITIG auf dem Typebot-Server.
+    → Kein CORS-Problem zum n8n-Webhook!
+-->
+
+<!-- ===================================================================
+     VARIANTE 1: BUBBLE (floating chat button, empfohlen für Homepages)
+     Platzierung: Vor </body>, einmalig auf jeder Seite
+     =================================================================== -->
+
+<!-- Füge das in dein <head>-Tag ein: -->
+<script>
+  window.__TYPEBOT_CONFIG__ = {
+    apiHost: "https://admin-bot.eppcom.de",
+    typebot: "eppcom-assistent",
+    // tenantId und apiKey aus URL-Parameter oder Fallback
+    tenantId: new URLSearchParams(window.location.search).get('tenant') || "a0000000-0000-0000-0000-000000000001",
+    apiKey: "eppcom-web-public-key"
+  };
+</script>
+
+<!-- Füge das vor </body> ein: -->
+<script type="module">
+  import Typebot from 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js';
+
+  Typebot.initBubble({
+    apiHost: "https://admin-bot.eppcom.de",
+    typebot: "eppcom-assistent",
+    prefilledVariables: {
+      tenantId: window.__TYPEBOT_CONFIG__.tenantId,
+      apiKey: window.__TYPEBOT_CONFIG__.apiKey
+    },
+    theme: {
+      button: {
+        backgroundColor: "#2563EB",
+        iconColor: "#FFFFFF",
+        size: "medium"
+      },
+      previewMessage: {
+        message: "💬 Fragen Sie unseren KI-Assistenten!",
+        autoShowDelay: 5000,
+        avatarUrl: ""
+      },
+      chatWindow: {
+        backgroundColor: "#FFFFFF"
+      }
+    }
+  });
+</script>
+
+
+<!-- ===================================================================
+     VARIANTE 2: POPUP (öffnet sich als Modal, z.B. nach Button-Klick)
+     =================================================================== -->
+
+<!-- Button auf der Seite: -->
+<button onclick="openChatbot()" style="
+  background: #2563EB;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: Inter, sans-serif;
+">
+  💬 KI-Assistent starten
+</button>
+
+<script type="module">
+  import Typebot from 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js';
+
+  window.openChatbot = function() {
+    Typebot.initPopup({
+      apiHost: "https://admin-bot.eppcom.de",
+      typebot: "eppcom-assistent",
+      prefilledVariables: {
+        tenantId: "a0000000-0000-0000-0000-000000000001",
+        apiKey: "eppcom-web-public-key"
+      },
+      autoShowDelay: 0
+    });
+  };
+</script>
+
+
+<!-- ===================================================================
+     VARIANTE 3: INLINE (eingebettet direkt in die Seite, z.B. Kontaktseite)
+     =================================================================== -->
+
+<!-- Füge diesen Block an der gewünschten Position ein: -->
+<div style="width: 100%; max-width: 800px; height: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.1);">
+  <typebot-standard
+    style="width: 100%; height: 100%;"
+    data-typebot="eppcom-assistent"
+    data-api-host="https://admin-bot.eppcom.de"
+    data-prefilled-variables='{"tenantId":"a0000000-0000-0000-0000-000000000001","apiKey":"eppcom-web-public-key"}'
+  ></typebot-standard>
+</div>
+
+<script type="module" src="https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js"></script>
+
+
+<!-- ===================================================================
+     VARIANTE 4: IFRAME FALLBACK (wenn kein JS möglich, z.B. Wix/Squarespace)
+     =================================================================== -->
+
+<iframe
+  src="https://admin-bot.eppcom.de/eppcom-assistent?tenantId=a0000000-0000-0000-0000-000000000001&apiKey=eppcom-web-public-key"
+  style="
+    width: 100%;
+    height: 600px;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  "
+  allow="clipboard-write"
+  title="EPPCOM KI-Assistent"
+></iframe>
