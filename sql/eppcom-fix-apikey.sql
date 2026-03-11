@@ -1,49 +1,60 @@
--- EPPCOM: API-Key für Test-Tenant reparieren
--- Ausführen auf: appdb als appuser
--- docker exec -i <postgres-container> psql -U appuser -d appdb < sql/eppcom-fix-apikey.sql
+-- EPPCOM: Tenant + API-Keys anlegen
+-- Ausführen: docker exec -i postgres-rag psql -U postgres -d app_db < sql/eppcom-fix-apikey.sql
+-- Voraussetzung: 001, 002, 003 müssen bereits gelaufen sein
 
--- Vorhandene Keys anzeigen (Diagnose)
-SELECT id, tenant_id, name, key_hash, is_active, created_at
-FROM api_keys
-WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001';
+-- ── EPPCOM Tenant mit fixer UUID anlegen (idempotent) ────────────────────────
+INSERT INTO public.tenants (id, slug, name, email, plan, is_active)
+VALUES (
+    'a0000000-0000-0000-0000-000000000001'::uuid,
+    'eppcom',
+    'EPPCOM GmbH',
+    'eppler@eppcom.de',
+    'pro',
+    true
+)
+ON CONFLICT (id) DO UPDATE
+    SET is_active = true,
+        name = EXCLUDED.name;
 
--- Alten Key mit unbekanntem Plaintext löschen
--- (behält Keys, die wir kennen)
-DELETE FROM api_keys
-WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'
+-- ── Alte Keys bereinigen (nur die, die wir nicht kennen) ─────────────────────
+DELETE FROM public.api_keys
+WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'::uuid
   AND key_hash NOT IN (
     encode(sha256('test-key-123'::bytea), 'hex'),
     encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex')
   );
 
--- test-key-123 sicherstellen (war bestätigt funktionierend)
-INSERT INTO api_keys (id, tenant_id, key_hash, name, permissions, is_active)
+-- ── API-Key 1: test-key-123 ───────────────────────────────────────────────────
+INSERT INTO public.api_keys (id, tenant_id, key_hash, name, permissions, is_active)
 VALUES (
-  gen_random_uuid(),
-  'a0000000-0000-0000-0000-000000000001',
-  encode(sha256('test-key-123'::bytea), 'hex'),
-  'Test API Key (Original)',
-  '["read", "write"]'::jsonb,
-  true
+    'b0000000-0000-0000-0000-000000000001'::uuid,
+    'a0000000-0000-0000-0000-000000000001'::uuid,
+    encode(sha256('test-key-123'::bytea), 'hex'),
+    'Test API Key (Original)',
+    '["read", "write"]'::jsonb,
+    true
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET is_active = true;
 
--- ***API_KEY_REMOVED*** eintragen
-INSERT INTO api_keys (id, tenant_id, key_hash, name, permissions, is_active)
+-- ── API-Key 2: ***API_KEY_REMOVED*** ──────────────────────────────────────────
+INSERT INTO public.api_keys (id, tenant_id, key_hash, name, permissions, is_active)
 VALUES (
-  gen_random_uuid(),
-  'a0000000-0000-0000-0000-000000000001',
-  encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex'),
-  'Test API Key 2025',
-  '["read", "write"]'::jsonb,
-  true
+    'b0000000-0000-0000-0000-000000000002'::uuid,
+    'a0000000-0000-0000-0000-000000000001'::uuid,
+    encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex'),
+    'EPPCOM Produktiv Key 2025',
+    '["read", "write"]'::jsonb,
+    true
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET is_active = true;
 
--- Ergebnis verifizieren
-SELECT id, tenant_id, name,
-       LEFT(key_hash, 16) || '...' AS key_hash_preview,
-       is_active, created_at
-FROM api_keys
-WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'
-ORDER BY created_at;
+-- ── Ergebnis anzeigen ─────────────────────────────────────────────────────────
+SELECT 'Tenant:' AS typ, id::text, slug, name, is_active::text AS aktiv FROM public.tenants
+WHERE id = 'a0000000-0000-0000-0000-000000000001'::uuid
+
+UNION ALL
+
+SELECT 'API-Key:', id::text, name, LEFT(key_hash, 20) || '...', is_active::text
+FROM public.api_keys
+WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'::uuid
+ORDER BY typ DESC;
