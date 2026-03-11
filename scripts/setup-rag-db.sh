@@ -1,9 +1,12 @@
 #!/bin/bash
-# setup-rag-db.sh — Erstellt app_db + führt alle RAG-Migrationen aus
+# setup-rag-db.sh — Erstellt appdb + führt alle RAG-Migrationen aus
 # Kompatibel mit Coolify-PostgreSQL (appuser, auto-detect container)
 #
 # Verwendung: bash scripts/setup-rag-db.sh
 # Voraussetzung: Docker muss auf dem Host laufen
+#
+# HINWEIS: Die Datenbank heißt "appdb" (kein Unterstrich) — so wie Coolify sie erstellt.
+#          Überschreiben mit: RAG_DB=meindb bash scripts/setup-rag-db.sh
 
 set -euo pipefail
 
@@ -52,38 +55,40 @@ if [ -z "$DB_USER" ]; then
 fi
 ok "DB-User: $DB_USER"
 
-# Hilfsfunktion: SQL in postgres ausführen
-pg_exec() {
-    local db="${1:-postgres}"
-    local sql="$2"
-    docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$db" -v ON_ERROR_STOP=1 -c "$sql" 2>&1
-}
+# Datenbankname — Coolify erstellt "appdb" (kein Unterstrich!)
+RAG_DB="${RAG_DB:-appdb}"
 
-pg_exec_file() {
-    local db="$1"
-    docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$db" -v ON_ERROR_STOP=1
-}
+# Auto-detect: Prüfe ob appdb oder app_db existiert
+for candidate in appdb app_db; do
+    EXISTS=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d postgres -tAc \
+        "SELECT 1 FROM pg_database WHERE datname='${candidate}'" 2>/dev/null | xargs || echo "0")
+    if [ "$EXISTS" = "1" ]; then
+        RAG_DB="$candidate"
+        break
+    fi
+done
+ok "Ziel-Datenbank: $RAG_DB"
 
-# ── Schritt 3: app_db erstellen ───────────────────────────────────────────────
-step "3/6 Datenbank app_db"
+# ── Schritt 3: Datenbank erstellen ────────────────────────────────────────────
+step "3/6 Datenbank ${RAG_DB}"
 
 DB_EXISTS=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d postgres -tAc \
-    "SELECT 1 FROM pg_database WHERE datname='app_db'" 2>/dev/null | xargs || echo "0")
+    "SELECT 1 FROM pg_database WHERE datname='${RAG_DB}'" 2>/dev/null | xargs || echo "0")
 
 if [ "$DB_EXISTS" = "1" ]; then
-    ok "app_db existiert bereits"
+    ok "${RAG_DB} existiert bereits"
 else
-    info "Erstelle app_db..."
+    info "Erstelle ${RAG_DB}..."
     docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d postgres \
-        -c "CREATE DATABASE app_db OWNER $DB_USER;" 2>&1
-    ok "app_db erstellt"
+        -c "CREATE DATABASE ${RAG_DB} OWNER ${DB_USER};" 2>&1
+    ok "${RAG_DB} erstellt"
 fi
 
 # ── Schritt 4: Migrationen ausführen ─────────────────────────────────────────
-step "4/6 Migrationen (001 → 003 → 004 → eppcom)"
+step "4/6 Migrationen (001 → 003 → eppcom)"
 
 info "Migration 001: Extensions..."
-docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -v ON_ERROR_STOP=1 <<'EOSQL'
+docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -v ON_ERROR_STOP=1 <<'EOSQL'
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -93,7 +98,7 @@ EOSQL
 ok "001 Extensions"
 
 info "Migration 002: Public Schema (tenants)..."
-docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -v ON_ERROR_STOP=1 <<'EOSQL'
+docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -v ON_ERROR_STOP=1 <<'EOSQL'
 SET search_path TO public;
 
 CREATE TABLE IF NOT EXISTS public.tenants (
@@ -141,7 +146,7 @@ EOSQL
 ok "002 Tenants-Tabelle"
 
 info "Migration 003: RAG-Tabellen (api_keys, sources, documents, chunks, embeddings)..."
-docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -v ON_ERROR_STOP=1 <<'EOSQL'
+docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -v ON_ERROR_STOP=1 <<'EOSQL'
 SET search_path TO public;
 
 -- api_keys
@@ -255,7 +260,7 @@ EOSQL
 ok "003 RAG-Tabellen + search_similar()"
 
 info "EPPCOM Tenant + API-Keys anlegen..."
-docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -v ON_ERROR_STOP=1 <<'EOSQL'
+docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -v ON_ERROR_STOP=1 <<'EOSQL'
 -- EPPCOM Tenant
 INSERT INTO public.tenants (id, slug, name, email, plan, is_active)
 VALUES (
@@ -304,7 +309,7 @@ ok "EPPCOM Tenant + API-Keys"
 # ── Schritt 5: Berechtigungen ─────────────────────────────────────────────────
 step "5/6 Berechtigungen"
 
-docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -v ON_ERROR_STOP=1 <<EOSQL
+docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -v ON_ERROR_STOP=1 <<EOSQL
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${DB_USER};
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO ${DB_USER};
@@ -317,13 +322,13 @@ ok "Berechtigungen gesetzt"
 # ── Schritt 6: Verifikation ───────────────────────────────────────────────────
 step "6/6 Verifikation"
 
-TABLE_COUNT=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -tAc \
+TABLE_COUNT=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -tAc \
     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'" 2>/dev/null | xargs)
 
-TENANT_COUNT=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -tAc \
+TENANT_COUNT=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -tAc \
     "SELECT COUNT(*) FROM public.tenants WHERE is_active=true" 2>/dev/null | xargs)
 
-APIKEY_COUNT=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d app_db -tAc \
+APIKEY_COUNT=$(docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -tAc \
     "SELECT COUNT(*) FROM public.api_keys WHERE is_active=true" 2>/dev/null | xargs)
 
 echo ""
@@ -331,7 +336,7 @@ echo -e "${BLUE}${BOLD}═══════════════════
 echo -e "${BLUE}${BOLD}  Setup abgeschlossen ✓${NC}"
 echo -e "${BLUE}${BOLD}══════════════════════════════════════════════════${NC}"
 echo ""
-ok "Tabellen in app_db: $TABLE_COUNT"
+ok "Tabellen in ${RAG_DB}: $TABLE_COUNT"
 ok "Aktive Tenants: $TENANT_COUNT"
 ok "Aktive API-Keys: $APIKEY_COUNT"
 echo ""
@@ -343,7 +348,7 @@ echo ""
 echo -e "${BOLD}Nächster Schritt — n8n Credential aktualisieren:${NC}"
 echo -e "  n8n UI → Settings → Credentials → 'Postgres account'"
 echo -e "  Host:     ${YELLOW}${PG_CONTAINER}${NC}"
-echo -e "  Database: ${YELLOW}app_db${NC}"
+echo -e "  Database: ${YELLOW}${RAG_DB}${NC}"
 echo -e "  User:     ${YELLOW}${DB_USER}${NC}"
 echo -e "  Port:     ${YELLOW}5432${NC}"
 echo ""

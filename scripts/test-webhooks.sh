@@ -54,7 +54,8 @@ step "Test 2: Ingest Webhook (POST /webhook/ingest)"
 info "Sende Testdokument..."
 echo ""
 
-INGEST_RESPONSE=$(curl -s --max-time 60 \
+info "(Timeout 5 min — Ollama Embedding kann langsam sein beim ersten Aufruf)"
+INGEST_RESPONSE=$(curl -s --max-time 300 \
     -X POST "${BASE_URL}/ingest" \
     -H "Content-Type: application/json" \
     -H "X-Tenant-ID: ${TENANT_ID}" \
@@ -63,7 +64,7 @@ INGEST_RESPONSE=$(curl -s --max-time 60 \
         "content": "EPPCOM GmbH bietet professionelle Dienstleistungen in den Bereichen KI, Automatisierung und digitale Transformation an. Unser Kernprodukt ist ein modulares RAG-System (Retrieval Augmented Generation) fuer Unternehmenskunden. Wir wurden 2020 gegruendet und haben unseren Sitz in Deutschland.",
         "name": "EPPCOM Testdokument",
         "source_type": "manual"
-    }' 2>/dev/null || echo '{"error":"curl_failed"}')
+    }' 2>/dev/null || echo '{"error":"curl_timeout_or_failed"}')
 
 if echo "$INGEST_RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('success') else 1)" 2>/dev/null; then
     ok "Ingest erfolgreich!"
@@ -79,6 +80,13 @@ print(f'  timing:        {d.get(\"timing_ms\",\"?\")}ms')
 elif echo "$INGEST_RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if 'error' in d else 1)" 2>/dev/null; then
     fail "Ingest-Fehler:"
     echo "$INGEST_RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'  {d}')" 2>/dev/null || echo "  $INGEST_RESPONSE"
+    FAILED=$((FAILED+1))
+elif [ -z "$INGEST_RESPONSE" ]; then
+    fail "Leere Antwort — Workflow möglicherweise inaktiv"
+    echo ""
+    echo -e "  ${YELLOW}Checke in n8n UI:${NC}"
+    echo -e "  1. Workflows → 'Ingest' → ist der Toggle ${YELLOW}ON${NC} (grün)?"
+    echo -e "  2. Executions → letzte Ausführung auf Fehler prüfen"
     FAILED=$((FAILED+1))
 else
     fail "Unerwartete Antwort:"
