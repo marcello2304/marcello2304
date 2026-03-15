@@ -83,8 +83,12 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         RAG Dokumente
       </div>
+      <div class="sidebar-link" :class="page==='chat' && 'active'" @click="go('chat')">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+        RAG Chat
+      </div>
       <div class="sidebar-link" :class="page==='media' && 'active'" @click="go('media')">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         Medien &amp; Dateien
       </div>
 
@@ -229,6 +233,84 @@
               </template>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ RAG CHAT ═══ -->
+    <div x-show="page==='chat'" class="fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold text-gray-800">RAG Chat</h1>
+        <div class="flex items-center gap-3">
+          <template x-if="session.role==='superadmin'">
+            <select x-model="chatTenantId" class="input w-56" @change="chatMessages=[]">
+              <template x-for="t in tenants" :key="t.id">
+                <option :value="t.id" x-text="t.name"></option>
+              </template>
+            </select>
+          </template>
+          <button class="btn btn-secondary btn-sm" @click="chatMessages=[]">Chat leeren</button>
+        </div>
+      </div>
+
+      <!-- Chat Area -->
+      <div class="card p-0 flex flex-col" style="height: calc(100vh - 180px);">
+        <!-- Messages -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4" x-ref="chatScroll">
+          <div x-show="chatMessages.length===0" class="flex items-center justify-center h-full text-gray-400">
+            <div class="text-center">
+              <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+              <p class="text-lg font-medium">Stelle eine Frage</p>
+              <p class="text-sm mt-1">Deine Frage wird mit den hochgeladenen RAG-Dokumenten beantwortet.</p>
+            </div>
+          </div>
+          <template x-for="(msg, i) in chatMessages" :key="i">
+            <div>
+              <!-- User Message -->
+              <div x-show="msg.role==='user'" class="flex justify-end">
+                <div class="bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2.5 max-w-[75%] text-sm" x-text="msg.content"></div>
+              </div>
+              <!-- Assistant Message -->
+              <div x-show="msg.role==='assistant'" class="flex justify-start">
+                <div class="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[85%] text-sm">
+                  <div class="whitespace-pre-wrap" x-text="msg.content"></div>
+                  <div x-show="msg.sources && msg.sources.length > 0" class="mt-2 pt-2 border-t border-gray-200">
+                    <div class="text-xs text-gray-400 mb-1">Quellen:</div>
+                    <template x-for="src in (msg.sources||[])" :key="src.source">
+                      <span class="inline-block text-xs bg-white border border-gray-200 rounded px-2 py-0.5 mr-1 mb-1">
+                        <span x-text="src.source"></span>
+                        <span class="text-gray-400 ml-1" x-text="Math.round(src.similarity*100)+'%'"></span>
+                      </span>
+                    </template>
+                  </div>
+                  <div x-show="msg.latency_ms" class="text-xs text-gray-300 mt-1" x-text="msg.latency_ms+'ms'"></div>
+                </div>
+              </div>
+              <!-- Error Message -->
+              <div x-show="msg.role==='error'" class="flex justify-start">
+                <div class="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-2.5 max-w-[75%] text-sm" x-text="msg.content"></div>
+              </div>
+              <!-- Loading -->
+              <div x-show="msg.role==='loading'" class="flex justify-start">
+                <div class="bg-gray-100 rounded-2xl px-4 py-3 text-sm text-gray-400 flex items-center gap-2">
+                  <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  Denke nach...
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Input -->
+        <div class="border-t border-gray-100 p-4">
+          <div class="flex gap-3">
+            <input type="text" x-model="chatInput" class="input flex-1" placeholder="Stelle eine Frage zu deinen Dokumenten..."
+                   @keyup.enter="sendChat()" :disabled="chatLoading">
+            <button class="btn btn-primary px-6" @click="sendChat()" :disabled="chatLoading || !chatInput.trim()">
+              <span x-show="!chatLoading">Senden</span>
+              <span x-show="chatLoading">...</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -644,6 +726,12 @@ function app() {
     changePwUser: null,
     newPassword: '',
 
+    // Chat
+    chatMessages: [],
+    chatInput: '',
+    chatLoading: false,
+    chatTenantId: '',
+
     // Content Browser
     browserTenantId: '',
     browserContent: null,
@@ -705,6 +793,9 @@ function app() {
       if (p==='tenants') this.loadTenants();
       if (p==='users') this.loadUsers();
       if (p==='dashboard') this.loadStats();
+      if (p==='chat') {
+        if (!this.chatTenantId) this.chatTenantId = this.session.tenant_id || (this.tenants[0]?.id || '');
+      }
     },
 
     async loadAll() {
@@ -844,6 +935,28 @@ function app() {
 
     async deleteMediaFromBrowser(id) {
       try { await this.api('DELETE',`/api/media/${id}`); this.showToast('Gelöscht'); this.loadTenantContent(); } catch(e) { alert(e.message); }
+    },
+
+    // RAG Chat
+    async sendChat() {
+      const q = this.chatInput.trim();
+      if (!q || this.chatLoading) return;
+      this.chatMessages.push({ role: 'user', content: q });
+      this.chatInput = '';
+      this.chatLoading = true;
+      this.chatMessages.push({ role: 'loading', content: '' });
+      this.$nextTick(() => { if (this.$refs.chatScroll) this.$refs.chatScroll.scrollTop = this.$refs.chatScroll.scrollHeight; });
+      try {
+        const tid = this.chatTenantId || this.session.tenant_id || (this.tenants[0]?.id || '');
+        const r = await this.api('POST', '/api/rag-chat', { query: q, tenant_id: tid });
+        this.chatMessages.pop(); // remove loading
+        this.chatMessages.push({ role: 'assistant', content: r.answer, sources: r.sources, latency_ms: r.latency_ms });
+      } catch(e) {
+        this.chatMessages.pop(); // remove loading
+        this.chatMessages.push({ role: 'error', content: e.message });
+      }
+      this.chatLoading = false;
+      this.$nextTick(() => { if (this.$refs.chatScroll) this.$refs.chatScroll.scrollTop = this.$refs.chatScroll.scrollHeight; });
     },
 
     // Content Browser

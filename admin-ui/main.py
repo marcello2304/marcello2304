@@ -373,6 +373,10 @@ class ChatRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
 
+class RagChatRequest(BaseModel):
+    query: str
+    tenant_id: Optional[str] = None
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ROUTES: Login / Logout / Session
@@ -1194,24 +1198,115 @@ async def admin_tenant_content(tenant_id: str, session: SessionInfo = Depends(re
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ROUTES: Chat Tester
+# ROUTES: RAG Chat (direkt — Ollama Embedding + DB Search + Ollama LLM)
 # ══════════════════════════════════════════════════════════════════════════════
-@app.post("/api/chat")
-async def chat_proxy(body: ChatRequest, session: SessionInfo = Depends(require_auth)):
-    async with httpx.AsyncClient(timeout=60) as client:
+CHAT_MODEL = os.getenv("CHAT_MODEL", "qwen3-nothink")
+
+SYSTEM_PROMPT = """Du bist ein freundlicher und hilfreicher KI-Assistent.
+Du beantwortest Fragen ausschließlich basierend auf dem bereitgestellten Kontext.
+Wenn der Kontext keine Antwort enthält, sage ehrlich, dass du dazu keine Informationen hast.
+Antworte auf Deutsch, präzise und verständlich. Verwende keine Markdown-Überschriften."""
+
+
+@app.post("/api/rag-chat")
+async def rag_chat(body: RagChatRequest, session: SessionInfo = Depends(require_auth)):
+    db = await get_db()
+    query = body.query.strip()
+    if not query:
+        raise HTTPException(400, "Frage darf nicht leer sein")
+
+    # Tenant bestimmen: Superadmin kann Tenant wählen, User hat festen Tenant
+    tenant_id = body.tenant_id or session.tenant_id
+    if not tenant_id:
+        raise HTTPException(400, "Kein Tenant zugeordnet")
+    if not session.can_access_tenant(tenant_id):
+        raise HTTPException(403, "Kein Zugriff auf diesen Tenant")
+
+    t_start = time.time()
+
+    # 1) Query-Embedding via Ollama
+    async with httpx.AsyncClient(timeout=30) as client:
         try:
-            resp = await client.post(
-                f"{N8N_URL}/webhook/rag-chat",
-                json={"query": body.query, "session_id": body.session_id},
-                headers={
-                    "X-Tenant-ID": body.tenant_id,
-                    "X-API-Key": body.api_key,
-                    "Content-Type": "application/json",
+            embed_resp = await client.post(
+                f"{OLLAMA_URL}/api/embed",
+                json={"model": EMBED_MODEL, "input": query},
+            )
+            embed_data = embed_resp.json()
+            embedding = embed_data.get("embeddings", [[]])[0] or embed_data.get("embedding", [])
+            if not embedding:
+                raise HTTPException(502, "Ollama hat kein Embedding zurückgegeben")
+        except httpx.TimeoutException:
+            raise HTTPException(504, "Ollama Embedding Timeout")
+        except httpx.ConnectError:
+            raise HTTPException(502, f"Ollama nicht erreichbar unter {OLLAMA_URL}")
+
+    # 2) Vektor-Suche in DB
+    vector_str = "[" + ",".join(str(round(x, 8)) for x in embedding) + "]"
+    chunks = await db.fetch(
+        """SELECT c.content, c.chunk_index, s.name AS source_name,
+                  (1 - (e.embedding <=> $2::vector)) AS similarity
+           FROM public.embeddings e
+           JOIN public.chunks c ON c.id = e.chunk_id
+           JOIN public.documents d ON d.id = c.document_id
+           JOIN public.sources s ON s.id = d.source_id
+           WHERE e.tenant_id = $1
+             AND (1 - (e.embedding <=> $2::vector)) >= 0.3
+           ORDER BY e.embedding <=> $2::vector
+           LIMIT 5""",
+        uuid.UUID(tenant_id), vector_str,
+    )
+
+    # 3) Kontext zusammenbauen
+    if chunks:
+        context_parts = []
+        sources_info = []
+        for ch in chunks:
+            context_parts.append(ch["content"])
+            sources_info.append({
+                "source": ch["source_name"],
+                "similarity": round(float(ch["similarity"]), 3),
+            })
+        context = "\n\n---\n\n".join(context_parts)[:6000]
+    else:
+        context = ""
+        sources_info = []
+
+    # 4) LLM-Antwort via Ollama
+    if context:
+        user_msg = f"Kontext:\n{context}\n\nFrage: {query}"
+    else:
+        user_msg = f"Es wurden keine relevanten Dokumente gefunden. Frage: {query}"
+
+    async with httpx.AsyncClient(timeout=90) as client:
+        try:
+            llm_resp = await client.post(
+                f"{OLLAMA_URL}/api/chat",
+                json={
+                    "model": CHAT_MODEL,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_msg},
+                    ],
+                    "stream": False,
                 },
             )
-            return resp.json()
-        except Exception as e:
-            raise HTTPException(502, f"Chat-Fehler: {str(e)}")
+            llm_data = llm_resp.json()
+            answer = llm_data.get("message", {}).get("content", "")
+            # <think>-Tags entfernen
+            answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
+        except httpx.TimeoutException:
+            raise HTTPException(504, "Ollama LLM Timeout — Antwort dauerte zu lange")
+        except httpx.ConnectError:
+            raise HTTPException(502, f"Ollama nicht erreichbar unter {OLLAMA_URL}")
+
+    elapsed = int((time.time() - t_start) * 1000)
+
+    return {
+        "answer": answer,
+        "sources": sources_info,
+        "chunks_used": len(chunks),
+        "latency_ms": elapsed,
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
