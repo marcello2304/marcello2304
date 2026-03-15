@@ -285,12 +285,12 @@ VALUES (
 )
 ON CONFLICT (id) DO UPDATE SET is_active = true;
 
--- API-Key 2: ***API_KEY_REMOVED***
+-- API-Key 2: DEIN_API_KEY_HIER
 INSERT INTO public.api_keys (id, tenant_id, key_hash, name, is_active)
 VALUES (
     'b0000000-0000-0000-0000-000000000002'::uuid,
     'a0000000-0000-0000-0000-000000000001'::uuid,
-    encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex'),
+    encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex'),
     'EPPCOM Produktiv Key 2025',
     true
 )
@@ -343,7 +343,7 @@ echo ""
 echo -e "${BOLD}Tenant-Info:${NC}"
 echo -e "  UUID:    ${YELLOW}a0000000-0000-0000-0000-000000000001${NC}"
 echo -e "  API-Key: ${YELLOW}test-key-123${NC}"
-echo -e "  API-Key: ${YELLOW}***API_KEY_REMOVED***${NC}"
+echo -e "  API-Key: ${YELLOW}DEIN_API_KEY_HIER${NC}"
 echo ""
 echo -e "${BOLD}Nächster Schritt — n8n Credential aktualisieren:${NC}"
 echo -e "  n8n UI → Settings → Credentials → 'Postgres account'"

@@ -150,7 +150,7 @@ if [ "$FAILED" -eq 0 ]; then
     echo -e "  ${GREEN}${BOLD}Alle Webhooks funktionieren!${NC}"
     echo ""
     echo -e "  Weitere Tests mit:"
-    echo -e "  ${YELLOW}bash scripts/test-webhooks.sh --key ***API_KEY_REMOVED***${NC}"
+    echo -e "  ${YELLOW}bash scripts/test-webhooks.sh --key DEIN_API_KEY_HIER${NC}"
 else
     echo -e "  ${YELLOW}${BOLD}Checklist bei Fehlern:${NC}"
     echo -e "  1. DB Setup: ${YELLOW}bash scripts/setup-rag-db.sh${NC}"

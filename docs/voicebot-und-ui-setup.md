@@ -149,7 +149,7 @@ logger = logging.getLogger(__name__)
 
 N8N_URL        = os.getenv("N8N_URL",        "https://workflows.eppcom.de")
 TENANT_ID      = os.getenv("TENANT_ID",      "a0000000-0000-0000-0000-000000000001")
-API_KEY        = os.getenv("API_KEY",         "***API_KEY_REMOVED***")
+API_KEY        = os.getenv("API_KEY",         "DEIN_API_KEY_HIER")
 WHISPER_MODEL  = os.getenv("WHISPER_MODEL",   "base")  # tiny/base/small/medium
 PIPER_MODEL    = os.getenv("PIPER_MODEL",     "/opt/piper/de_DE-thorsten-medium.onnx")
 LIVEKIT_URL    = os.getenv("LIVEKIT_URL",     "wss://livekit.eppcom.de")
@@ -328,7 +328,7 @@ ExecStart=/opt/eppcom-agent/bin/python /opt/eppcom-agent/agent.py start
 WorkingDirectory=/opt/eppcom-agent
 Environment="N8N_URL=https://workflows.eppcom.de"
 Environment="TENANT_ID=a0000000-0000-0000-0000-000000000001"
-Environment="API_KEY=***API_KEY_REMOVED***"
+Environment="API_KEY=DEIN_API_KEY_HIER"
 Environment="WHISPER_MODEL=base"
 Environment="PIPER_MODEL=/opt/piper/de_DE-thorsten-medium.onnx"
 Environment="LIVEKIT_URL=wss://livekit.eppcom.de"
@@ -469,7 +469,7 @@ oder per Coolify mit Domain auf `https://admin.eppcom.de`.
 
 1. Tab **Dokumente** öffnen
 2. Tenant auswählen
-3. API-Key eingeben (z.B. `***API_KEY_REMOVED***`)
+3. API-Key eingeben (z.B. `DEIN_API_KEY_HIER`)
 4. Datei hochladen ODER Text direkt eingeben
 5. Klick auf **"Einpflegen & Embedden"**
 6. Warten ~15-60s → Erfolg: Anzahl Chunks angezeigt
@@ -480,7 +480,7 @@ oder per Coolify mit Domain auf `https://admin.eppcom.de`.
 # Text direkt
 curl -s -X POST https://workflows.eppcom.de/webhook/ingest \
   -H "X-Tenant-ID: a0000000-0000-0000-0000-000000000001" \
-  -H "X-API-Key: ***API_KEY_REMOVED***" \
+  -H "X-API-Key: DEIN_API_KEY_HIER" \
   -H "Content-Type: application/json" \
   -d '{
     "content": "Hier steht der Volltext des Dokuments...",
@@ -529,14 +529,14 @@ curl -s -X POST https://workflows.eppcom.de/webhook/ingest \
 # 1. RAG Chat
 curl -s -X POST https://workflows.eppcom.de/webhook/rag-chat \
   -H "X-Tenant-ID: a0000000-0000-0000-0000-000000000001" \
-  -H "X-API-Key: ***API_KEY_REMOVED***" \
+  -H "X-API-Key: DEIN_API_KEY_HIER" \
   -H "Content-Type: application/json" \
   -d '{"query": "Was macht EPPCOM?"}' | python3 -m json.tool
 
 # 2. Dokument einpflegen
 curl -s -X POST https://workflows.eppcom.de/webhook/ingest \
   -H "X-Tenant-ID: a0000000-0000-0000-0000-000000000001" \
-  -H "X-API-Key: ***API_KEY_REMOVED***" \
+  -H "X-API-Key: DEIN_API_KEY_HIER" \
   -H "Content-Type: application/json" \
   -d '{"content": "EPPCOM bietet IT-Dienstleistungen in München an.", "name": "Test-Dokument", "source_type": "manual"}'
 

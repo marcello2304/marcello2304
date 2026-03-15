@@ -21,7 +21,7 @@ DELETE FROM public.api_keys
 WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'::uuid
   AND key_hash NOT IN (
     encode(sha256('test-key-123'::bytea), 'hex'),
-    encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex')
+    encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex')
   );
 
 -- ── API-Key 1: test-key-123 ───────────────────────────────────────────────────
@@ -36,12 +36,12 @@ VALUES (
 )
 ON CONFLICT (id) DO UPDATE SET is_active = true;
 
--- ── API-Key 2: ***API_KEY_REMOVED*** ──────────────────────────────────────────
+-- ── API-Key 2: DEIN_API_KEY_HIER ──────────────────────────────────────────
 INSERT INTO public.api_keys (id, tenant_id, key_hash, name, permissions, is_active)
 VALUES (
     'b0000000-0000-0000-0000-000000000002'::uuid,
     'a0000000-0000-0000-0000-000000000001'::uuid,
-    encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex'),
+    encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex'),
     'EPPCOM Produktiv Key 2025',
     '["read", "write"]'::jsonb,
     true

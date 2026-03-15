@@ -10,10 +10,10 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────────────────────
 OLLAMA_HOST="http://10.0.0.3:11434"
 N8N_URL="https://workflows.eppcom.de"
-N8N_USER="admin"
-N8N_PASS="***N8N_PASSWORD_REMOVED***"
+N8N_USER="${N8N_USER:?Bitte N8N_USER als ENV setzen}"
+N8N_PASS="${N8N_PASS:?Bitte N8N_PASS als ENV setzen}"
 TENANT_ID="a0000000-0000-0000-0000-000000000001"
-API_KEY_PLAINTEXT="***API_KEY_REMOVED***"
+API_KEY_PLAINTEXT="DEIN_API_KEY_HIER"
 API_KEY_OLD="test-key-123"
 EMBED_MODEL="qwen3-embedding:0.6b"
 CHAT_MODEL="qwen3-nothink"
@@ -82,7 +82,7 @@ DELETE FROM api_keys
 WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'
   AND key_hash NOT IN (
     encode(sha256('test-key-123'::bytea), 'hex'),
-    encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex')
+    encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex')
   );
 
 -- test-key-123 sicherstellen (bestätigt funktionierend)
@@ -97,12 +97,12 @@ VALUES (
 )
 ON CONFLICT DO NOTHING;
 
--- ***API_KEY_REMOVED*** hinzufügen
+-- DEIN_API_KEY_HIER hinzufügen
 INSERT INTO api_keys (id, tenant_id, key_hash, name, permissions, is_active)
 VALUES (
   gen_random_uuid(),
   'a0000000-0000-0000-0000-000000000001',
-  encode(sha256('***API_KEY_REMOVED***'::bytea), 'hex'),
+  encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex'),
   'Test API Key 2025',
   '["read","write"]'::jsonb,
   true
@@ -111,7 +111,7 @@ ON CONFLICT DO NOTHING;
 EOF
 
 KEY_COUNT=$(psql_exec -tAc "SELECT COUNT(*) FROM api_keys WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND is_active = true;" 2>/dev/null || echo "0")
-ok "API-Keys aktiv: $KEY_COUNT (inkl. test-key-123 + ***API_KEY_REMOVED***)"
+ok "API-Keys aktiv: $KEY_COUNT (inkl. test-key-123 + DEIN_API_KEY_HIER)"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SCHRITT 2: Test-Daten einfügen
@@ -533,7 +533,7 @@ printf "║  %-30s %-26s ║\n" "Chunks in DB:" "$DB_CHUNKS"
 printf "║  %-30s %-26s ║\n" "Embeddings in DB:" "$DB_EMBEDS"
 printf "║  %-30s %-26s ║\n" "Aktive API-Keys:" "$DB_KEYS"
 printf "║  %-30s %-26s ║\n" "API-Key 1:" "test-key-123"
-printf "║  %-30s %-26s ║\n" "API-Key 2:" "***API_KEY_REMOVED***"
+printf "║  %-30s %-26s ║\n" "API-Key 2:" "DEIN_API_KEY_HIER"
 echo "╠═══════════════════════════════════════════════════════════╣"
 echo "║  Test-Commands:                                           ║"
 echo "║                                                           ║"

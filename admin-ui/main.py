@@ -54,7 +54,7 @@ EMBED_MODEL = os.getenv("EMBED_MODEL",   "qwen3-embedding:0.6b")
 EMBED_DIM   = int(os.getenv("EMBED_DIM", "1024"))
 
 SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "eppler@eppcom.de")
-SUPER_ADMIN_DEFAULT_PW = os.getenv("SUPER_ADMIN_DEFAULT_PW", "***DEFAULT_PASSWORD_REMOVED***")
+SUPER_ADMIN_DEFAULT_PW = os.getenv("SUPER_ADMIN_DEFAULT_PW", "")
 
 CHUNK_SIZE     = int(os.getenv("CHUNK_SIZE", "800"))
 CHUNK_OVERLAP  = int(os.getenv("CHUNK_OVERLAP", "200"))
@@ -103,16 +103,17 @@ async def get_db() -> asyncpg.Pool:
 @app.on_event("startup")
 async def startup():
     db = await get_db()
-    # Super-Admin auto-erstellen falls nicht vorhanden
-    existing = await db.fetchval("SELECT id FROM public.users WHERE email=$1", SUPER_ADMIN_EMAIL.lower())
-    if not existing:
-        pw_hash = bcrypt.hashpw(SUPER_ADMIN_DEFAULT_PW.encode(), bcrypt.gensalt()).decode()
-        await db.execute(
-            """INSERT INTO public.users (email, password_hash, display_name, role)
-               VALUES ($1, $2, $3, 'superadmin')
-               ON CONFLICT (email) DO NOTHING""",
-            SUPER_ADMIN_EMAIL.lower(), pw_hash, "Admin Eppler"
-        )
+    # Super-Admin auto-erstellen falls nicht vorhanden UND Passwort gesetzt
+    if SUPER_ADMIN_DEFAULT_PW:
+        existing = await db.fetchval("SELECT id FROM public.users WHERE email=$1", SUPER_ADMIN_EMAIL.lower())
+        if not existing:
+            pw_hash = bcrypt.hashpw(SUPER_ADMIN_DEFAULT_PW.encode(), bcrypt.gensalt()).decode()
+            await db.execute(
+                """INSERT INTO public.users (email, password_hash, display_name, role)
+                   VALUES ($1, $2, $3, 'superadmin')
+                   ON CONFLICT (email) DO NOTHING""",
+                SUPER_ADMIN_EMAIL.lower(), pw_hash, "Admin Eppler"
+            )
 
 @app.on_event("shutdown")
 async def shutdown():

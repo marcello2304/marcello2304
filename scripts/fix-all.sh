@@ -4,12 +4,12 @@
 set -euo pipefail
 
 POSTGRES_CONTAINER="postgres-rag"
-POSTGRES_PASSWORD="***POSTGRES_PASSWORD_REMOVED***"
-APP_NETWORK="zoc8g4socc0ww80w4s080g4s"
-N8N_CONTAINER="n8n-zoc8g4socc0ww80w4s080g4s"
-N8N_URL="https://workflows.eppcom.de"
-N8N_USER="admin"
-N8N_PASS="***N8N_PASSWORD_REMOVED***"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:?Bitte POSTGRES_PASSWORD als ENV setzen}"
+APP_NETWORK="${APP_NETWORK:-coolify}"
+N8N_CONTAINER="${N8N_CONTAINER:-n8n}"
+N8N_URL="${N8N_URL:-https://workflows.eppcom.de}"
+N8N_USER="${N8N_USER:?Bitte N8N_USER als ENV setzen}"
+N8N_PASS="${N8N_PASS:?Bitte N8N_PASS als ENV setzen}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
