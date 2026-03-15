@@ -167,7 +167,7 @@ services:
       S3_REGION: ${S3_REGION}
       N8N_URL: "https://n8n.${DOMAIN}"
       OLLAMA_URL: ${OLLAMA_BASE_URL}
-      ADMIN_API_KEY: ${ADMIN_API_KEY:-change-this-admin-key-immediately}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?ADMIN_API_KEY muss in .env gesetzt sein}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-eppler@eppcom.de}
       EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
       EMBED_DIM: ${EMBED_DIM:-768}

@@ -13,8 +13,7 @@ N8N_URL="https://workflows.eppcom.de"
 N8N_USER="${N8N_USER:?Bitte N8N_USER als ENV setzen}"
 N8N_PASS="${N8N_PASS:?Bitte N8N_PASS als ENV setzen}"
 TENANT_ID="a0000000-0000-0000-0000-000000000001"
-API_KEY_PLAINTEXT="DEIN_API_KEY_HIER"
-API_KEY_OLD="test-key-123"
+API_KEY_PLAINTEXT="${RAG_API_KEY:?Bitte RAG_API_KEY als ENV setzen (openssl rand -hex 32)}"
 EMBED_MODEL="qwen3-embedding:0.6b"
 CHAT_MODEL="qwen3-nothink"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -76,34 +75,19 @@ psql_exec() {
   docker exec -i "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 "$@"
 }
 
-psql_exec <<'EOF'
--- Alte Keys mit unbekanntem Plaintext entfernen
-DELETE FROM api_keys
+psql_exec <<EOF
+-- Alte unsichere Test-Keys deaktivieren
+UPDATE api_keys SET is_active = false
 WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'
-  AND key_hash NOT IN (
-    encode(sha256('test-key-123'::bytea), 'hex'),
-    encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex')
-  );
+  AND name IN ('Test Key Original', 'Test API Key', 'Test API Key 2025', 'Test API Key (Original)');
 
--- test-key-123 sicherstellen (bestätigt funktionierend)
+-- Neuen sicheren API-Key anlegen
 INSERT INTO api_keys (id, tenant_id, key_hash, name, permissions, is_active)
 VALUES (
   gen_random_uuid(),
   'a0000000-0000-0000-0000-000000000001',
-  encode(sha256('test-key-123'::bytea), 'hex'),
-  'Test Key Original',
-  '["read","write"]'::jsonb,
-  true
-)
-ON CONFLICT DO NOTHING;
-
--- DEIN_API_KEY_HIER hinzufügen
-INSERT INTO api_keys (id, tenant_id, key_hash, name, permissions, is_active)
-VALUES (
-  gen_random_uuid(),
-  'a0000000-0000-0000-0000-000000000001',
-  encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex'),
-  'Test API Key 2025',
+  encode(sha256('${API_KEY_PLAINTEXT}'::bytea), 'hex'),
+  'EPPCOM Produktiv Key $(date +%Y)',
   '["read","write"]'::jsonb,
   true
 )
@@ -111,7 +95,7 @@ ON CONFLICT DO NOTHING;
 EOF
 
 KEY_COUNT=$(psql_exec -tAc "SELECT COUNT(*) FROM api_keys WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001' AND is_active = true;" 2>/dev/null || echo "0")
-ok "API-Keys aktiv: $KEY_COUNT (inkl. test-key-123 + DEIN_API_KEY_HIER)"
+ok "API-Keys aktiv: $KEY_COUNT"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SCHRITT 2: Test-Daten einfügen
@@ -409,7 +393,7 @@ else
     "$N8N_URL/webhook-test/rag-chat" \
     -H "Content-Type: application/json" \
     -H "X-Tenant-ID: $TENANT_ID" \
-    -H "X-API-Key: $API_KEY_OLD" \
+    -H "X-API-Key: $API_KEY_PLAINTEXT" \
     -d '{"query": "Was sind die Öffnungszeiten?"}' 2>/dev/null || echo "")
 
   if echo "$E2E_TEST_RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print('OK') if 'answer' in d else sys.exit(1)" 2>/dev/null; then
@@ -442,9 +426,12 @@ if [ -d "$ADMIN_UI_DIR" ]; then
     if [ -f "$MAIN_ENV" ]; then
       PG_PASS=$(grep "^POSTGRES_PASSWORD=" "$MAIN_ENV" | cut -d= -f2- | tr -d '"' | tr -d "'")
     fi
-    ADMIN_KEY_VAL="$(openssl rand -hex 24 2>/dev/null || echo 'admin-key-change-me-now')"
+    ADMIN_KEY_VAL="$(openssl rand -hex 24)"
+    if [ -z "$PG_PASS" ]; then
+      err "POSTGRES_PASSWORD nicht gesetzt — kann Admin UI .env nicht erstellen"
+    fi
     cat > "$ADMIN_UI_DIR/.env" <<ADMINENV
-DATABASE_URL=postgresql://appuser:${PG_PASS:-changeme}@postgres:5432/appdb
+DATABASE_URL=postgresql://appuser:${PG_PASS}@postgres:5432/appdb
 N8N_URL=${N8N_URL}
 OLLAMA_URL=${OLLAMA_HOST}
 EMBED_MODEL=${EMBED_MODEL}
@@ -532,14 +519,13 @@ DB_KEYS=$(psql_exec -tAc "SELECT COUNT(*) FROM api_keys WHERE tenant_id = 'a0000
 printf "║  %-30s %-26s ║\n" "Chunks in DB:" "$DB_CHUNKS"
 printf "║  %-30s %-26s ║\n" "Embeddings in DB:" "$DB_EMBEDS"
 printf "║  %-30s %-26s ║\n" "Aktive API-Keys:" "$DB_KEYS"
-printf "║  %-30s %-26s ║\n" "API-Key 1:" "test-key-123"
-printf "║  %-30s %-26s ║\n" "API-Key 2:" "DEIN_API_KEY_HIER"
+printf "║  %-30s %-26s ║\n" "API-Key:" "${API_KEY_PLAINTEXT:0:8}..."
 echo "╠═══════════════════════════════════════════════════════════╣"
 echo "║  Test-Commands:                                           ║"
 echo "║                                                           ║"
 echo "║  curl -s -X POST $N8N_URL/webhook/rag-chat \\"
 echo "║    -H 'X-Tenant-ID: $TENANT_ID' \\"
-echo "║    -H 'X-API-Key: $API_KEY_PLAINTEXT' \\"
+echo "║    -H 'X-API-Key: <DEIN_API_KEY>' \\"
 echo "║    -H 'Content-Type: application/json' \\"
 echo "║    -d '{\"query\": \"Was macht EPPCOM?\"}' | python3 -m json.tool"
 echo "║                                                           ║"

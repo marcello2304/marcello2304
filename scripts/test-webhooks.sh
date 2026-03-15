@@ -3,14 +3,14 @@
 #
 # Verwendung:
 #   bash scripts/test-webhooks.sh
-#   bash scripts/test-webhooks.sh --domain workflows.eppcom.de --key test-key-123
+#   API_KEY=dein-key bash scripts/test-webhooks.sh --domain workflows.eppcom.de
 
 set -euo pipefail
 
 # ── Konfiguration ─────────────────────────────────────────────────────────────
 DOMAIN="${WEBHOOK_DOMAIN:-workflows.eppcom.de}"
 TENANT_ID="${TENANT_ID:-a0000000-0000-0000-0000-000000000001}"
-API_KEY="${API_KEY:-test-key-123}"
+API_KEY="${API_KEY:?Bitte API_KEY als ENV setzen: API_KEY=dein-key bash scripts/test-webhooks.sh}"
 
 for arg in "$@"; do
     [[ "$arg" == --domain=* ]] && DOMAIN="${arg#--domain=}"
@@ -150,7 +150,7 @@ if [ "$FAILED" -eq 0 ]; then
     echo -e "  ${GREEN}${BOLD}Alle Webhooks funktionieren!${NC}"
     echo ""
     echo -e "  Weitere Tests mit:"
-    echo -e "  ${YELLOW}bash scripts/test-webhooks.sh --key DEIN_API_KEY_HIER${NC}"
+    echo -e "  ${YELLOW}API_KEY=dein-key bash scripts/test-webhooks.sh${NC}"
 else
     echo -e "  ${YELLOW}${BOLD}Checklist bei Fehlern:${NC}"
     echo -e "  1. DB Setup: ${YELLOW}bash scripts/setup-rag-db.sh${NC}"

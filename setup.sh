@@ -249,7 +249,7 @@ else
         -e DB_POSTGRESDB_SCHEMA=n8n \
         -e N8N_BASIC_AUTH_ACTIVE=true \
         -e "N8N_BASIC_AUTH_USER=${N8N_ADMIN_USER:-admin}" \
-        -e "N8N_BASIC_AUTH_PASSWORD=${N8N_ADMIN_PASSWORD:-changeme}" \
+        -e "N8N_BASIC_AUTH_PASSWORD=${N8N_ADMIN_PASSWORD:?N8N_ADMIN_PASSWORD muss in .env gesetzt sein}" \
         -e N8N_SECURE_COOKIE=true \
         -e EXECUTIONS_DATA_PRUNE=true \
         -e EXECUTIONS_DATA_MAX_AGE=168 \

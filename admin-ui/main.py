@@ -42,7 +42,10 @@ load_dotenv()
 # ──────────────────────────────────────────────────────────────────────────────
 # Konfiguration
 # ──────────────────────────────────────────────────────────────────────────────
-DB_DSN      = os.getenv("DATABASE_URL",  "postgresql://postgres:changeme@postgres-rag:5432/app_db")
+_db_url = os.getenv("DATABASE_URL", "")
+if not _db_url:
+    raise RuntimeError("DATABASE_URL ist nicht gesetzt — App kann nicht starten ohne DB-Verbindung")
+DB_DSN      = _db_url
 S3_ENDPOINT = os.getenv("S3_ENDPOINT",   "https://fsn1.your-objectstorage.com")
 S3_BUCKET   = os.getenv("S3_BUCKET",     "rag-platform-prod")
 S3_KEY      = os.getenv("S3_ACCESS_KEY", "")
@@ -81,9 +84,12 @@ MEDIA_EXT_MAP = {
 # ──────────────────────────────────────────────────────────────────────────────
 app = FastAPI(title="EPPCOM RAG Admin", version="3.0.0", docs_url="/api/docs")
 
+_cors_origins = os.getenv("CORS_ORIGINS", "").strip()
+_allowed_origins = [o.strip() for o in _cors_origins.split(",") if o.strip()] if _cors_origins else []
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

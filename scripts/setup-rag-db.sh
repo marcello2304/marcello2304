@@ -259,8 +259,12 @@ SELECT 'Migration 003 OK: api_keys, sources, documents, chunks, embeddings, sear
 EOSQL
 ok "003 RAG-Tabellen + search_similar()"
 
-info "EPPCOM Tenant + API-Keys anlegen..."
-docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -v ON_ERROR_STOP=1 <<'EOSQL'
+info "EPPCOM Tenant anlegen + API-Key generieren..."
+
+# API-Key aus ENV oder neu generieren
+RAG_API_KEY="${RAG_API_KEY:-$(openssl rand -hex 32)}"
+
+docker exec -i "$PG_CONTAINER" psql -U "$DB_USER" -d "$RAG_DB" -v ON_ERROR_STOP=1 <<EOSQL
 -- EPPCOM Tenant
 INSERT INTO public.tenants (id, slug, name, email, plan, is_active)
 VALUES (
@@ -274,37 +278,24 @@ VALUES (
 ON CONFLICT (id) DO UPDATE
     SET is_active = true, name = EXCLUDED.name;
 
--- API-Key 1: test-key-123
-INSERT INTO public.api_keys (id, tenant_id, key_hash, name, is_active)
-VALUES (
-    'b0000000-0000-0000-0000-000000000001'::uuid,
-    'a0000000-0000-0000-0000-000000000001'::uuid,
-    encode(sha256('test-key-123'::bytea), 'hex'),
-    'Test API Key',
-    true
-)
-ON CONFLICT (id) DO UPDATE SET is_active = true;
-
--- API-Key 2: DEIN_API_KEY_HIER
-INSERT INTO public.api_keys (id, tenant_id, key_hash, name, is_active)
-VALUES (
-    'b0000000-0000-0000-0000-000000000002'::uuid,
-    'a0000000-0000-0000-0000-000000000001'::uuid,
-    encode(sha256('DEIN_API_KEY_HIER'::bytea), 'hex'),
-    'EPPCOM Produktiv Key 2025',
-    true
-)
-ON CONFLICT (id) DO UPDATE SET is_active = true;
-
-SELECT 'Tenant:' AS typ, id::text, slug, name, is_active::text FROM public.tenants
-WHERE id = 'a0000000-0000-0000-0000-000000000001'::uuid
-UNION ALL
-SELECT 'API-Key:', id::text, name, LEFT(key_hash, 20) || '...', is_active::text
-FROM public.api_keys
+-- Alte unsichere Test-Keys deaktivieren
+UPDATE public.api_keys SET is_active = false
 WHERE tenant_id = 'a0000000-0000-0000-0000-000000000001'::uuid
-ORDER BY typ DESC;
+  AND name IN ('Test API Key', 'Test Key Original', 'Test API Key (Original)');
+
+-- Neuen sicheren API-Key anlegen
+INSERT INTO public.api_keys (id, tenant_id, key_hash, name, permissions, is_active)
+VALUES (
+    gen_random_uuid(),
+    'a0000000-0000-0000-0000-000000000001'::uuid,
+    encode(sha256('${RAG_API_KEY}'::bytea), 'hex'),
+    'EPPCOM Produktiv Key $(date +%Y)',
+    '["read","write"]'::jsonb,
+    true
+)
+ON CONFLICT DO NOTHING;
 EOSQL
-ok "EPPCOM Tenant + API-Keys"
+ok "EPPCOM Tenant + API-Key"
 
 # ── Schritt 5: Berechtigungen ─────────────────────────────────────────────────
 step "5/6 Berechtigungen"
@@ -342,8 +333,8 @@ ok "Aktive API-Keys: $APIKEY_COUNT"
 echo ""
 echo -e "${BOLD}Tenant-Info:${NC}"
 echo -e "  UUID:    ${YELLOW}a0000000-0000-0000-0000-000000000001${NC}"
-echo -e "  API-Key: ${YELLOW}test-key-123${NC}"
-echo -e "  API-Key: ${YELLOW}DEIN_API_KEY_HIER${NC}"
+echo -e "  API-Key: ${YELLOW}${RAG_API_KEY}${NC}"
+echo -e "  ${RED}WICHTIG: Diesen Key sicher speichern! Er wird nur einmal angezeigt.${NC}"
 echo ""
 echo -e "${BOLD}Nächster Schritt — n8n Credential aktualisieren:${NC}"
 echo -e "  n8n UI → Settings → Credentials → 'Postgres account'"
@@ -353,5 +344,5 @@ echo -e "  User:     ${YELLOW}${DB_USER}${NC}"
 echo -e "  Port:     ${YELLOW}5432${NC}"
 echo ""
 echo -e "${BOLD}Dann Webhooks testen:${NC}"
-echo -e "  ${YELLOW}bash scripts/test-webhooks.sh${NC}"
+echo -e "  ${YELLOW}API_KEY=${RAG_API_KEY} bash scripts/test-webhooks.sh${NC}"
 echo ""

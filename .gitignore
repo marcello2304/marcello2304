@@ -3,6 +3,11 @@
 .env.local
 .env.production
 docker/server2.env
+*.pem
+*.key
+*.p12
+*.credentials
+credentials.json
 
 # Diagnose-Outputs
 diagnose-output.txt

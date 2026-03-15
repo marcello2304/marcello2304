@@ -130,19 +130,18 @@ END;
 \$\$;
 "
 
-# Passwords speichern (für spätere Nutzung)
-cat > /tmp/rag-db-credentials.txt <<EOF
-RAG Datenbank-Credentials (generiert am $(date))
-================================================
-rag_app     Password: $RAG_APP_PASS
-rag_readonly Password: $RAG_RO_PASS
-rag_admin   Password: $RAG_ADMIN_PASS
-
-Datenbank-Host (intern): postgres-rag:5432
-Datenbank: postgres
-EOF
-chmod 600 /tmp/rag-db-credentials.txt
-ok "  Credentials gespeichert in /tmp/rag-db-credentials.txt"
+# Credentials nur auf stdout anzeigen (nicht auf Disk speichern)
+echo ""
+echo "  ┌─────────────────────────────────────────────────────┐"
+echo "  │  RAG Datenbank-Credentials (JETZT SICHER SPEICHERN) │"
+echo "  ├─────────────────────────────────────────────────────┤"
+echo "  │  rag_app      → $RAG_APP_PASS"
+echo "  │  rag_readonly → $RAG_RO_PASS"
+echo "  │  rag_admin    → $RAG_ADMIN_PASS"
+echo "  │  Host (intern): postgres-rag:5432"
+echo "  └─────────────────────────────────────────────────────┘"
+echo ""
+ok "  Credentials angezeigt — bitte sicher in Passwort-Manager speichern"
 
 # Migration-Status prüfen
 info "  → Migrations-Check ..."
@@ -312,5 +311,5 @@ echo "  1. Test-Tenant anlegen:  bash scripts/create-tenant.sh test-kunde 'Test'
 echo "  2. n8n Workflows prüfen: ${N8N_URL}/workflows"
 echo "  3. RAG-Pfad testen:      bash scripts/test-rag-path.sh"
 echo ""
-echo "DB-Credentials: cat /tmp/rag-db-credentials.txt"
+echo "DB-Credentials: wurden oben angezeigt — sicher speichern!"
 echo ""

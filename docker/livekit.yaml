@@ -8,8 +8,11 @@ rtc:
   port_range_end: 50100
   use_external_ip: true  # Wichtig: Hetzner externe IP für ICE
 
+# WICHTIG: Vor Deployment echte Keys generieren!
+# openssl rand -base64 32 → als API Key
+# openssl rand -base64 32 → als API Secret
 keys:
-  LIVEKIT_API_KEY: LIVEKIT_API_SECRET_HIER  # Ersetzten durch echte Keys!
+  CHANGE_ME_API_KEY: CHANGE_ME_API_SECRET
 
 logging:
   json: false
@@ -25,4 +28,4 @@ turn:
 webhook:
   urls:
     - https://n8n.DEINE_DOMAIN.de/webhook/livekit-events
-  api_key: LIVEKIT_API_KEY
+  api_key: CHANGE_ME_API_KEY
