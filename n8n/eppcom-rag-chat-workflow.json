@@ -1,4 +1,5 @@
 {
+  "id": "rag-chat-eppcom-001",
   "name": "RAG Chat – EPPCOM",
   "nodes": [
     {
@@ -252,6 +253,6 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": ""
   },
-  "tags": ["rag", "chat", "eppcom"],
+  "tags": [],
   "active": true
 }
