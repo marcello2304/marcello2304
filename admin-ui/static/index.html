@@ -3,372 +3,259 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EPPCOM RAG Admin</title>
+<title>EPPCOM RAG Platform</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <style>
   [x-cloak] { display: none !important; }
-  .tab-active { @apply border-b-2 border-blue-500 text-blue-600; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
   pre { white-space: pre-wrap; word-break: break-all; }
+  .drag-over { border-color: #3b82f6 !important; background: #eff6ff !important; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen" x-data="app()" x-init="init()" x-cloak>
 
-<!-- Login -->
-<div x-show="!authenticated" class="min-h-screen flex items-center justify-center">
-  <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
-    <h1 class="text-2xl font-bold text-gray-800 mb-2">EPPCOM RAG Admin</h1>
-    <p class="text-gray-500 text-sm mb-6">Gib deinen Admin-Key ein</p>
-    <input type="password" x-model="adminKey" placeholder="Admin API Key"
-           class="w-full border rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-           @keyup.enter="login()">
-    <button @click="login()" class="w-full bg-blue-600 text-white rounded-lg py-3 font-semibold hover:bg-blue-700 transition">
-      Anmelden
-    </button>
-    <p x-show="loginError" class="text-red-500 text-sm mt-3" x-text="loginError"></p>
+<!-- LOGIN -->
+<div x-show="!authenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm fade-in">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">E</div>
+      <div>
+        <h1 class="text-xl font-bold text-gray-800">EPPCOM RAG Platform</h1>
+        <p class="text-xs text-gray-400">Dokumente &amp; Medien verwalten</p>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">E-Mail</label>
+        <input type="email" x-model="loginEmail" placeholder="name@firma.de"
+               class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+               @keyup.enter="$refs.pwInput.focus()">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Passwort</label>
+        <input type="password" x-model="loginPassword" placeholder="Admin-Key"
+               x-ref="pwInput"
+               class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+               @keyup.enter="login()">
+      </div>
+      <button @click="login()" :disabled="loginLoading"
+              class="w-full bg-blue-600 text-white rounded-lg py-2.5 font-semibold hover:bg-blue-700 transition disabled:opacity-50">
+        <span x-show="!loginLoading">Anmelden</span>
+        <span x-show="loginLoading">Wird geprueft...</span>
+      </button>
+    </div>
+    <p x-show="loginError" class="text-red-500 text-sm mt-3 text-center" x-text="loginError"></p>
   </div>
 </div>
 
-<!-- Main App -->
+<!-- MAIN APP -->
 <div x-show="authenticated" class="flex flex-col min-h-screen">
 
-  <!-- Navbar -->
-  <nav class="bg-white shadow-sm border-b px-6 py-3 flex items-center justify-between">
+  <!-- NAVBAR -->
+  <nav class="bg-white shadow-sm border-b px-6 py-3 flex items-center justify-between sticky top-0 z-50">
     <div class="flex items-center gap-3">
       <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">E</div>
-      <span class="font-semibold text-gray-800">EPPCOM RAG Admin</span>
-      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" x-show="health.db">DB ✓</span>
-      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" x-show="health.ollama">Ollama ✓</span>
-      <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full" x-show="!health.ollama">Ollama ✗</span>
+      <span class="font-semibold text-gray-800 hidden sm:inline">EPPCOM RAG</span>
+      <span x-show="role==='superadmin'" class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Super-Admin</span>
+      <span x-show="role==='tenant'" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Kunde</span>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" x-show="health.db">DB</span>
+      <span class="text-xs px-2 py-0.5 rounded-full" :class="health.ollama ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+            x-text="health.ollama ? 'Ollama' : 'Ollama offline'"></span>
     </div>
-    <button @click="logout()" class="text-sm text-gray-500 hover:text-gray-800">Abmelden</button>
+    <div class="flex items-center gap-4">
+      <span class="text-sm text-gray-500 hidden md:inline" x-text="userEmail"></span>
+      <button @click="logout()" class="text-sm text-gray-400 hover:text-gray-700 transition">Abmelden</button>
+    </div>
   </nav>
 
-  <!-- Stats Bar -->
-  <div class="bg-white border-b px-6 py-3 flex gap-6 text-sm">
+  <!-- STATS BAR -->
+  <div class="bg-white border-b px-6 py-2.5 flex gap-6 text-sm flex-wrap">
     <span class="text-gray-500">Tenants: <strong x-text="stats.tenants ?? '—'"></strong></span>
     <span class="text-gray-500">Quellen: <strong x-text="stats.sources ?? '—'"></strong></span>
     <span class="text-gray-500">Chunks: <strong x-text="stats.chunks ?? '—'"></strong></span>
     <span class="text-gray-500">Embeddings: <strong x-text="stats.embeddings ?? '—'"></strong></span>
-    <span class="text-gray-500">API-Keys aktiv: <strong x-text="stats.active_keys ?? '—'"></strong></span>
   </div>
 
-  <!-- Tabs -->
-  <div class="bg-white border-b px-6 flex gap-6 text-sm font-medium">
-    <button @click="tab='tenants'" :class="tab==='tenants' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Tenants</button>
-    <button @click="tab='documents'" :class="tab==='documents' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Dokumente</button>
-    <button @click="tab='chunks'" :class="tab==='chunks' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Chunks</button>
-    <button @click="tab='chat'" :class="tab==='chat' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">Chat-Tester</button>
-    <button @click="tab='apikeys'" :class="tab==='apikeys' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'" class="py-3 transition">API-Keys</button>
-  </div>
+  <div class="flex flex-1">
 
-  <!-- Content -->
-  <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
-
-    <!-- ── TENANTS ── -->
-    <div x-show="tab==='tenants'">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold text-gray-800">Tenants / Kunden</h2>
-        <button @click="showNewTenant=true" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-          + Neuer Tenant
-        </button>
-      </div>
-
-      <!-- New Tenant Form -->
-      <div x-show="showNewTenant" class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
-        <h3 class="font-semibold text-gray-800 mb-3">Neuen Tenant anlegen</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <input x-model="newTenant.name" placeholder="Name (z.B. Muster GmbH)" class="border rounded-lg px-3 py-2 text-sm">
-          <input x-model="newTenant.slug" placeholder="Slug (z.B. muster-gmbh)" class="border rounded-lg px-3 py-2 text-sm">
-          <input x-model="newTenant.email" placeholder="E-Mail" class="border rounded-lg px-3 py-2 text-sm">
-          <select x-model="newTenant.plan" class="border rounded-lg px-3 py-2 text-sm">
-            <option>starter</option><option>pro</option><option>enterprise</option>
-          </select>
-        </div>
-        <div class="flex gap-2 mt-3">
-          <button @click="createTenant()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Anlegen</button>
-          <button @click="showNewTenant=false" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300">Abbrechen</button>
-        </div>
-        <p x-show="formMsg" class="text-sm mt-2" :class="formErr ? 'text-red-600' : 'text-green-600'" x-text="formMsg"></p>
-      </div>
-
-      <!-- Tenant Table -->
-      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 border-b">
-            <tr>
-              <th class="px-4 py-3 text-left text-gray-600 font-medium">Name</th>
-              <th class="px-4 py-3 text-left text-gray-600 font-medium">Slug</th>
-              <th class="px-4 py-3 text-left text-gray-600 font-medium">Plan</th>
-              <th class="px-4 py-3 text-center text-gray-600 font-medium">Quellen</th>
-              <th class="px-4 py-3 text-center text-gray-600 font-medium">Chunks</th>
-              <th class="px-4 py-3 text-center text-gray-600 font-medium">Keys</th>
-              <th class="px-4 py-3 text-left text-gray-600 font-medium">Status</th>
-              <th class="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <template x-for="t in tenants" :key="t.id">
-              <tr class="border-b hover:bg-gray-50 cursor-pointer" @click="selectTenant(t)">
-                <td class="px-4 py-3 font-medium text-gray-800" x-text="t.name"></td>
-                <td class="px-4 py-3 text-gray-500 font-mono text-xs" x-text="t.slug"></td>
-                <td class="px-4 py-3">
-                  <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs" x-text="t.plan"></span>
-                </td>
-                <td class="px-4 py-3 text-center" x-text="t.source_count"></td>
-                <td class="px-4 py-3 text-center" x-text="t.chunk_count"></td>
-                <td class="px-4 py-3 text-center" x-text="t.key_count"></td>
-                <td class="px-4 py-3">
-                  <span :class="t.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" class="px-2 py-0.5 rounded text-xs" x-text="t.is_active ? 'Aktiv' : 'Inaktiv'"></span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <button @click.stop="goToDocuments(t)" class="text-blue-600 hover:underline text-xs mr-2">Dokumente</button>
-                  <button @click.stop="goToChat(t)" class="text-green-600 hover:underline text-xs">Chat</button>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ── DOKUMENTE ── -->
-    <div x-show="tab==='documents'">
-      <div class="flex justify-between items-center mb-4">
-        <div>
-          <h2 class="text-xl font-semibold text-gray-800">Dokumente hochladen</h2>
-          <p class="text-sm text-gray-500 mt-1">Tenant: <strong x-text="selectedTenant?.name ?? 'Keiner ausgewählt'"></strong></p>
-        </div>
-        <select x-model="selectedTenantId" @change="loadSources()" class="border rounded-lg px-3 py-2 text-sm">
-          <option value="">Tenant wählen...</option>
+    <!-- SIDEBAR -->
+    <aside class="w-56 bg-white border-r flex-shrink-0 hidden md:block">
+      <div class="p-4">
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Kunde</label>
+        <select x-model="selectedTenantId" @change="onTenantChange()"
+                class="w-full border rounded-lg px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-blue-400">
           <template x-for="t in tenants" :key="t.id">
-            <option :value="t.id" x-text="t.name"></option>
+            <option :value="t.id" x-text="t.name" :selected="t.id===selectedTenantId"></option>
           </template>
         </select>
-      </div>
 
-      <div x-show="selectedTenantId" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div x-show="selectedTenant" class="text-xs text-gray-500 space-y-1 mb-5">
+          <p><span class="font-medium">Slug:</span> <span class="font-mono" x-text="selectedTenant?.slug"></span></p>
+          <p><span class="font-medium">Plan:</span> <span x-text="selectedTenant?.plan"></span></p>
+          <p><span class="font-medium">Quellen:</span> <span x-text="selectedTenant?.source_count ?? 0"></span></p>
+          <p><span class="font-medium">Chunks:</span> <span x-text="selectedTenant?.chunk_count ?? 0"></span></p>
+        </div>
 
-        <!-- Upload Card -->
-        <div class="bg-white rounded-xl shadow-sm p-5">
-          <h3 class="font-semibold text-gray-800 mb-4">Dokument einpflegen</h3>
-
-          <!-- API Key for this tenant -->
-          <div class="mb-3">
-            <label class="block text-xs text-gray-500 mb-1">API-Key für diesen Tenant</label>
-            <input x-model="uploadApiKey" placeholder="test-key-123 oder ***API_KEY_REMOVED***"
-                   class="w-full border rounded-lg px-3 py-2 text-sm">
-          </div>
-
-          <!-- Tabs: File vs Text -->
-          <div class="flex gap-2 mb-3">
-            <button @click="uploadMode='file'" :class="uploadMode==='file' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-lg text-xs font-medium">Datei hochladen</button>
-            <button @click="uploadMode='text'" :class="uploadMode==='text' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-lg text-xs font-medium">Text direkt eingeben</button>
-          </div>
-
-          <!-- File Upload -->
-          <div x-show="uploadMode==='file'">
-            <input type="file" @change="handleFileSelect($event)" accept=".txt,.md,.pdf,.csv"
-                   class="w-full border rounded-lg px-3 py-2 text-sm mb-2">
-            <p class="text-xs text-gray-400">Unterstützt: .txt, .md, .pdf, .csv</p>
-          </div>
-
-          <!-- Text Input -->
-          <div x-show="uploadMode==='text'">
-            <input x-model="uploadName" placeholder="Dokumentname" class="w-full border rounded-lg px-3 py-2 text-sm mb-2">
-            <textarea x-model="uploadText" placeholder="Füge hier den Text ein, der in die Wissensdatenbank soll..."
-                      class="w-full border rounded-lg px-3 py-2 text-sm h-32 resize-none"></textarea>
-          </div>
-
-          <button @click="uploadDocument()" :disabled="uploadLoading"
-                  class="w-full mt-3 bg-green-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition">
-            <span x-show="!uploadLoading">Einpflegen & Embedden</span>
-            <span x-show="uploadLoading">Wird verarbeitet... (kann 30-60s dauern)</span>
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Navigation</label>
+        <nav class="space-y-1">
+          <button @click="tab='rag'" :class="tab==='rag' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
+                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            RAG Dokumente
           </button>
+          <button @click="tab='media'" :class="tab==='media' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
+                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Medien (S3)
+          </button>
+          <button @click="tab='chunks'" :class="tab==='chunks' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
+                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Chunks
+          </button>
+          <button @click="tab='chat'" :class="tab==='chat' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
+                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            Chat-Tester
+          </button>
+          <template x-if="role==='superadmin'">
+            <div class="pt-3 mt-3 border-t space-y-1">
+              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Admin</label>
+              <button @click="tab='tenants'" :class="tab==='tenants' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
+                      class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Kundenverwaltung
+              </button>
+            </div>
+          </template>
+        </nav>
+      </div>
+    </aside>
 
-          <!-- Result -->
-          <div x-show="uploadResult" class="mt-3 p-3 rounded-lg" :class="uploadError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
-            <p class="text-sm font-medium" x-text="uploadError ? 'Fehler:' : 'Erfolg!'"></p>
-            <pre class="text-xs mt-1" x-text="uploadResult"></pre>
+    <!-- MOBILE NAV -->
+    <div class="md:hidden bg-white border-b px-4 py-2 flex gap-2 overflow-x-auto text-xs font-medium sticky top-[52px] z-40">
+      <select x-model="selectedTenantId" @change="onTenantChange()" class="border rounded px-2 py-1.5 text-xs flex-shrink-0">
+        <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name"></option></template>
+      </select>
+      <button @click="tab='rag'" :class="tab==='rag'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">RAG</button>
+      <button @click="tab='media'" :class="tab==='media'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Medien</button>
+      <button @click="tab='chunks'" :class="tab==='chunks'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Chunks</button>
+      <button @click="tab='chat'" :class="tab==='chat'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Chat</button>
+      <button x-show="role==='superadmin'" @click="tab='tenants'" :class="tab==='tenants'?'bg-purple-100 text-purple-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Kunden</button>
+    </div>
+
+    <!-- CONTENT -->
+    <main class="flex-1 p-6 max-w-6xl">
+
+      <!-- ── RAG DOKUMENTE ── -->
+      <div x-show="tab==='rag'" class="fade-in">
+        <div class="flex justify-between items-center mb-5">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-800">RAG Dokumente</h2>
+            <p class="text-sm text-gray-500 mt-0.5">PostgreSQL + pgvector &mdash; <span x-text="selectedTenant?.name ?? ''"></span></p>
+          </div>
+          <button @click="showRagUpload=!showRagUpload"
+                  class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Dokument hinzufuegen
+          </button>
+        </div>
+
+        <!-- Upload Panel -->
+        <div x-show="showRagUpload" x-transition class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
+          <h3 class="font-semibold text-gray-800 mb-3">Neues Dokument einpflegen</h3>
+          <div class="flex gap-2 mb-3">
+            <button @click="ragUploadMode='file'" :class="ragUploadMode==='file' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'" class="px-3 py-1.5 rounded-lg text-xs font-medium transition">Datei hochladen</button>
+            <button @click="ragUploadMode='text'" :class="ragUploadMode==='text' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'" class="px-3 py-1.5 rounded-lg text-xs font-medium transition">Text eingeben</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <div x-show="ragUploadMode==='file'">
+                <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 transition cursor-pointer"
+                     @click="$refs.ragFileInput.click()"
+                     @dragover.prevent="$el.classList.add('drag-over')"
+                     @dragleave.prevent="$el.classList.remove('drag-over')"
+                     @drop.prevent="$el.classList.remove('drag-over'); handleRagFileDrop($event)">
+                  <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                  <p class="text-sm text-gray-600" x-text="ragFile ? ragFile.name : 'Klicken oder Datei hierher ziehen'"></p>
+                  <p class="text-xs text-gray-400 mt-1">.pdf, .txt, .md, .csv, .docx, .html</p>
+                </div>
+                <input type="file" x-ref="ragFileInput" @change="ragFile=$event.target.files[0]" accept=".txt,.md,.pdf,.csv,.docx,.html,.htm,.json" class="hidden">
+              </div>
+              <div x-show="ragUploadMode==='text'">
+                <textarea x-model="ragText" placeholder="Text eingeben, der in die Wissensdatenbank soll..."
+                          class="w-full border rounded-lg px-3 py-2 text-sm h-36 resize-none focus:ring-2 focus:ring-blue-400"></textarea>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <input x-model="ragDocName" placeholder="Dokumentname" class="w-full border rounded-lg px-3 py-2 text-sm">
+              <select x-model="ragDocType" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="general">Allgemein</option>
+                <option value="faq">FAQ</option>
+                <option value="manual">Handbuch</option>
+                <option value="product">Produkt</option>
+                <option value="legal">Rechtliches</option>
+                <option value="support">Support</option>
+              </select>
+              <input x-model="ragTags" placeholder="Tags (kommagetrennt)" class="w-full border rounded-lg px-3 py-2 text-sm">
+              <button @click="uploadRagDocument()" :disabled="ragUploading"
+                      class="w-full bg-green-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition">
+                <span x-show="!ragUploading">Einpflegen &amp; Embedden</span>
+                <span x-show="ragUploading">Verarbeitung laeuft...</span>
+              </button>
+            </div>
+          </div>
+          <div x-show="ragUploadResult" class="mt-3 p-3 rounded-lg text-sm" :class="ragUploadError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
+            <pre x-text="ragUploadResult"></pre>
           </div>
         </div>
 
-        <!-- Sources List -->
-        <div class="bg-white rounded-xl shadow-sm p-5">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="font-semibold text-gray-800">Vorhandene Quellen</h3>
+        <!-- Sources Table -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div class="px-4 py-3 border-b flex justify-between items-center">
+            <span class="text-sm font-medium text-gray-700" x-text="sources.length + ' Dokumente'"></span>
             <button @click="loadSources()" class="text-xs text-blue-600 hover:underline">Aktualisieren</button>
           </div>
-          <div x-show="sources.length === 0" class="text-gray-400 text-sm text-center py-8">Noch keine Dokumente</div>
-          <div class="space-y-2 max-h-96 overflow-y-auto">
-            <template x-for="s in sources" :key="s.id">
-              <div class="border rounded-lg p-3 hover:bg-gray-50">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <p class="font-medium text-sm text-gray-800" x-text="s.name"></p>
-                    <p class="text-xs text-gray-500 mt-0.5">
-                      <span x-text="s.source_type"></span> ·
-                      <span x-text="s.chunk_count + ' Chunks'"></span> ·
-                      <span :class="s.status==='completed' ? 'text-green-600' : 'text-yellow-600'" x-text="s.status"></span>
-                    </p>
-                  </div>
-                  <button @click="deleteSource(s.id)" class="text-red-400 hover:text-red-600 text-xs">Löschen</button>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── CHUNKS ── -->
-    <div x-show="tab==='chunks'">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold text-gray-800">Chunks Browser</h2>
-        <select x-model="selectedTenantId" @change="loadChunks()" class="border rounded-lg px-3 py-2 text-sm">
-          <option value="">Tenant wählen...</option>
-          <template x-for="t in tenants" :key="t.id">
-            <option :value="t.id" x-text="t.name"></option>
-          </template>
-        </select>
-      </div>
-
-      <div x-show="chunks.total > 0" class="text-sm text-gray-500 mb-3">
-        <span x-text="chunks.total + ' Chunks gesamt'"></span>
-      </div>
-
-      <div class="space-y-2">
-        <template x-for="c in chunks.chunks" :key="c.id">
-          <div class="bg-white rounded-xl shadow-sm p-4">
-            <div class="flex justify-between items-start mb-2">
-              <div class="flex gap-2 items-center">
-                <span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-mono" x-text="'#' + c.chunk_index"></span>
-                <span class="text-xs text-gray-500" x-text="c.source_name"></span>
-                <span class="text-xs px-1.5 py-0.5 rounded" :class="c.has_embedding ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'" x-text="c.has_embedding ? 'Embedded ✓' : 'Kein Embedding'"></span>
-              </div>
-              <span class="text-xs text-gray-400" x-text="c.token_count + ' Tokens'"></span>
-            </div>
-            <p class="text-sm text-gray-700 leading-relaxed" x-text="c.content_preview + (c.content_preview.length >= 200 ? '...' : '')"></p>
-          </div>
-        </template>
-      </div>
-
-      <div x-show="chunks.total > 50" class="flex justify-center mt-4 gap-2">
-        <button @click="chunksOffset=Math.max(0,chunksOffset-50); loadChunks()" :disabled="chunksOffset===0"
-                class="px-3 py-1.5 border rounded text-sm disabled:opacity-40">← Zurück</button>
-        <button @click="chunksOffset+=50; loadChunks()" :disabled="chunksOffset+50>=chunks.total"
-                class="px-3 py-1.5 border rounded text-sm disabled:opacity-40">Weiter →</button>
-      </div>
-    </div>
-
-    <!-- ── CHAT TESTER ── -->
-    <div x-show="tab==='chat'" class="max-w-3xl">
-      <h2 class="text-xl font-semibold text-gray-800 mb-4">RAG Chat Tester</h2>
-
-      <div class="bg-white rounded-xl shadow-sm p-4 mb-4 grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Tenant</label>
-          <select x-model="chatTenantId" class="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value="">Tenant wählen...</option>
-            <template x-for="t in tenants" :key="t.id">
-              <option :value="t.id" x-text="t.name"></option>
-            </template>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">API-Key</label>
-          <input x-model="chatApiKey" placeholder="***API_KEY_REMOVED***" class="w-full border rounded-lg px-3 py-2 text-sm">
-        </div>
-      </div>
-
-      <!-- Chat Messages -->
-      <div class="bg-white rounded-xl shadow-sm p-4 min-h-64 mb-3 max-h-96 overflow-y-auto" id="chat-messages">
-        <div x-show="chatMessages.length===0" class="text-gray-400 text-sm text-center py-12">
-          Stelle eine Frage um den RAG Chat zu testen
-        </div>
-        <template x-for="m in chatMessages" :key="m.id">
-          <div class="mb-4">
-            <div :class="m.role==='user' ? 'text-right' : 'text-left'">
-              <div :class="m.role==='user' ? 'bg-blue-600 text-white ml-12' : 'bg-gray-100 text-gray-800 mr-12'"
-                   class="inline-block rounded-2xl px-4 py-2.5 text-sm" x-text="m.content"></div>
-              <template x-if="m.role==='assistant' && m.sources && m.sources.length > 0">
-                <div class="mt-1 ml-1">
-                  <template x-for="s in m.sources" :key="s.title">
-                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mr-1"
-                          x-text="s.title + ' (' + Math.round(s.similarity*100) + '%)'"></span>
-                  </template>
-                </div>
-              </template>
-              <template x-if="m.timing">
-                <p class="text-xs text-gray-400 mt-0.5" x-text="m.timing.total_duration_ms + 'ms · ' + (m.chunks_used||0) + ' Chunks'"></p>
-              </template>
-            </div>
-          </div>
-        </template>
-        <div x-show="chatLoading" class="text-gray-400 text-sm">Antwort wird generiert...</div>
-      </div>
-
-      <div class="flex gap-2">
-        <input x-model="chatInput" @keyup.enter="sendChat()" placeholder="Frage eingeben..."
-               class="flex-1 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-        <button @click="sendChat()" :disabled="chatLoading || !chatTenantId || !chatApiKey"
-                class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40">
-          Senden
-        </button>
-        <button @click="chatMessages=[]" class="bg-gray-200 text-gray-700 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-300">
-          Löschen
-        </button>
-      </div>
-    </div>
-
-    <!-- ── API KEYS ── -->
-    <div x-show="tab==='apikeys'">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold text-gray-800">API-Key Verwaltung</h2>
-        <select x-model="selectedTenantId" @change="loadApiKeys()" class="border rounded-lg px-3 py-2 text-sm">
-          <option value="">Tenant wählen...</option>
-          <template x-for="t in tenants" :key="t.id">
-            <option :value="t.id" x-text="t.name"></option>
-          </template>
-        </select>
-      </div>
-
-      <div x-show="selectedTenantId">
-        <!-- New Key Form -->
-        <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
-          <h3 class="font-semibold text-gray-800 mb-3">Neuen API-Key erstellen</h3>
-          <div class="grid grid-cols-2 gap-3">
-            <input x-model="newKey.name" placeholder="Name (z.B. Production Key)" class="border rounded-lg px-3 py-2 text-sm">
-            <input x-model="newKey.key_plaintext" placeholder="Plaintext Key (z.B. mein-sicherer-key-2025)" class="border rounded-lg px-3 py-2 text-sm">
-          </div>
-          <button @click="createApiKey()" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-            Key erstellen (SHA256 wird gespeichert)
-          </button>
-          <p x-show="keyMsg" class="text-sm mt-2" :class="keyErr ? 'text-red-600' : 'text-green-600'" x-text="keyMsg"></p>
-        </div>
-
-        <!-- Keys List -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-          <table class="w-full text-sm">
+          <div x-show="sources.length===0" class="text-center text-gray-400 py-12 text-sm">Noch keine RAG-Dokumente vorhanden</div>
+          <table x-show="sources.length>0" class="w-full text-sm">
             <thead class="bg-gray-50 border-b">
               <tr>
-                <th class="px-4 py-3 text-left text-gray-600 font-medium">Name</th>
-                <th class="px-4 py-3 text-left text-gray-600 font-medium">Status</th>
-                <th class="px-4 py-3 text-left text-gray-600 font-medium">Erstellt</th>
-                <th class="px-4 py-3"></th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Name</th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium hidden sm:table-cell">Typ</th>
+                <th class="px-4 py-2.5 text-center text-gray-600 font-medium">Chunks</th>
+                <th class="px-4 py-2.5 text-center text-gray-600 font-medium hidden sm:table-cell">Embeddings</th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Status</th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium hidden lg:table-cell">Erstellt</th>
+                <th class="px-4 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
-              <template x-for="k in apiKeys" :key="k.id">
-                <tr class="border-b">
-                  <td class="px-4 py-3 font-medium text-gray-800" x-text="k.name"></td>
-                  <td class="px-4 py-3">
-                    <span :class="k.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-                          class="px-2 py-0.5 rounded text-xs" x-text="k.is_active ? 'Aktiv' : 'Inaktiv'"></span>
+              <template x-for="s in sources" :key="s.id">
+                <tr class="border-b hover:bg-gray-50">
+                  <td class="px-4 py-2.5">
+                    <p class="font-medium text-gray-800 truncate max-w-xs" x-text="s.name"></p>
+                    <p class="text-xs text-gray-400" x-text="s.file_name"></p>
                   </td>
-                  <td class="px-4 py-3 text-gray-500 text-xs" x-text="new Date(k.created_at).toLocaleString('de-DE')"></td>
-                  <td class="px-4 py-3 text-right">
-                    <button @click="deleteApiKey(k.id)" class="text-red-400 hover:text-red-600 text-xs">Deaktivieren</button>
+                  <td class="px-4 py-2.5 hidden sm:table-cell">
+                    <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs" x-text="s.file_type || s.source_type"></span>
+                  </td>
+                  <td class="px-4 py-2.5 text-center font-mono text-xs" x-text="s.chunk_count"></td>
+                  <td class="px-4 py-2.5 text-center font-mono text-xs hidden sm:table-cell" x-text="s.embed_count"></td>
+                  <td class="px-4 py-2.5">
+                    <span class="px-2 py-0.5 rounded text-xs"
+                          :class="{
+                            'bg-green-100 text-green-700': s.status==='indexed',
+                            'bg-yellow-100 text-yellow-700': s.status==='processing' || s.status==='pending',
+                            'bg-red-100 text-red-700': s.status==='error',
+                          }"
+                          x-text="s.status"></span>
+                  </td>
+                  <td class="px-4 py-2.5 text-xs text-gray-400 hidden lg:table-cell" x-text="fmtDate(s.created_at)"></td>
+                  <td class="px-4 py-2.5 text-right space-x-1">
+                    <button @click="reembedSource(s.id)" class="text-blue-500 hover:text-blue-700 text-xs" title="Neu embedden">Re-Embed</button>
+                    <button @click="deleteSource(s.id)" class="text-red-400 hover:text-red-600 text-xs">Loeschen</button>
                   </td>
                 </tr>
               </template>
@@ -376,9 +263,288 @@
           </table>
         </div>
       </div>
-    </div>
 
-  </main>
+      <!-- ── MEDIEN (S3) ── -->
+      <div x-show="tab==='media'" class="fade-in">
+        <div class="flex justify-between items-center mb-5">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-800">Mediendateien</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Hetzner S3 Storage &mdash; <span x-text="selectedTenant?.name ?? ''"></span></p>
+          </div>
+          <button @click="showMediaUpload=!showMediaUpload"
+                  class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Medien hochladen
+          </button>
+        </div>
+
+        <!-- Upload Panel -->
+        <div x-show="showMediaUpload" x-transition class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-5">
+          <h3 class="font-semibold text-gray-800 mb-3">Mediendateien hochladen</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-400 transition cursor-pointer"
+                   @click="$refs.mediaFileInput.click()"
+                   @dragover.prevent="$el.classList.add('drag-over')"
+                   @dragleave.prevent="$el.classList.remove('drag-over')"
+                   @drop.prevent="$el.classList.remove('drag-over'); handleMediaFileDrop($event)">
+                <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <p class="text-sm text-gray-600" x-text="mediaFile ? mediaFile.name + ' (' + humanSize(mediaFile.size) + ')' : 'Bild, Video oder Audio hierher ziehen'"></p>
+                <p class="text-xs text-gray-400 mt-1">JPG, PNG, GIF, WebP, MP4, WebM, MP3, WAV, PDF</p>
+              </div>
+              <input type="file" x-ref="mediaFileInput" @change="mediaFile=$event.target.files[0]"
+                     accept="image/*,video/*,audio/*,.pdf" class="hidden">
+            </div>
+            <div class="space-y-2">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Ordner</label>
+                <select x-model="mediaFolder" class="w-full border rounded-lg px-3 py-2 text-sm">
+                  <option value="media">media (Standard)</option>
+                  <option value="media/images">media/images</option>
+                  <option value="media/videos">media/videos</option>
+                  <option value="media/audio">media/audio</option>
+                  <option value="media/documents">media/documents</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Beschreibung (optional)</label>
+                <input x-model="mediaDescription" placeholder="Kurzbeschreibung" class="w-full border rounded-lg px-3 py-2 text-sm">
+              </div>
+              <button @click="uploadMedia()" :disabled="mediaUploading || !mediaFile"
+                      class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition">
+                <span x-show="!mediaUploading">In S3 hochladen</span>
+                <span x-show="mediaUploading">Wird hochgeladen...</span>
+              </button>
+            </div>
+          </div>
+          <div x-show="mediaUploadResult" class="mt-3 p-3 rounded-lg text-sm" :class="mediaUploadError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
+            <pre x-text="mediaUploadResult"></pre>
+          </div>
+        </div>
+
+        <!-- Folder Filter -->
+        <div class="flex gap-2 mb-4 flex-wrap">
+          <template x-for="f in ['media','media/images','media/videos','media/audio','media/documents','docs']" :key="f">
+            <button @click="mediaListFolder=f; loadMedia()"
+                    :class="mediaListFolder===f ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'"
+                    class="px-3 py-1.5 rounded-lg text-xs font-medium transition" x-text="f"></button>
+          </template>
+        </div>
+
+        <!-- Media Grid -->
+        <div x-show="mediaItems.length===0" class="text-center text-gray-400 py-12 text-sm bg-white rounded-xl shadow-sm">
+          Keine Dateien in diesem Ordner
+        </div>
+        <div x-show="mediaItems.length>0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="m in mediaItems" :key="m.key">
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden group">
+              <div class="h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
+                <template x-if="m.is_image">
+                  <img :src="m.url" :alt="m.name" class="h-full w-full object-cover" loading="lazy">
+                </template>
+                <template x-if="m.is_video">
+                  <div class="text-center">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-xs text-gray-400 mt-1">Video</p>
+                  </div>
+                </template>
+                <template x-if="m.is_audio">
+                  <div class="text-center">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                    <p class="text-xs text-gray-400 mt-1">Audio</p>
+                  </div>
+                </template>
+                <template x-if="!m.is_image && !m.is_video && !m.is_audio">
+                  <div class="text-center">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <p class="text-xs text-gray-400 mt-1">Datei</p>
+                  </div>
+                </template>
+              </div>
+              <div class="p-3">
+                <p class="font-medium text-sm text-gray-800 truncate" :title="m.name" x-text="m.name"></p>
+                <div class="flex justify-between items-center mt-1.5">
+                  <span class="text-xs text-gray-400" x-text="m.size_human"></span>
+                  <div class="flex gap-2">
+                    <a :href="m.url" target="_blank" class="text-xs text-blue-500 hover:underline">Oeffnen</a>
+                    <button @click="copyToClipboard(m.url)" class="text-xs text-gray-400 hover:text-gray-700">URL</button>
+                    <button @click="deleteMedia(m.key)" class="text-xs text-red-400 hover:text-red-600">Loeschen</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ── CHUNKS ── -->
+      <div x-show="tab==='chunks'" class="fade-in">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="text-xl font-semibold text-gray-800">Chunks Browser</h2>
+          <span class="text-sm text-gray-500" x-text="chunks.total + ' Chunks gesamt'"></span>
+        </div>
+        <div class="space-y-2">
+          <template x-for="c in chunks.chunks" :key="c.id">
+            <div class="bg-white rounded-xl shadow-sm p-4">
+              <div class="flex justify-between items-start mb-2">
+                <div class="flex gap-2 items-center flex-wrap">
+                  <span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-mono" x-text="'#' + c.chunk_index"></span>
+                  <span class="text-xs text-gray-500" x-text="c.source_name"></span>
+                  <span class="text-xs px-1.5 py-0.5 rounded"
+                        :class="c.has_embedding ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+                        x-text="c.has_embedding ? 'Embedded' : 'Kein Embedding'"></span>
+                </div>
+                <span class="text-xs text-gray-400 flex-shrink-0" x-text="(c.token_count||0) + ' Tokens'"></span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed" x-text="c.content_preview + (c.content_preview?.length >= 300 ? '...' : '')"></p>
+            </div>
+          </template>
+        </div>
+        <div x-show="chunks.total > 50" class="flex justify-center mt-5 gap-2">
+          <button @click="chunksOffset=Math.max(0,chunksOffset-50); loadChunks()" :disabled="chunksOffset===0"
+                  class="px-4 py-2 border rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50">Zurueck</button>
+          <span class="px-4 py-2 text-sm text-gray-500" x-text="(chunksOffset+1)+'-'+Math.min(chunksOffset+50,chunks.total)+' / '+chunks.total"></span>
+          <button @click="chunksOffset+=50; loadChunks()" :disabled="chunksOffset+50>=chunks.total"
+                  class="px-4 py-2 border rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50">Weiter</button>
+        </div>
+      </div>
+
+      <!-- ── CHAT TESTER ── -->
+      <div x-show="tab==='chat'" class="fade-in max-w-3xl">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">RAG Chat Tester</h2>
+        <div class="bg-white rounded-xl shadow-sm p-4 min-h-64 mb-3 max-h-[28rem] overflow-y-auto" id="chat-messages">
+          <div x-show="chatMessages.length===0" class="text-gray-400 text-sm text-center py-12">
+            Stelle eine Frage um den RAG Chat zu testen
+          </div>
+          <template x-for="m in chatMessages" :key="m.id">
+            <div class="mb-4">
+              <div :class="m.role==='user' ? 'text-right' : 'text-left'">
+                <div :class="m.role==='user' ? 'bg-blue-600 text-white ml-12' : 'bg-gray-100 text-gray-800 mr-12'"
+                     class="inline-block rounded-2xl px-4 py-2.5 text-sm max-w-lg" x-text="m.content"></div>
+                <template x-if="m.timing">
+                  <p class="text-xs text-gray-400 mt-0.5" x-text="(m.timing.total_duration_ms||0)+'ms'"></p>
+                </template>
+              </div>
+            </div>
+          </template>
+          <div x-show="chatLoading" class="text-gray-400 text-sm animate-pulse">Antwort wird generiert...</div>
+        </div>
+        <div class="flex gap-2">
+          <input x-model="chatInput" @keyup.enter="sendChat()" placeholder="Frage eingeben..."
+                 class="flex-1 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <button @click="sendChat()" :disabled="chatLoading"
+                  class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition">
+            Senden
+          </button>
+          <button @click="chatMessages=[]" class="bg-gray-200 text-gray-600 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-300">Leeren</button>
+        </div>
+      </div>
+
+      <!-- ── KUNDENVERWALTUNG (Super-Admin) ── -->
+      <div x-show="tab==='tenants' && role==='superadmin'" class="fade-in">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="text-xl font-semibold text-gray-800">Kundenverwaltung</h2>
+          <button @click="showNewTenant=!showNewTenant"
+                  class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Neuer Kunde
+          </button>
+        </div>
+
+        <!-- New Tenant -->
+        <div x-show="showNewTenant" x-transition class="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-5">
+          <h3 class="font-semibold text-gray-800 mb-3">Neuen Kunden anlegen</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <input x-model="newTenant.name" placeholder="Firmenname" class="border rounded-lg px-3 py-2 text-sm">
+            <input x-model="newTenant.slug" placeholder="Slug (z.B. muster-gmbh)" class="border rounded-lg px-3 py-2 text-sm font-mono">
+            <input x-model="newTenant.email" placeholder="E-Mail des Kunden" class="border rounded-lg px-3 py-2 text-sm">
+            <select x-model="newTenant.plan" class="border rounded-lg px-3 py-2 text-sm">
+              <option>starter</option><option>pro</option><option>enterprise</option>
+            </select>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button @click="createTenant()" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700">Anlegen</button>
+            <button @click="showNewTenant=false" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300">Abbrechen</button>
+          </div>
+          <p x-show="tenantFormMsg" class="text-sm mt-2" :class="tenantFormErr ? 'text-red-600' : 'text-green-600'" x-text="tenantFormMsg"></p>
+        </div>
+
+        <!-- Tenants Table -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b">
+              <tr>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Kunde</th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Slug</th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium hidden sm:table-cell">E-Mail</th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Plan</th>
+                <th class="px-4 py-2.5 text-center text-gray-600 font-medium">Quellen</th>
+                <th class="px-4 py-2.5 text-center text-gray-600 font-medium">Chunks</th>
+                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Status</th>
+                <th class="px-4 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="t in tenants" :key="t.id">
+                <tr class="border-b hover:bg-gray-50">
+                  <td class="px-4 py-2.5">
+                    <template x-if="editTenantId===t.id">
+                      <input x-model="editTenantData.name" class="border rounded px-2 py-1 text-sm w-full" @keyup.enter="saveEditTenant(t.id)" @keyup.escape="editTenantId=null">
+                    </template>
+                    <template x-if="editTenantId!==t.id">
+                      <span class="font-medium text-gray-800 cursor-pointer" @dblclick="startEditTenant(t)" x-text="t.name"></span>
+                    </template>
+                  </td>
+                  <td class="px-4 py-2.5 text-gray-500 font-mono text-xs" x-text="t.slug"></td>
+                  <td class="px-4 py-2.5 text-gray-500 text-xs hidden sm:table-cell">
+                    <template x-if="editTenantId===t.id">
+                      <input x-model="editTenantData.email" class="border rounded px-2 py-1 text-xs w-full">
+                    </template>
+                    <template x-if="editTenantId!==t.id">
+                      <span x-text="t.email"></span>
+                    </template>
+                  </td>
+                  <td class="px-4 py-2.5">
+                    <template x-if="editTenantId===t.id">
+                      <select x-model="editTenantData.plan" class="border rounded px-2 py-1 text-xs">
+                        <option>starter</option><option>pro</option><option>enterprise</option>
+                      </select>
+                    </template>
+                    <template x-if="editTenantId!==t.id">
+                      <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs" x-text="t.plan"></span>
+                    </template>
+                  </td>
+                  <td class="px-4 py-2.5 text-center text-xs" x-text="t.source_count"></td>
+                  <td class="px-4 py-2.5 text-center text-xs" x-text="t.chunk_count"></td>
+                  <td class="px-4 py-2.5">
+                    <span :class="t.status==='active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                          class="px-2 py-0.5 rounded text-xs" x-text="t.status"></span>
+                  </td>
+                  <td class="px-4 py-2.5 text-right space-x-1 whitespace-nowrap">
+                    <template x-if="editTenantId===t.id">
+                      <span>
+                        <button @click="saveEditTenant(t.id)" class="text-green-600 hover:underline text-xs">Speichern</button>
+                        <button @click="editTenantId=null" class="text-gray-400 hover:underline text-xs">Abbrechen</button>
+                      </span>
+                    </template>
+                    <template x-if="editTenantId!==t.id">
+                      <span>
+                        <button @click="jumpToTenant(t, 'rag')" class="text-blue-600 hover:underline text-xs">RAG</button>
+                        <button @click="jumpToTenant(t, 'media')" class="text-indigo-600 hover:underline text-xs">Medien</button>
+                        <button @click="startEditTenant(t)" class="text-gray-500 hover:underline text-xs">Bearbeiten</button>
+                        <button @click="deleteTenant(t.id, t.name)" class="text-red-400 hover:text-red-600 text-xs">Deaktivieren</button>
+                      </span>
+                    </template>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
 </div>
 
 <script>
@@ -386,262 +552,313 @@ function app() {
   return {
     // Auth
     authenticated: false,
-    adminKey: '',
+    loginEmail: '',
+    loginPassword: '',
+    loginLoading: false,
     loginError: '',
+    sessionToken: '',
+    userEmail: '',
+    role: '',
 
     // State
-    tab: 'tenants',
+    tab: 'rag',
     stats: {},
     health: {},
     tenants: [],
-    sources: [],
-    chunks: { total: 0, chunks: [] },
-    chunksOffset: 0,
-    apiKeys: [],
     selectedTenantId: '',
     selectedTenant: null,
 
-    // Forms
-    showNewTenant: false,
-    newTenant: { name: '', slug: '', email: '', plan: 'starter' },
-    formMsg: '', formErr: false,
+    // RAG
+    sources: [],
+    showRagUpload: false,
+    ragUploadMode: 'file',
+    ragFile: null,
+    ragText: '',
+    ragDocName: '',
+    ragDocType: 'general',
+    ragTags: '',
+    ragUploading: false,
+    ragUploadResult: '',
+    ragUploadError: false,
 
-    // Upload
-    uploadMode: 'text',
-    uploadFile: null,
-    uploadName: '',
-    uploadText: '',
-    uploadApiKey: '***API_KEY_REMOVED***',
-    uploadLoading: false,
-    uploadResult: '',
-    uploadError: false,
+    // Media
+    mediaItems: [],
+    showMediaUpload: false,
+    mediaFile: null,
+    mediaFolder: 'media',
+    mediaDescription: '',
+    mediaUploading: false,
+    mediaUploadResult: '',
+    mediaUploadError: false,
+    mediaListFolder: 'media',
+
+    // Chunks
+    chunks: { total: 0, chunks: [] },
+    chunksOffset: 0,
 
     // Chat
-    chatTenantId: '',
-    chatApiKey: '***API_KEY_REMOVED***',
     chatInput: '',
     chatMessages: [],
     chatLoading: false,
 
-    // API Keys
-    newKey: { name: '', key_plaintext: '' },
-    keyMsg: '', keyErr: false,
+    // Tenant Admin
+    showNewTenant: false,
+    newTenant: { name: '', slug: '', email: '', plan: 'starter' },
+    tenantFormMsg: '', tenantFormErr: false,
+    editTenantId: null,
+    editTenantData: { name: '', email: '', plan: '' },
 
     async init() {
-      // Gespeicherten Key laden
-      const stored = localStorage.getItem('eppcom_admin_key');
+      const stored = localStorage.getItem('eppcom_session');
       if (stored) {
-        this.adminKey = stored;
-        await this.login();
+        try {
+          const s = JSON.parse(stored);
+          this.sessionToken = s.token;
+          this.userEmail = s.email;
+          this.role = s.role;
+          const me = await this.api('/api/me');
+          this.userEmail = me.email;
+          this.role = me.role;
+          this.authenticated = true;
+          await this.loadAll();
+        } catch (e) {
+          localStorage.removeItem('eppcom_session');
+          this.sessionToken = '';
+        }
       }
     },
 
     async login() {
+      if (!this.loginEmail || !this.loginPassword) { this.loginError = 'E-Mail und Passwort eingeben'; return; }
+      this.loginLoading = true;
+      this.loginError = '';
       try {
-        const r = await this.api('/api/stats');
-        this.stats = r;
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Login fehlgeschlagen');
+        this.sessionToken = data.token;
+        this.userEmail = data.email;
+        this.role = data.role;
         this.authenticated = true;
-        localStorage.setItem('eppcom_admin_key', this.adminKey);
-        this.loginError = '';
+        localStorage.setItem('eppcom_session', JSON.stringify({ token: data.token, email: data.email, role: data.role }));
         await this.loadAll();
-      } catch (e) {
-        this.loginError = 'Falscher Admin-Key';
-        localStorage.removeItem('eppcom_admin_key');
-      }
+      } catch (e) { this.loginError = e.message; }
+      finally { this.loginLoading = false; }
     },
 
-    logout() {
+    async logout() {
+      try { await this.api('/api/logout', 'POST'); } catch(e) {}
       this.authenticated = false;
-      this.adminKey = '';
-      localStorage.removeItem('eppcom_admin_key');
+      this.sessionToken = '';
+      this.userEmail = '';
+      this.role = '';
+      localStorage.removeItem('eppcom_session');
     },
 
     async loadAll() {
-      await Promise.all([
-        this.loadTenants(),
-        this.loadHealth(),
-        this.refreshStats(),
-      ]);
+      await Promise.all([this.loadTenants(), this.loadHealth(), this.refreshStats()]);
+      if (this.tenants.length > 0 && !this.selectedTenantId) {
+        this.selectedTenantId = this.tenants[0].id;
+        this.selectedTenant = this.tenants[0];
+      }
+      if (this.selectedTenantId) await this.loadTenantData();
     },
 
-    async refreshStats() {
-      this.stats = await this.api('/api/stats');
+    async loadTenantData() {
+      await Promise.all([this.loadSources(), this.loadMedia(), this.loadChunks()]);
     },
 
-    async loadHealth() {
-      try { this.health = await this.api('/api/health'); } catch(e) {}
+    async onTenantChange() {
+      this.selectedTenant = this.tenants.find(t => t.id === this.selectedTenantId) || null;
+      this.sources = [];
+      this.mediaItems = [];
+      this.chunks = { total: 0, chunks: [] };
+      this.chunksOffset = 0;
+      if (this.selectedTenantId) await this.loadTenantData();
     },
+
+    async refreshStats() { try { this.stats = await this.api('/api/stats'); } catch(e) {} },
+    async loadHealth() { try { this.health = await this.api('/api/health'); } catch(e) {} },
 
     async loadTenants() {
-      this.tenants = await this.api('/api/tenants');
-    },
-
-    async createTenant() {
       try {
-        const r = await this.api('/api/tenants', 'POST', this.newTenant);
-        this.formMsg = `Tenant "${this.newTenant.name}" angelegt (ID: ${r.id})`;
-        this.formErr = false;
-        this.newTenant = { name: '', slug: '', email: '', plan: 'starter' };
-        await this.loadTenants();
-        await this.refreshStats();
-      } catch (e) {
-        this.formMsg = e.message;
-        this.formErr = true;
-      }
+        this.tenants = await this.api('/api/tenants');
+        if (this.selectedTenantId) {
+          this.selectedTenant = this.tenants.find(t => t.id === this.selectedTenantId) || this.selectedTenant;
+        }
+      } catch(e) {}
     },
 
+    // RAG
     async loadSources() {
       if (!this.selectedTenantId) return;
-      this.sources = await this.api(`/api/tenants/${this.selectedTenantId}/sources`);
+      try { this.sources = await this.api(`/api/tenants/${this.selectedTenantId}/sources`); }
+      catch(e) { this.sources = []; }
     },
 
-    async loadChunks() {
+    async uploadRagDocument() {
       if (!this.selectedTenantId) return;
-      this.chunks = await this.api(`/api/tenants/${this.selectedTenantId}/chunks?limit=50&offset=${this.chunksOffset}`);
-    },
-
-    async loadApiKeys() {
-      if (!this.selectedTenantId) return;
-      this.apiKeys = await this.api(`/api/tenants/${this.selectedTenantId}/apikeys`);
-    },
-
-    selectTenant(t) {
-      this.selectedTenant = t;
-      this.selectedTenantId = t.id;
-    },
-
-    goToDocuments(t) {
-      this.selectTenant(t);
-      this.tab = 'documents';
-      this.loadSources();
-    },
-
-    goToChat(t) {
-      this.selectTenant(t);
-      this.chatTenantId = t.id;
-      this.tab = 'chat';
-    },
-
-    handleFileSelect(event) {
-      this.uploadFile = event.target.files[0];
-      if (this.uploadFile && this.uploadName === '') {
-        this.uploadName = this.uploadFile.name;
-      }
-    },
-
-    async uploadDocument() {
-      if (!this.selectedTenantId || !this.uploadApiKey) return;
-      this.uploadLoading = true;
-      this.uploadResult = '';
-      this.uploadError = false;
-
+      this.ragUploading = true; this.ragUploadResult = ''; this.ragUploadError = false;
       try {
         const fd = new FormData();
-        fd.append('api_key', this.uploadApiKey);
-
-        if (this.uploadMode === 'file' && this.uploadFile) {
-          fd.append('file', this.uploadFile);
-          fd.append('name', this.uploadName || this.uploadFile.name);
-        } else {
-          fd.append('text_content', this.uploadText);
-          fd.append('name', this.uploadName || 'Direkteingabe');
-        }
-
-        const r = await fetch(`/api/tenants/${this.selectedTenantId}/upload`, {
-          method: 'POST',
-          headers: { 'X-Admin-Key': this.adminKey },
-          body: fd,
+        if (this.ragUploadMode === 'file' && this.ragFile) {
+          fd.append('file', this.ragFile);
+          fd.append('name', this.ragDocName || this.ragFile.name);
+        } else if (this.ragUploadMode === 'text' && this.ragText) {
+          fd.append('text_content', this.ragText);
+          fd.append('name', this.ragDocName || 'Direkteingabe');
+        } else { throw new Error('Datei auswaehlen oder Text eingeben'); }
+        fd.append('doc_type', this.ragDocType);
+        fd.append('tags', this.ragTags);
+        const r = await fetch(`/api/tenants/${this.selectedTenantId}/ingest`, {
+          method: 'POST', headers: { 'X-Session-Token': this.sessionToken }, body: fd,
         });
         const data = await r.json();
-
-        if (!r.ok) {
-          this.uploadError = true;
-          this.uploadResult = JSON.stringify(data, null, 2);
-        } else {
-          this.uploadResult = `✓ ${data.chunks_created} Chunks indexiert\nSource-ID: ${data.source_id}`;
-          await this.loadSources();
-          await this.refreshStats();
-        }
-      } catch (e) {
-        this.uploadError = true;
-        this.uploadResult = e.message;
-      } finally {
-        this.uploadLoading = false;
-      }
+        if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+        this.ragUploadResult = `${data.chunks_created} Chunks, ${data.embeddings_created} Embeddings\nSource: ${data.source_id}\nStatus: ${data.status}`;
+        if (data.embed_error) this.ragUploadResult += `\nWarnung: ${data.embed_error}`;
+        this.ragFile = null; this.ragText = ''; this.ragDocName = ''; this.ragTags = '';
+        await Promise.all([this.loadSources(), this.refreshStats()]);
+      } catch (e) { this.ragUploadError = true; this.ragUploadResult = e.message; }
+      finally { this.ragUploading = false; }
     },
 
     async deleteSource(sourceId) {
-      if (!confirm('Quelle und alle Chunks/Embeddings löschen?')) return;
-      await this.api(`/api/sources/${sourceId}`, 'DELETE');
-      await this.loadSources();
-      await this.refreshStats();
+      if (!confirm('Quelle inkl. aller Chunks und Embeddings loeschen?')) return;
+      await this.api(`/api/sources/${sourceId}?tenant_id=${this.selectedTenantId}`, 'DELETE');
+      await Promise.all([this.loadSources(), this.refreshStats()]);
     },
 
+    async reembedSource(sourceId) {
+      if (!confirm('Embeddings neu generieren?')) return;
+      try {
+        const r = await this.api(`/api/tenants/${this.selectedTenantId}/sources/${sourceId}/reembed`, 'POST');
+        alert(`Re-Embedding: ${r.embeddings_created} Embeddings erstellt`);
+        await this.loadSources();
+      } catch (e) { alert('Fehler: ' + e.message); }
+    },
+
+    handleRagFileDrop(event) { if (event.dataTransfer.files.length > 0) this.ragFile = event.dataTransfer.files[0]; },
+
+    // Media
+    async loadMedia() {
+      if (!this.selectedTenantId) return;
+      try { const r = await this.api(`/api/tenants/${this.selectedTenantId}/media?folder=${this.mediaListFolder}`); this.mediaItems = r.items || []; }
+      catch(e) { this.mediaItems = []; }
+    },
+
+    async uploadMedia() {
+      if (!this.selectedTenantId || !this.mediaFile) return;
+      this.mediaUploading = true; this.mediaUploadResult = ''; this.mediaUploadError = false;
+      try {
+        const fd = new FormData();
+        fd.append('file', this.mediaFile);
+        fd.append('folder', this.mediaFolder);
+        fd.append('description', this.mediaDescription);
+        const r = await fetch(`/api/tenants/${this.selectedTenantId}/media`, {
+          method: 'POST', headers: { 'X-Session-Token': this.sessionToken }, body: fd,
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
+        this.mediaUploadResult = `Hochgeladen: ${data.filename} (${data.size_human})\nURL: ${data.url}`;
+        this.mediaFile = null; this.mediaDescription = '';
+        this.mediaListFolder = this.mediaFolder;
+        await this.loadMedia();
+      } catch (e) { this.mediaUploadError = true; this.mediaUploadResult = e.message; }
+      finally { this.mediaUploading = false; }
+    },
+
+    async deleteMedia(s3Key) {
+      if (!confirm('Mediendatei endgueltig aus S3 loeschen?')) return;
+      await this.api(`/api/tenants/${this.selectedTenantId}/media?s3_key=${encodeURIComponent(s3Key)}`, 'DELETE');
+      await this.loadMedia();
+    },
+
+    handleMediaFileDrop(event) { if (event.dataTransfer.files.length > 0) this.mediaFile = event.dataTransfer.files[0]; },
+
+    // Chunks
+    async loadChunks() {
+      if (!this.selectedTenantId) return;
+      try { this.chunks = await this.api(`/api/tenants/${this.selectedTenantId}/chunks?limit=50&offset=${this.chunksOffset}`); }
+      catch(e) { this.chunks = { total: 0, chunks: [] }; }
+    },
+
+    // Chat
     async sendChat() {
-      if (!this.chatInput || !this.chatTenantId || !this.chatApiKey) return;
-      const question = this.chatInput;
-      this.chatInput = '';
-      this.chatLoading = true;
-
-      this.chatMessages.push({ id: Date.now(), role: 'user', content: question });
-
+      if (!this.chatInput || !this.selectedTenantId) return;
+      const q = this.chatInput; this.chatInput = ''; this.chatLoading = true;
+      this.chatMessages.push({ id: Date.now(), role: 'user', content: q });
       try {
-        const data = await this.api('/api/chat', 'POST', {
-          tenant_id: this.chatTenantId,
-          api_key: this.chatApiKey,
-          query: question,
-        });
-        this.chatMessages.push({
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: data.answer || JSON.stringify(data),
-          sources: data.sources || [],
-          chunks_used: data.chunks_used,
-          timing: data.timing,
-        });
-      } catch (e) {
-        this.chatMessages.push({ id: Date.now() + 1, role: 'assistant', content: '⚠ Fehler: ' + e.message });
-      } finally {
+        const data = await this.api('/api/chat', 'POST', { tenant_id: this.selectedTenantId, api_key: 'session-auth', query: q });
+        this.chatMessages.push({ id: Date.now()+1, role: 'assistant', content: data.answer || JSON.stringify(data), timing: data.timing });
+      } catch (e) { this.chatMessages.push({ id: Date.now()+1, role: 'assistant', content: 'Fehler: ' + e.message }); }
+      finally {
         this.chatLoading = false;
-        this.$nextTick(() => {
-          const el = document.getElementById('chat-messages');
-          if (el) el.scrollTop = el.scrollHeight;
-        });
+        this.$nextTick(() => { const el = document.getElementById('chat-messages'); if (el) el.scrollTop = el.scrollHeight; });
       }
     },
 
-    async createApiKey() {
+    // Tenant Admin
+    async createTenant() {
+      this.tenantFormMsg = '';
       try {
-        const r = await this.api(`/api/tenants/${this.selectedTenantId}/apikeys`, 'POST', this.newKey);
-        this.keyMsg = `Key "${this.newKey.name}" erstellt. Plaintext "${this.newKey.key_plaintext}" sicher speichern!`;
-        this.keyErr = false;
-        this.newKey = { name: '', key_plaintext: '' };
-        await this.loadApiKeys();
-      } catch (e) {
-        this.keyMsg = e.message;
-        this.keyErr = true;
-      }
+        const r = await this.api('/api/tenants', 'POST', this.newTenant);
+        this.tenantFormMsg = `Kunde "${this.newTenant.name}" angelegt (${r.slug})`; this.tenantFormErr = false;
+        this.newTenant = { name: '', slug: '', email: '', plan: 'starter' };
+        await Promise.all([this.loadTenants(), this.refreshStats()]);
+      } catch (e) { this.tenantFormMsg = e.message; this.tenantFormErr = true; }
     },
 
-    async deleteApiKey(keyId) {
-      if (!confirm('API-Key deaktivieren?')) return;
-      await this.api(`/api/apikeys/${keyId}`, 'DELETE');
-      await this.loadApiKeys();
+    startEditTenant(t) { this.editTenantId = t.id; this.editTenantData = { name: t.name, email: t.email, plan: t.plan }; },
+
+    async saveEditTenant(tenantId) {
+      try {
+        await this.api(`/api/tenants/${tenantId}`, 'PUT', this.editTenantData);
+        this.editTenantId = null;
+        await this.loadTenants();
+      } catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); }
     },
 
+    async deleteTenant(tenantId, name) {
+      if (!confirm(`Kunde "${name}" wirklich deaktivieren?`)) return;
+      await this.api(`/api/tenants/${tenantId}`, 'DELETE');
+      await Promise.all([this.loadTenants(), this.refreshStats()]);
+    },
+
+    jumpToTenant(t, targetTab) {
+      this.selectedTenantId = t.id; this.selectedTenant = t;
+      this.tab = targetTab; this.loadTenantData();
+    },
+
+    // Helpers
     async api(path, method = 'GET', body = null) {
-      const opts = {
-        method,
-        headers: { 'X-Admin-Key': this.adminKey },
-      };
-      if (body) {
-        opts.headers['Content-Type'] = 'application/json';
-        opts.body = JSON.stringify(body);
-      }
+      const opts = { method, headers: { 'X-Session-Token': this.sessionToken } };
+      if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
       const r = await fetch(path, opts);
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
       return data;
+    },
+
+    fmtDate(d) {
+      if (!d) return '';
+      return new Date(d).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+    },
+
+    humanSize(bytes) {
+      if (!bytes) return '0 B';
+      const u = ['B','KB','MB','GB'];
+      const i = Math.min(Math.floor(Math.log(bytes)/Math.log(1024)), u.length-1);
+      return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
+    },
+
+    async copyToClipboard(text) {
+      try { await navigator.clipboard.writeText(text); }
+      catch(e) { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
     },
   };
 }

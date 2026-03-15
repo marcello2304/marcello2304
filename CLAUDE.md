@@ -1,3 +1,4 @@
+rcd ~/projects/eppcom-ai-automation
 # Hetzner RAG Platform — Claude Code Automatisierung
 
 ## Deine Rolle
