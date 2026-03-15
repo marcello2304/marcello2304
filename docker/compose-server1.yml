@@ -150,7 +150,7 @@ services:
       retries: 3
       start_period: 60s
 
-  # ── RAG Admin UI (dbapp.eppcom.de) ──────────────────────────────────
+  # ── RAG Admin UI (appdb.eppcom.de) ──────────────────────────────────
   rag-admin:
     build:
       context: ../admin-ui
@@ -180,7 +180,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rag-admin.rule=Host(`dbapp.${DOMAIN}`)"
+      - "traefik.http.routers.rag-admin.rule=Host(`appdb.${DOMAIN}`)"
       - "traefik.http.routers.rag-admin.entrypoints=websecure"
       - "traefik.http.routers.rag-admin.tls.certresolver=letsencrypt"
       - "traefik.http.services.rag-admin.loadbalancer.server.port=8080"

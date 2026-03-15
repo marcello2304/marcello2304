@@ -10,252 +10,220 @@
   [x-cloak] { display: none !important; }
   .fade-in { animation: fadeIn .25s ease-out; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-  pre { white-space: pre-wrap; word-break: break-all; }
   .drag-over { border-color: #3b82f6 !important; background: #eff6ff !important; }
+  .sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer; }
+  .sidebar-link:hover { @apply bg-gray-100; }
+  .sidebar-link.active { @apply bg-blue-50 text-blue-700; }
+  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+  .btn { @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2; }
+  .btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500; }
+  .btn-secondary { @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-400; }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .input { @apply w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent; }
+  .card { @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6; }
+  .modal-overlay { @apply fixed inset-0 bg-black/40 flex items-center justify-center z-50; }
+  .modal-box { @apply bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto fade-in; }
+  .table-row:hover { @apply bg-gray-50; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen" x-data="app()" x-init="init()" x-cloak>
 
-<!-- LOGIN -->
+<!-- ═══════════════ LOGIN ═══════════════ -->
 <div x-show="!authenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
   <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm fade-in">
     <div class="flex items-center gap-3 mb-6">
-      <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold">E</div>
+      <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">E</div>
       <div>
         <h1 class="text-xl font-bold text-gray-800">EPPCOM RAG Platform</h1>
         <p class="text-xs text-gray-400">Dokumente &amp; Medien verwalten</p>
       </div>
     </div>
+    <div x-show="loginError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="loginError"></div>
     <div class="space-y-3">
       <div>
         <label class="block text-xs font-medium text-gray-500 mb-1">E-Mail</label>
-        <input type="email" x-model="loginEmail" placeholder="name@firma.de"
-               class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+        <input type="email" x-model="loginEmail" placeholder="name@firma.de" class="input"
                @keyup.enter="$refs.pwInput.focus()">
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-500 mb-1">Passwort</label>
-        <input type="password" x-model="loginPassword" placeholder="Admin-Key"
-               x-ref="pwInput"
-               class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-               @keyup.enter="login()">
+        <input type="password" x-model="loginPassword" placeholder="Passwort" class="input"
+               x-ref="pwInput" @keyup.enter="doLogin()">
       </div>
-      <button @click="login()" :disabled="loginLoading"
-              class="w-full bg-blue-600 text-white rounded-lg py-2.5 font-semibold hover:bg-blue-700 transition disabled:opacity-50">
+      <button class="btn btn-primary w-full" @click="doLogin()" :disabled="loginLoading">
         <span x-show="!loginLoading">Anmelden</span>
-        <span x-show="loginLoading">Wird geprueft...</span>
+        <span x-show="loginLoading">Anmeldung...</span>
       </button>
     </div>
-    <p x-show="loginError" class="text-red-500 text-sm mt-3 text-center" x-text="loginError"></p>
   </div>
 </div>
 
-<!-- MAIN APP -->
-<div x-show="authenticated" class="flex flex-col min-h-screen">
+<!-- ═══════════════ APP LAYOUT ═══════════════ -->
+<div x-show="authenticated" class="flex min-h-screen">
 
-  <!-- NAVBAR -->
-  <nav class="bg-white shadow-sm border-b px-6 py-3 flex items-center justify-between sticky top-0 z-50">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">E</div>
-      <span class="font-semibold text-gray-800 hidden sm:inline">EPPCOM RAG</span>
-      <span x-show="role==='superadmin'" class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Super-Admin</span>
-      <span x-show="role==='tenant'" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Kunde</span>
-      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" x-show="health.db">DB</span>
-      <span class="text-xs px-2 py-0.5 rounded-full" :class="health.ollama ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-            x-text="health.ollama ? 'Ollama' : 'Ollama offline'"></span>
-    </div>
-    <div class="flex items-center gap-4">
-      <span class="text-sm text-gray-500 hidden md:inline" x-text="userEmail"></span>
-      <button @click="logout()" class="text-sm text-gray-400 hover:text-gray-700 transition">Abmelden</button>
-    </div>
-  </nav>
-
-  <!-- STATS BAR -->
-  <div class="bg-white border-b px-6 py-2.5 flex gap-6 text-sm flex-wrap">
-    <span class="text-gray-500">Tenants: <strong x-text="stats.tenants ?? '—'"></strong></span>
-    <span class="text-gray-500">Quellen: <strong x-text="stats.sources ?? '—'"></strong></span>
-    <span class="text-gray-500">Chunks: <strong x-text="stats.chunks ?? '—'"></strong></span>
-    <span class="text-gray-500">Embeddings: <strong x-text="stats.embeddings ?? '—'"></strong></span>
-  </div>
-
-  <div class="flex flex-1">
-
-    <!-- SIDEBAR -->
-    <aside class="w-56 bg-white border-r flex-shrink-0 hidden md:block">
-      <div class="p-4">
-        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Kunde</label>
-        <select x-model="selectedTenantId" @change="onTenantChange()"
-                class="w-full border rounded-lg px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-blue-400">
-          <template x-for="t in tenants" :key="t.id">
-            <option :value="t.id" x-text="t.name" :selected="t.id===selectedTenantId"></option>
-          </template>
-        </select>
-
-        <div x-show="selectedTenant" class="text-xs text-gray-500 space-y-1 mb-5">
-          <p><span class="font-medium">Slug:</span> <span class="font-mono" x-text="selectedTenant?.slug"></span></p>
-          <p><span class="font-medium">Plan:</span> <span x-text="selectedTenant?.plan"></span></p>
-          <p><span class="font-medium">Quellen:</span> <span x-text="selectedTenant?.source_count ?? 0"></span></p>
-          <p><span class="font-medium">Chunks:</span> <span x-text="selectedTenant?.chunk_count ?? 0"></span></p>
+  <!-- Sidebar -->
+  <aside class="w-64 bg-white border-r border-gray-100 flex flex-col fixed h-full z-40">
+    <div class="p-4 border-b border-gray-100">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">E</div>
+        <div>
+          <div class="text-sm font-bold text-gray-800">EPPCOM RAG</div>
+          <div class="text-xs text-gray-400" x-text="session.display_name"></div>
         </div>
-
-        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Navigation</label>
-        <nav class="space-y-1">
-          <button @click="tab='rag'" :class="tab==='rag' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
-                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            RAG Dokumente
-          </button>
-          <button @click="tab='media'" :class="tab==='media' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
-                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            Medien (S3)
-          </button>
-          <button @click="tab='chunks'" :class="tab==='chunks' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
-                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-            Chunks
-          </button>
-          <button @click="tab='chat'" :class="tab==='chat' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
-                  class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-            Chat-Tester
-          </button>
-          <template x-if="role==='superadmin'">
-            <div class="pt-3 mt-3 border-t space-y-1">
-              <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Admin</label>
-              <button @click="tab='tenants'" :class="tab==='tenants' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-600 hover:bg-gray-50'"
-                      class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                Kundenverwaltung
-              </button>
-            </div>
-          </template>
-        </nav>
       </div>
-    </aside>
-
-    <!-- MOBILE NAV -->
-    <div class="md:hidden bg-white border-b px-4 py-2 flex gap-2 overflow-x-auto text-xs font-medium sticky top-[52px] z-40">
-      <select x-model="selectedTenantId" @change="onTenantChange()" class="border rounded px-2 py-1.5 text-xs flex-shrink-0">
-        <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name"></option></template>
-      </select>
-      <button @click="tab='rag'" :class="tab==='rag'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">RAG</button>
-      <button @click="tab='media'" :class="tab==='media'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Medien</button>
-      <button @click="tab='chunks'" :class="tab==='chunks'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Chunks</button>
-      <button @click="tab='chat'" :class="tab==='chat'?'bg-blue-100 text-blue-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Chat</button>
-      <button x-show="role==='superadmin'" @click="tab='tenants'" :class="tab==='tenants'?'bg-purple-100 text-purple-700':'bg-gray-100'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Kunden</button>
     </div>
 
-    <!-- CONTENT -->
-    <main class="flex-1 p-6 max-w-6xl">
+    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+      <div class="sidebar-link" :class="page==='dashboard' && 'active'" @click="go('dashboard')">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </div>
+      <div class="sidebar-link" :class="page==='documents' && 'active'" @click="go('documents')">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        RAG Dokumente
+      </div>
+      <div class="sidebar-link" :class="page==='media' && 'active'" @click="go('media')">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Medien &amp; Dateien
+      </div>
 
-      <!-- ── RAG DOKUMENTE ── -->
-      <div x-show="tab==='rag'" class="fade-in">
-        <div class="flex justify-between items-center mb-5">
-          <div>
-            <h2 class="text-xl font-semibold text-gray-800">RAG Dokumente</h2>
-            <p class="text-sm text-gray-500 mt-0.5">PostgreSQL + pgvector &mdash; <span x-text="selectedTenant?.name ?? ''"></span></p>
+      <!-- Admin-Only -->
+      <template x-if="session.role==='superadmin'">
+        <div>
+          <div class="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</div>
+          <div class="sidebar-link" :class="page==='tenants' && 'active'" @click="go('tenants')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            Kunden
           </div>
-          <button @click="showRagUpload=!showRagUpload"
-                  class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Dokument hinzufuegen
-          </button>
+          <div class="sidebar-link" :class="page==='users' && 'active'" @click="go('users')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            User-Verwaltung
+          </div>
+          <div class="sidebar-link" :class="page==='content-browser' && 'active'" @click="go('content-browser')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            Content-Browser
+          </div>
         </div>
+      </template>
+    </nav>
 
-        <!-- Upload Panel -->
-        <div x-show="showRagUpload" x-transition class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
-          <h3 class="font-semibold text-gray-800 mb-3">Neues Dokument einpflegen</h3>
-          <div class="flex gap-2 mb-3">
-            <button @click="ragUploadMode='file'" :class="ragUploadMode==='file' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'" class="px-3 py-1.5 rounded-lg text-xs font-medium transition">Datei hochladen</button>
-            <button @click="ragUploadMode='text'" :class="ragUploadMode==='text' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'" class="px-3 py-1.5 rounded-lg text-xs font-medium transition">Text eingeben</button>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="p-3 border-t border-gray-100">
+      <div class="sidebar-link text-gray-500" @click="doLogout()">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Abmelden
+      </div>
+      <div class="px-4 py-1 text-xs text-gray-300">
+        <span class="badge" :class="session.role==='superadmin' ? 'bg-purple-100 text-purple-700' : session.role==='admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'"
+              x-text="session.role==='superadmin' ? 'Super-Admin' : session.role==='admin' ? 'Admin' : 'User'"></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 ml-64 p-8">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div x-show="page==='dashboard'" class="fade-in">
+      <h1 class="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <template x-if="session.role==='superadmin'">
+          <div class="card"><div class="text-3xl font-bold text-blue-600" x-text="stats.tenants||0"></div><div class="text-sm text-gray-500 mt-1">Kunden</div></div>
+        </template>
+        <template x-if="session.role==='superadmin'">
+          <div class="card"><div class="text-3xl font-bold text-green-600" x-text="stats.users||0"></div><div class="text-sm text-gray-500 mt-1">User</div></div>
+        </template>
+        <div class="card"><div class="text-3xl font-bold text-indigo-600" x-text="stats.sources||0"></div><div class="text-sm text-gray-500 mt-1">RAG Dokumente</div></div>
+        <div class="card"><div class="text-3xl font-bold text-amber-600" x-text="stats.media||0"></div><div class="text-sm text-gray-500 mt-1">Medien-Dateien</div></div>
+      </div>
+      <div class="card">
+        <h2 class="text-lg font-semibold text-gray-700 mb-2">Willkommen, <span x-text="session.display_name"></span></h2>
+        <p class="text-sm text-gray-500">Verwende die Seitenleiste um deine Dokumente und Medien zu verwalten.</p>
+        <template x-if="session.tenant_slug">
+          <p class="text-sm text-gray-500 mt-1">Dein Arbeitsbereich: <span class="font-mono badge bg-blue-50 text-blue-700" x-text="session.tenant_slug"></span></p>
+        </template>
+      </div>
+    </div>
+
+    <!-- ═══ RAG DOKUMENTE ═══ -->
+    <div x-show="page==='documents'" class="fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">RAG Dokumente</h1>
+        <button class="btn btn-primary" @click="showUploadDoc=true">+ Dokument hochladen</button>
+      </div>
+
+      <!-- Upload Modal -->
+      <div x-show="showUploadDoc" class="modal-overlay" @click.self="showUploadDoc=false">
+        <div class="modal-box">
+          <h3 class="text-lg font-bold mb-4">Dokument hochladen</h3>
+          <div class="space-y-3">
+            <template x-if="session.role==='superadmin' && tenants.length>0">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Kunde</label>
+                <select x-model="uploadDoc.tenant_id" class="input">
+                  <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
+                </select>
+              </div>
+            </template>
             <div>
-              <div x-show="ragUploadMode==='file'">
-                <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 transition cursor-pointer"
-                     @click="$refs.ragFileInput.click()"
-                     @dragover.prevent="$el.classList.add('drag-over')"
-                     @dragleave.prevent="$el.classList.remove('drag-over')"
-                     @drop.prevent="$el.classList.remove('drag-over'); handleRagFileDrop($event)">
-                  <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                  <p class="text-sm text-gray-600" x-text="ragFile ? ragFile.name : 'Klicken oder Datei hierher ziehen'"></p>
-                  <p class="text-xs text-gray-400 mt-1">.pdf, .txt, .md, .csv, .docx, .html</p>
-                </div>
-                <input type="file" x-ref="ragFileInput" @change="ragFile=$event.target.files[0]" accept=".txt,.md,.pdf,.csv,.docx,.html,.htm,.json" class="hidden">
-              </div>
-              <div x-show="ragUploadMode==='text'">
-                <textarea x-model="ragText" placeholder="Text eingeben, der in die Wissensdatenbank soll..."
-                          class="w-full border rounded-lg px-3 py-2 text-sm h-36 resize-none focus:ring-2 focus:ring-blue-400"></textarea>
-              </div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
+              <input type="text" x-model="uploadDoc.name" class="input" placeholder="Dokumentname">
             </div>
-            <div class="space-y-2">
-              <input x-model="ragDocName" placeholder="Dokumentname" class="w-full border rounded-lg px-3 py-2 text-sm">
-              <select x-model="ragDocType" class="w-full border rounded-lg px-3 py-2 text-sm">
-                <option value="general">Allgemein</option>
-                <option value="faq">FAQ</option>
-                <option value="manual">Handbuch</option>
-                <option value="product">Produkt</option>
-                <option value="legal">Rechtliches</option>
-                <option value="support">Support</option>
-              </select>
-              <input x-model="ragTags" placeholder="Tags (kommagetrennt)" class="w-full border rounded-lg px-3 py-2 text-sm">
-              <button @click="uploadRagDocument()" :disabled="ragUploading"
-                      class="w-full bg-green-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition">
-                <span x-show="!ragUploading">Einpflegen &amp; Embedden</span>
-                <span x-show="ragUploading">Verarbeitung laeuft...</span>
-              </button>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Datei (PDF, TXT, DOCX, MD, CSV, HTML)</label>
+              <input type="file" @change="uploadDoc.file=$event.target.files[0]" class="input" accept=".pdf,.txt,.md,.csv,.json,.html,.htm,.docx">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Oder Text direkt eingeben</label>
+              <textarea x-model="uploadDoc.text" class="input h-24" placeholder="Text hier einfügen..."></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Tags (kommagetrennt)</label>
+              <input type="text" x-model="uploadDoc.tags" class="input" placeholder="faq, produkt, anleitung">
             </div>
           </div>
-          <div x-show="ragUploadResult" class="mt-3 p-3 rounded-lg text-sm" :class="ragUploadError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
-            <pre x-text="ragUploadResult"></pre>
+          <div class="flex gap-2 mt-4">
+            <button class="btn btn-primary flex-1" @click="doIngestDoc()" :disabled="uploadDoc.loading">
+              <span x-show="!uploadDoc.loading">Hochladen &amp; Verarbeiten</span>
+              <span x-show="uploadDoc.loading">Verarbeitung...</span>
+            </button>
+            <button class="btn btn-secondary" @click="showUploadDoc=false">Abbrechen</button>
           </div>
+          <div x-show="uploadDoc.result" class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" x-text="uploadDoc.result"></div>
+          <div x-show="uploadDoc.error" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="uploadDoc.error"></div>
         </div>
+      </div>
 
-        <!-- Sources Table -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div class="px-4 py-3 border-b flex justify-between items-center">
-            <span class="text-sm font-medium text-gray-700" x-text="sources.length + ' Dokumente'"></span>
-            <button @click="loadSources()" class="text-xs text-blue-600 hover:underline">Aktualisieren</button>
-          </div>
-          <div x-show="sources.length===0" class="text-center text-gray-400 py-12 text-sm">Noch keine RAG-Dokumente vorhanden</div>
+      <!-- Doc List -->
+      <div class="card">
+        <div x-show="sources.length===0" class="text-center py-12 text-gray-400">
+          <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <p>Noch keine Dokumente. Lade dein erstes Dokument hoch.</p>
+        </div>
+        <div class="overflow-x-auto">
           <table x-show="sources.length>0" class="w-full text-sm">
-            <thead class="bg-gray-50 border-b">
-              <tr>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Name</th>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium hidden sm:table-cell">Typ</th>
-                <th class="px-4 py-2.5 text-center text-gray-600 font-medium">Chunks</th>
-                <th class="px-4 py-2.5 text-center text-gray-600 font-medium hidden sm:table-cell">Embeddings</th>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Status</th>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium hidden lg:table-cell">Erstellt</th>
-                <th class="px-4 py-2.5"></th>
+            <thead>
+              <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th class="pb-3 pr-4">Name</th>
+                <th class="pb-3 pr-4">Typ</th>
+                <th class="pb-3 pr-4">Status</th>
+                <template x-if="session.role==='superadmin'"><th class="pb-3 pr-4">User</th></template>
+                <th class="pb-3 pr-4">Erstellt</th>
+                <th class="pb-3"></th>
               </tr>
             </thead>
             <tbody>
               <template x-for="s in sources" :key="s.id">
-                <tr class="border-b hover:bg-gray-50">
-                  <td class="px-4 py-2.5">
-                    <p class="font-medium text-gray-800 truncate max-w-xs" x-text="s.name"></p>
-                    <p class="text-xs text-gray-400" x-text="s.file_name"></p>
+                <tr class="border-b border-gray-50 table-row">
+                  <td class="py-3 pr-4 font-medium text-gray-800" x-text="s.name"></td>
+                  <td class="py-3 pr-4"><span class="badge bg-gray-100 text-gray-600" x-text="s.source_type"></span></td>
+                  <td class="py-3 pr-4">
+                    <span class="badge" :class="s.status==='completed'?'bg-green-100 text-green-700':s.status==='error'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'" x-text="s.status"></span>
                   </td>
-                  <td class="px-4 py-2.5 hidden sm:table-cell">
-                    <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs" x-text="s.file_type || s.source_type"></span>
-                  </td>
-                  <td class="px-4 py-2.5 text-center font-mono text-xs" x-text="s.chunk_count"></td>
-                  <td class="px-4 py-2.5 text-center font-mono text-xs hidden sm:table-cell" x-text="s.embed_count"></td>
-                  <td class="px-4 py-2.5">
-                    <span class="px-2 py-0.5 rounded text-xs"
-                          :class="{
-                            'bg-green-100 text-green-700': s.status==='indexed',
-                            'bg-yellow-100 text-yellow-700': s.status==='processing' || s.status==='pending',
-                            'bg-red-100 text-red-700': s.status==='error',
-                          }"
-                          x-text="s.status"></span>
-                  </td>
-                  <td class="px-4 py-2.5 text-xs text-gray-400 hidden lg:table-cell" x-text="fmtDate(s.created_at)"></td>
-                  <td class="px-4 py-2.5 text-right space-x-1">
-                    <button @click="reembedSource(s.id)" class="text-blue-500 hover:text-blue-700 text-xs" title="Neu embedden">Re-Embed</button>
-                    <button @click="deleteSource(s.id)" class="text-red-400 hover:text-red-600 text-xs">Loeschen</button>
+                  <template x-if="session.role==='superadmin'"><td class="py-3 pr-4 text-gray-500 text-xs" x-text="s.user_name||'-'"></td></template>
+                  <td class="py-3 pr-4 text-gray-400 text-xs" x-text="fmtDate(s.created_at)"></td>
+                  <td class="py-3 text-right">
+                    <button class="btn btn-danger btn-sm" @click="if(confirm('Dokument wirklich löschen?')) deleteSource(s.id)">Löschen</button>
                   </td>
                 </tr>
               </template>
@@ -263,603 +231,654 @@
           </table>
         </div>
       </div>
+    </div>
 
-      <!-- ── MEDIEN (S3) ── -->
-      <div x-show="tab==='media'" class="fade-in">
-        <div class="flex justify-between items-center mb-5">
-          <div>
-            <h2 class="text-xl font-semibold text-gray-800">Mediendateien</h2>
-            <p class="text-sm text-gray-500 mt-0.5">Hetzner S3 Storage &mdash; <span x-text="selectedTenant?.name ?? ''"></span></p>
-          </div>
-          <button @click="showMediaUpload=!showMediaUpload"
-                  class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-            Medien hochladen
-          </button>
-        </div>
+    <!-- ═══ MEDIEN ═══ -->
+    <div x-show="page==='media'" class="fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Medien &amp; Dateien</h1>
+        <button class="btn btn-primary" @click="showUploadMedia=true">+ Datei hochladen</button>
+      </div>
 
-        <!-- Upload Panel -->
-        <div x-show="showMediaUpload" x-transition class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-5">
-          <h3 class="font-semibold text-gray-800 mb-3">Mediendateien hochladen</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-400 transition cursor-pointer"
-                   @click="$refs.mediaFileInput.click()"
-                   @dragover.prevent="$el.classList.add('drag-over')"
-                   @dragleave.prevent="$el.classList.remove('drag-over')"
-                   @drop.prevent="$el.classList.remove('drag-over'); handleMediaFileDrop($event)">
-                <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                <p class="text-sm text-gray-600" x-text="mediaFile ? mediaFile.name + ' (' + humanSize(mediaFile.size) + ')' : 'Bild, Video oder Audio hierher ziehen'"></p>
-                <p class="text-xs text-gray-400 mt-1">JPG, PNG, GIF, WebP, MP4, WebM, MP3, WAV, PDF</p>
-              </div>
-              <input type="file" x-ref="mediaFileInput" @change="mediaFile=$event.target.files[0]"
-                     accept="image/*,video/*,audio/*,.pdf" class="hidden">
-            </div>
-            <div class="space-y-2">
+      <!-- Upload Media Modal -->
+      <div x-show="showUploadMedia" class="modal-overlay" @click.self="showUploadMedia=false">
+        <div class="modal-box">
+          <h3 class="text-lg font-bold mb-4">Mediendatei hochladen</h3>
+          <div class="space-y-3">
+            <template x-if="session.role==='superadmin' && tenants.length>0">
               <div>
-                <label class="block text-xs text-gray-500 mb-1">Ordner</label>
-                <select x-model="mediaFolder" class="w-full border rounded-lg px-3 py-2 text-sm">
-                  <option value="media">media (Standard)</option>
-                  <option value="media/images">media/images</option>
-                  <option value="media/videos">media/videos</option>
-                  <option value="media/audio">media/audio</option>
-                  <option value="media/documents">media/documents</option>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Kunde</label>
+                <select x-model="uploadMedia.tenant_id" class="input">
+                  <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
                 </select>
               </div>
-              <div>
-                <label class="block text-xs text-gray-500 mb-1">Beschreibung (optional)</label>
-                <input x-model="mediaDescription" placeholder="Kurzbeschreibung" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </template>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Ordner</label>
+              <select x-model="uploadMedia.folder" class="input">
+                <option value="media">Medien</option>
+                <option value="images">Bilder</option>
+                <option value="videos">Videos</option>
+                <option value="audio">Audio</option>
+                <option value="docs">Dokumente</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Datei</label>
+              <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                   @click="$refs.mediaFileInput.click()"
+                   @dragover.prevent="$event.currentTarget.classList.add('drag-over')"
+                   @dragleave.prevent="$event.currentTarget.classList.remove('drag-over')"
+                   @drop.prevent="uploadMedia.file=$event.dataTransfer.files[0]; $event.currentTarget.classList.remove('drag-over')">
+                <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <p class="text-sm text-gray-500" x-text="uploadMedia.file ? uploadMedia.file.name : 'Datei hierher ziehen oder klicken'"></p>
               </div>
-              <button @click="uploadMedia()" :disabled="mediaUploading || !mediaFile"
-                      class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition">
-                <span x-show="!mediaUploading">In S3 hochladen</span>
-                <span x-show="mediaUploading">Wird hochgeladen...</span>
-              </button>
+              <input type="file" x-ref="mediaFileInput" class="hidden" @change="uploadMedia.file=$event.target.files[0]">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Beschreibung (optional)</label>
+              <input type="text" x-model="uploadMedia.description" class="input" placeholder="Kurze Beschreibung">
             </div>
           </div>
-          <div x-show="mediaUploadResult" class="mt-3 p-3 rounded-lg text-sm" :class="mediaUploadError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
-            <pre x-text="mediaUploadResult"></pre>
+          <div class="flex gap-2 mt-4">
+            <button class="btn btn-primary flex-1" @click="doUploadMedia()" :disabled="uploadMedia.loading || !uploadMedia.file">
+              <span x-show="!uploadMedia.loading">Hochladen</span>
+              <span x-show="uploadMedia.loading">Upload...</span>
+            </button>
+            <button class="btn btn-secondary" @click="showUploadMedia=false">Abbrechen</button>
           </div>
+          <div x-show="uploadMedia.result" class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" x-text="uploadMedia.result"></div>
+          <div x-show="uploadMedia.error" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="uploadMedia.error"></div>
         </div>
+      </div>
 
-        <!-- Folder Filter -->
+      <!-- Media Grid -->
+      <div class="card">
+        <!-- Filter -->
         <div class="flex gap-2 mb-4 flex-wrap">
-          <template x-for="f in ['media','media/images','media/videos','media/audio','media/documents','docs']" :key="f">
-            <button @click="mediaListFolder=f; loadMedia()"
-                    :class="mediaListFolder===f ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'"
-                    class="px-3 py-1.5 rounded-lg text-xs font-medium transition" x-text="f"></button>
-          </template>
+          <button class="btn btn-sm" :class="mediaFilter===null?'btn-primary':'btn-secondary'" @click="mediaFilter=null; loadMedia()">Alle</button>
+          <button class="btn btn-sm" :class="mediaFilter==='images'?'btn-primary':'btn-secondary'" @click="mediaFilter='images'; loadMedia()">Bilder</button>
+          <button class="btn btn-sm" :class="mediaFilter==='videos'?'btn-primary':'btn-secondary'" @click="mediaFilter='videos'; loadMedia()">Videos</button>
+          <button class="btn btn-sm" :class="mediaFilter==='audio'?'btn-primary':'btn-secondary'" @click="mediaFilter='audio'; loadMedia()">Audio</button>
+          <button class="btn btn-sm" :class="mediaFilter==='docs'?'btn-primary':'btn-secondary'" @click="mediaFilter='docs'; loadMedia()">Dokumente</button>
         </div>
-
-        <!-- Media Grid -->
-        <div x-show="mediaItems.length===0" class="text-center text-gray-400 py-12 text-sm bg-white rounded-xl shadow-sm">
-          Keine Dateien in diesem Ordner
+        <div x-show="mediaFiles.length===0" class="text-center py-12 text-gray-400">
+          <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <p>Keine Medien. Lade deine erste Datei hoch.</p>
         </div>
-        <div x-show="mediaItems.length>0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <template x-for="m in mediaItems" :key="m.key">
-            <div class="bg-white rounded-xl shadow-sm overflow-hidden group">
-              <div class="h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <template x-for="m in mediaFiles" :key="m.id">
+            <div class="border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow group relative">
+              <!-- Image Preview -->
+              <div class="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
                 <template x-if="m.is_image">
-                  <img :src="m.url" :alt="m.name" class="h-full w-full object-cover" loading="lazy">
+                  <img :src="m.url" :alt="m.original_name" class="w-full h-full object-cover" loading="lazy">
                 </template>
                 <template x-if="m.is_video">
                   <div class="text-center">
-                    <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <svg class="w-10 h-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     <p class="text-xs text-gray-400 mt-1">Video</p>
                   </div>
                 </template>
                 <template x-if="m.is_audio">
                   <div class="text-center">
-                    <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                    <svg class="w-10 h-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
                     <p class="text-xs text-gray-400 mt-1">Audio</p>
                   </div>
                 </template>
                 <template x-if="!m.is_image && !m.is_video && !m.is_audio">
                   <div class="text-center">
-                    <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <svg class="w-10 h-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                     <p class="text-xs text-gray-400 mt-1">Datei</p>
                   </div>
                 </template>
               </div>
-              <div class="p-3">
-                <p class="font-medium text-sm text-gray-800 truncate" :title="m.name" x-text="m.name"></p>
-                <div class="flex justify-between items-center mt-1.5">
+              <!-- Info -->
+              <div class="p-2">
+                <p class="text-xs font-medium text-gray-700 truncate" x-text="m.original_name" :title="m.original_name"></p>
+                <div class="flex items-center justify-between mt-1">
                   <span class="text-xs text-gray-400" x-text="m.size_human"></span>
-                  <div class="flex gap-2">
-                    <a :href="m.url" target="_blank" class="text-xs text-blue-500 hover:underline">Oeffnen</a>
-                    <button @click="copyToClipboard(m.url)" class="text-xs text-gray-400 hover:text-gray-700">URL</button>
-                    <button @click="deleteMedia(m.key)" class="text-xs text-red-400 hover:text-red-600">Loeschen</button>
-                  </div>
+                  <span class="badge bg-gray-100 text-gray-500 text-xs" x-text="m.folder"></span>
                 </div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- ── CHUNKS ── -->
-      <div x-show="tab==='chunks'" class="fade-in">
-        <div class="flex justify-between items-center mb-5">
-          <h2 class="text-xl font-semibold text-gray-800">Chunks Browser</h2>
-          <span class="text-sm text-gray-500" x-text="chunks.total + ' Chunks gesamt'"></span>
-        </div>
-        <div class="space-y-2">
-          <template x-for="c in chunks.chunks" :key="c.id">
-            <div class="bg-white rounded-xl shadow-sm p-4">
-              <div class="flex justify-between items-start mb-2">
-                <div class="flex gap-2 items-center flex-wrap">
-                  <span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-mono" x-text="'#' + c.chunk_index"></span>
-                  <span class="text-xs text-gray-500" x-text="c.source_name"></span>
-                  <span class="text-xs px-1.5 py-0.5 rounded"
-                        :class="c.has_embedding ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
-                        x-text="c.has_embedding ? 'Embedded' : 'Kein Embedding'"></span>
-                </div>
-                <span class="text-xs text-gray-400 flex-shrink-0" x-text="(c.token_count||0) + ' Tokens'"></span>
-              </div>
-              <p class="text-sm text-gray-700 leading-relaxed" x-text="c.content_preview + (c.content_preview?.length >= 300 ? '...' : '')"></p>
-            </div>
-          </template>
-        </div>
-        <div x-show="chunks.total > 50" class="flex justify-center mt-5 gap-2">
-          <button @click="chunksOffset=Math.max(0,chunksOffset-50); loadChunks()" :disabled="chunksOffset===0"
-                  class="px-4 py-2 border rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50">Zurueck</button>
-          <span class="px-4 py-2 text-sm text-gray-500" x-text="(chunksOffset+1)+'-'+Math.min(chunksOffset+50,chunks.total)+' / '+chunks.total"></span>
-          <button @click="chunksOffset+=50; loadChunks()" :disabled="chunksOffset+50>=chunks.total"
-                  class="px-4 py-2 border rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50">Weiter</button>
-        </div>
-      </div>
-
-      <!-- ── CHAT TESTER ── -->
-      <div x-show="tab==='chat'" class="fade-in max-w-3xl">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">RAG Chat Tester</h2>
-        <div class="bg-white rounded-xl shadow-sm p-4 min-h-64 mb-3 max-h-[28rem] overflow-y-auto" id="chat-messages">
-          <div x-show="chatMessages.length===0" class="text-gray-400 text-sm text-center py-12">
-            Stelle eine Frage um den RAG Chat zu testen
-          </div>
-          <template x-for="m in chatMessages" :key="m.id">
-            <div class="mb-4">
-              <div :class="m.role==='user' ? 'text-right' : 'text-left'">
-                <div :class="m.role==='user' ? 'bg-blue-600 text-white ml-12' : 'bg-gray-100 text-gray-800 mr-12'"
-                     class="inline-block rounded-2xl px-4 py-2.5 text-sm max-w-lg" x-text="m.content"></div>
-                <template x-if="m.timing">
-                  <p class="text-xs text-gray-400 mt-0.5" x-text="(m.timing.total_duration_ms||0)+'ms'"></p>
+                <template x-if="session.role==='superadmin'">
+                  <p class="text-xs text-gray-400 mt-0.5" x-text="m.user_name||'-'"></p>
                 </template>
               </div>
+              <!-- Hover Actions -->
+              <div class="absolute top-2 right-2 hidden group-hover:flex gap-1">
+                <a :href="m.url" target="_blank" class="w-7 h-7 bg-white/90 rounded-lg flex items-center justify-center shadow hover:bg-white" title="Öffnen">
+                  <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </a>
+                <button class="w-7 h-7 bg-red-500/90 rounded-lg flex items-center justify-center shadow hover:bg-red-600" title="Löschen"
+                        @click="if(confirm('Datei wirklich löschen?')) deleteMedia(m.id)">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
             </div>
           </template>
-          <div x-show="chatLoading" class="text-gray-400 text-sm animate-pulse">Antwort wird generiert...</div>
         </div>
-        <div class="flex gap-2">
-          <input x-model="chatInput" @keyup.enter="sendChat()" placeholder="Frage eingeben..."
-                 class="flex-1 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-          <button @click="sendChat()" :disabled="chatLoading"
-                  class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition">
-            Senden
-          </button>
-          <button @click="chatMessages=[]" class="bg-gray-200 text-gray-600 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-300">Leeren</button>
+      </div>
+    </div>
+
+    <!-- ═══ KUNDEN (Superadmin) ═══ -->
+    <div x-show="page==='tenants'" class="fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Kunden-Verwaltung</h1>
+        <button class="btn btn-primary" @click="showCreateTenant=true; newTenant={name:'',slug:'',email:'',plan:'starter'}">+ Neuer Kunde</button>
+      </div>
+
+      <!-- Create Tenant Modal -->
+      <div x-show="showCreateTenant" class="modal-overlay" @click.self="showCreateTenant=false">
+        <div class="modal-box">
+          <h3 class="text-lg font-bold mb-4">Neuen Kunden anlegen</h3>
+          <div class="space-y-3">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">Firmenname</label><input type="text" x-model="newTenant.name" class="input" placeholder="Musterfirma GmbH"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">Slug (URL-Name)</label><input type="text" x-model="newTenant.slug" class="input" placeholder="musterfirma" @input="newTenant.slug=$event.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,'')"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">E-Mail</label><input type="email" x-model="newTenant.email" class="input" placeholder="kontakt@firma.de"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">Plan</label>
+              <select x-model="newTenant.plan" class="input"><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="btn btn-primary flex-1" @click="doCreateTenant()">Anlegen</button>
+            <button class="btn btn-secondary" @click="showCreateTenant=false">Abbrechen</button>
+          </div>
         </div>
       </div>
 
-      <!-- ── KUNDENVERWALTUNG (Super-Admin) ── -->
-      <div x-show="tab==='tenants' && role==='superadmin'" class="fade-in">
-        <div class="flex justify-between items-center mb-5">
-          <h2 class="text-xl font-semibold text-gray-800">Kundenverwaltung</h2>
-          <button @click="showNewTenant=!showNewTenant"
-                  class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 transition flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Neuer Kunde
-          </button>
+      <!-- Tenant List -->
+      <div class="card">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+              <th class="pb-3 pr-4">Name</th><th class="pb-3 pr-4">Slug</th><th class="pb-3 pr-4">Plan</th>
+              <th class="pb-3 pr-4">User</th><th class="pb-3 pr-4">Quellen</th><th class="pb-3 pr-4">Medien</th>
+              <th class="pb-3 pr-4">Status</th><th class="pb-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="t in tenants" :key="t.id">
+              <tr class="border-b border-gray-50 table-row">
+                <td class="py-3 pr-4 font-medium text-gray-800" x-text="t.name"></td>
+                <td class="py-3 pr-4 font-mono text-xs text-gray-500" x-text="t.slug"></td>
+                <td class="py-3 pr-4"><span class="badge" :class="t.plan==='enterprise'?'bg-purple-100 text-purple-700':t.plan==='pro'?'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-600'" x-text="t.plan"></span></td>
+                <td class="py-3 pr-4 text-gray-600" x-text="t.user_count||0"></td>
+                <td class="py-3 pr-4 text-gray-600" x-text="t.source_count||0"></td>
+                <td class="py-3 pr-4 text-gray-600" x-text="t.media_count||0"></td>
+                <td class="py-3 pr-4"><span class="badge" :class="t.status==='active'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'" x-text="t.status"></span></td>
+                <td class="py-3 text-right">
+                  <button class="btn btn-secondary btn-sm mr-1" @click="browseTenantContent(t.id)">Inhalte</button>
+                  <button class="btn btn-danger btn-sm" @click="if(confirm('Kunde deaktivieren?')) deleteTenant(t.id)" x-show="t.status==='active'">Deaktiv.</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ USER-VERWALTUNG (Superadmin) ═══ -->
+    <div x-show="page==='users'" class="fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">User-Verwaltung</h1>
+        <button class="btn btn-primary" @click="showCreateUser=true; newUser={email:'',password:'',display_name:'',role:'user',tenant_id:tenants[0]?.id||''}">+ Neuer User</button>
+      </div>
+
+      <!-- Filter by Tenant -->
+      <div class="flex gap-2 mb-4 flex-wrap">
+        <button class="btn btn-sm" :class="userTenantFilter===null?'btn-primary':'btn-secondary'" @click="userTenantFilter=null; loadUsers()">Alle</button>
+        <template x-for="t in tenants" :key="t.id">
+          <button class="btn btn-sm" :class="userTenantFilter===t.id?'btn-primary':'btn-secondary'" @click="userTenantFilter=t.id; loadUsers()" x-text="t.name"></button>
+        </template>
+      </div>
+
+      <!-- Create User Modal -->
+      <div x-show="showCreateUser" class="modal-overlay" @click.self="showCreateUser=false">
+        <div class="modal-box">
+          <h3 class="text-lg font-bold mb-4">Neuen User anlegen</h3>
+          <div class="space-y-3">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">Anzeigename</label><input type="text" x-model="newUser.display_name" class="input" placeholder="Max Mustermann"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">E-Mail</label><input type="email" x-model="newUser.email" class="input" placeholder="max@firma.de"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">Passwort</label><input type="text" x-model="newUser.password" class="input" placeholder="Mindestens 6 Zeichen"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">Rolle</label>
+              <select x-model="newUser.role" class="input"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super-Admin</option></select>
+            </div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">Kunde zuweisen</label>
+              <select x-model="newUser.tenant_id" class="input">
+                <option value="">— Keiner —</option>
+                <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
+              </select>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button class="btn btn-primary flex-1" @click="doCreateUser()">Anlegen</button>
+            <button class="btn btn-secondary" @click="showCreateUser=false">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Change Password Modal -->
+      <div x-show="showChangePw" class="modal-overlay" @click.self="showChangePw=false">
+        <div class="modal-box">
+          <h3 class="text-lg font-bold mb-4">Passwort ändern</h3>
+          <p class="text-sm text-gray-500 mb-3">Für: <strong x-text="changePwUser?.display_name"></strong> (<span x-text="changePwUser?.email"></span>)</p>
+          <div><label class="block text-xs font-medium text-gray-500 mb-1">Neues Passwort</label><input type="text" x-model="newPassword" class="input" placeholder="Neues Passwort (min. 6 Zeichen)"></div>
+          <div class="flex gap-2 mt-4">
+            <button class="btn btn-primary flex-1" @click="doChangePw()">Speichern</button>
+            <button class="btn btn-secondary" @click="showChangePw=false">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users List -->
+      <div class="card">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+              <th class="pb-3 pr-4">Name</th><th class="pb-3 pr-4">E-Mail</th><th class="pb-3 pr-4">Rolle</th>
+              <th class="pb-3 pr-4">Kunde</th><th class="pb-3 pr-4">Quellen</th><th class="pb-3 pr-4">Medien</th>
+              <th class="pb-3 pr-4">Status</th><th class="pb-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="u in users" :key="u.id">
+              <tr class="border-b border-gray-50 table-row">
+                <td class="py-3 pr-4 font-medium text-gray-800" x-text="u.display_name"></td>
+                <td class="py-3 pr-4 text-gray-500 text-xs" x-text="u.email"></td>
+                <td class="py-3 pr-4"><span class="badge" :class="u.role==='superadmin'?'bg-purple-100 text-purple-700':u.role==='admin'?'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-600'" x-text="u.role"></span></td>
+                <td class="py-3 pr-4 text-gray-500 text-xs" x-text="u.tenant_name||'—'"></td>
+                <td class="py-3 pr-4 text-gray-600" x-text="u.source_count||0"></td>
+                <td class="py-3 pr-4 text-gray-600" x-text="u.media_count||0"></td>
+                <td class="py-3 pr-4"><span class="badge" :class="u.is_active?'bg-green-100 text-green-700':'bg-red-100 text-red-700'" x-text="u.is_active?'Aktiv':'Deaktiv.'"></span></td>
+                <td class="py-3 text-right space-x-1">
+                  <button class="btn btn-secondary btn-sm" @click="changePwUser=u; newPassword=''; showChangePw=true">Passwort</button>
+                  <button class="btn btn-danger btn-sm" @click="if(confirm('User deaktivieren?')) deleteUser(u.id)" x-show="u.is_active && u.email!==session.email">Deaktiv.</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ CONTENT-BROWSER (Superadmin) ═══ -->
+    <div x-show="page==='content-browser'" class="fade-in">
+      <h1 class="text-2xl font-bold text-gray-800 mb-6">Content-Browser</h1>
+
+      <!-- Tenant Selector -->
+      <div class="card mb-6">
+        <label class="block text-xs font-medium text-gray-500 mb-2">Kunde auswählen</label>
+        <select x-model="browserTenantId" @change="loadTenantContent()" class="input max-w-md">
+          <option value="">— Kunde wählen —</option>
+          <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
+        </select>
+      </div>
+
+      <div x-show="browserContent" class="space-y-6">
+        <!-- Users in Tenant -->
+        <div class="card">
+          <h2 class="text-lg font-semibold text-gray-700 mb-4">User in diesem Kunden</h2>
+          <div x-show="(browserContent?.users||[]).length===0" class="text-sm text-gray-400">Keine User zugewiesen.</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <template x-for="u in browserContent?.users||[]" :key="u.id">
+              <div class="border border-gray-100 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium text-gray-800" x-text="u.display_name"></p>
+                    <p class="text-xs text-gray-400" x-text="u.email"></p>
+                  </div>
+                  <span class="badge" :class="u.is_active?'bg-green-100 text-green-700':'bg-red-100 text-red-700'" x-text="u.is_active?'Aktiv':'Inaktiv'"></span>
+                </div>
+                <div class="flex gap-4 mt-2 text-xs text-gray-500">
+                  <span x-text="u.source_count+' Quellen'"></span>
+                  <span x-text="u.media_count+' Medien'"></span>
+                </div>
+              </div>
+            </template>
+          </div>
         </div>
 
-        <!-- New Tenant -->
-        <div x-show="showNewTenant" x-transition class="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-5">
-          <h3 class="font-semibold text-gray-800 mb-3">Neuen Kunden anlegen</h3>
-          <div class="grid grid-cols-2 gap-3">
-            <input x-model="newTenant.name" placeholder="Firmenname" class="border rounded-lg px-3 py-2 text-sm">
-            <input x-model="newTenant.slug" placeholder="Slug (z.B. muster-gmbh)" class="border rounded-lg px-3 py-2 text-sm font-mono">
-            <input x-model="newTenant.email" placeholder="E-Mail des Kunden" class="border rounded-lg px-3 py-2 text-sm">
-            <select x-model="newTenant.plan" class="border rounded-lg px-3 py-2 text-sm">
-              <option>starter</option><option>pro</option><option>enterprise</option>
-            </select>
-          </div>
-          <div class="flex gap-2 mt-3">
-            <button @click="createTenant()" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700">Anlegen</button>
-            <button @click="showNewTenant=false" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300">Abbrechen</button>
-          </div>
-          <p x-show="tenantFormMsg" class="text-sm mt-2" :class="tenantFormErr ? 'text-red-600' : 'text-green-600'" x-text="tenantFormMsg"></p>
-        </div>
-
-        <!-- Tenants Table -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50 border-b">
-              <tr>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Kunde</th>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Slug</th>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium hidden sm:table-cell">E-Mail</th>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Plan</th>
-                <th class="px-4 py-2.5 text-center text-gray-600 font-medium">Quellen</th>
-                <th class="px-4 py-2.5 text-center text-gray-600 font-medium">Chunks</th>
-                <th class="px-4 py-2.5 text-left text-gray-600 font-medium">Status</th>
-                <th class="px-4 py-2.5"></th>
+        <!-- Sources in Tenant -->
+        <div class="card">
+          <h2 class="text-lg font-semibold text-gray-700 mb-4">RAG Dokumente</h2>
+          <div x-show="(browserContent?.sources||[]).length===0" class="text-sm text-gray-400">Keine Dokumente.</div>
+          <table x-show="(browserContent?.sources||[]).length>0" class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
+                <th class="pb-3 pr-4">Name</th><th class="pb-3 pr-4">User</th><th class="pb-3 pr-4">Status</th>
+                <th class="pb-3 pr-4">Erstellt</th><th class="pb-3"></th>
               </tr>
             </thead>
             <tbody>
-              <template x-for="t in tenants" :key="t.id">
-                <tr class="border-b hover:bg-gray-50">
-                  <td class="px-4 py-2.5">
-                    <template x-if="editTenantId===t.id">
-                      <input x-model="editTenantData.name" class="border rounded px-2 py-1 text-sm w-full" @keyup.enter="saveEditTenant(t.id)" @keyup.escape="editTenantId=null">
-                    </template>
-                    <template x-if="editTenantId!==t.id">
-                      <span class="font-medium text-gray-800 cursor-pointer" @dblclick="startEditTenant(t)" x-text="t.name"></span>
-                    </template>
-                  </td>
-                  <td class="px-4 py-2.5 text-gray-500 font-mono text-xs" x-text="t.slug"></td>
-                  <td class="px-4 py-2.5 text-gray-500 text-xs hidden sm:table-cell">
-                    <template x-if="editTenantId===t.id">
-                      <input x-model="editTenantData.email" class="border rounded px-2 py-1 text-xs w-full">
-                    </template>
-                    <template x-if="editTenantId!==t.id">
-                      <span x-text="t.email"></span>
-                    </template>
-                  </td>
-                  <td class="px-4 py-2.5">
-                    <template x-if="editTenantId===t.id">
-                      <select x-model="editTenantData.plan" class="border rounded px-2 py-1 text-xs">
-                        <option>starter</option><option>pro</option><option>enterprise</option>
-                      </select>
-                    </template>
-                    <template x-if="editTenantId!==t.id">
-                      <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs" x-text="t.plan"></span>
-                    </template>
-                  </td>
-                  <td class="px-4 py-2.5 text-center text-xs" x-text="t.source_count"></td>
-                  <td class="px-4 py-2.5 text-center text-xs" x-text="t.chunk_count"></td>
-                  <td class="px-4 py-2.5">
-                    <span :class="t.status==='active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-                          class="px-2 py-0.5 rounded text-xs" x-text="t.status"></span>
-                  </td>
-                  <td class="px-4 py-2.5 text-right space-x-1 whitespace-nowrap">
-                    <template x-if="editTenantId===t.id">
-                      <span>
-                        <button @click="saveEditTenant(t.id)" class="text-green-600 hover:underline text-xs">Speichern</button>
-                        <button @click="editTenantId=null" class="text-gray-400 hover:underline text-xs">Abbrechen</button>
-                      </span>
-                    </template>
-                    <template x-if="editTenantId!==t.id">
-                      <span>
-                        <button @click="jumpToTenant(t, 'rag')" class="text-blue-600 hover:underline text-xs">RAG</button>
-                        <button @click="jumpToTenant(t, 'media')" class="text-indigo-600 hover:underline text-xs">Medien</button>
-                        <button @click="startEditTenant(t)" class="text-gray-500 hover:underline text-xs">Bearbeiten</button>
-                        <button @click="deleteTenant(t.id, t.name)" class="text-red-400 hover:text-red-600 text-xs">Deaktivieren</button>
-                      </span>
-                    </template>
-                  </td>
+              <template x-for="s in browserContent?.sources||[]" :key="s.id">
+                <tr class="border-b border-gray-50 table-row">
+                  <td class="py-3 pr-4 font-medium text-gray-800" x-text="s.name"></td>
+                  <td class="py-3 pr-4 text-gray-500 text-xs" x-text="s.user_name||'-'"></td>
+                  <td class="py-3 pr-4"><span class="badge" :class="s.status==='completed'?'bg-green-100 text-green-700':s.status==='error'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'" x-text="s.status"></span></td>
+                  <td class="py-3 pr-4 text-gray-400 text-xs" x-text="fmtDate(s.created_at)"></td>
+                  <td class="py-3 text-right"><button class="btn btn-danger btn-sm" @click="if(confirm('Löschen?')) deleteSource(s.id)">Löschen</button></td>
                 </tr>
               </template>
             </tbody>
           </table>
         </div>
-      </div>
 
-    </main>
-  </div>
+        <!-- Media in Tenant -->
+        <div class="card">
+          <h2 class="text-lg font-semibold text-gray-700 mb-4">Medien-Dateien</h2>
+          <div x-show="(browserContent?.media||[]).length===0" class="text-sm text-gray-400">Keine Medien.</div>
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <template x-for="m in browserContent?.media||[]" :key="m.id">
+              <div class="border border-gray-100 rounded-lg overflow-hidden group relative">
+                <div class="aspect-square bg-gray-50 flex items-center justify-center">
+                  <template x-if="m.is_image"><img :src="m.url" class="w-full h-full object-cover" loading="lazy"></template>
+                  <template x-if="!m.is_image">
+                    <div class="text-center">
+                      <svg class="w-8 h-8 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </div>
+                  </template>
+                </div>
+                <div class="p-1.5">
+                  <p class="text-xs truncate text-gray-600" x-text="m.original_name||m.file_name"></p>
+                  <p class="text-xs text-gray-400" x-text="m.user_name||'-'"></p>
+                </div>
+                <div class="absolute top-1 right-1 hidden group-hover:flex gap-1">
+                  <a :href="m.url" target="_blank" class="w-6 h-6 bg-white/90 rounded flex items-center justify-center shadow text-xs">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                  </a>
+                  <button class="w-6 h-6 bg-red-500/90 rounded flex items-center justify-center shadow" @click="if(confirm('Löschen?')) deleteMediaFromBrowser(m.id)">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
+
+<!-- ═══════════════ TOAST ═══════════════ -->
+<div x-show="toast.show" x-transition class="fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50"
+     :class="toast.type==='error'?'bg-red-600 text-white':'bg-green-600 text-white'"
+     x-text="toast.msg"></div>
 
 <script>
 function app() {
   return {
     // Auth
     authenticated: false,
+    session: {},
+    token: '',
     loginEmail: '',
     loginPassword: '',
     loginLoading: false,
     loginError: '',
-    sessionToken: '',
-    userEmail: '',
-    role: '',
 
-    // State
-    tab: 'rag',
+    // Nav
+    page: 'dashboard',
+
+    // Data
     stats: {},
-    health: {},
     tenants: [],
-    selectedTenantId: '',
-    selectedTenant: null,
-
-    // RAG
+    users: [],
     sources: [],
-    showRagUpload: false,
-    ragUploadMode: 'file',
-    ragFile: null,
-    ragText: '',
-    ragDocName: '',
-    ragDocType: 'general',
-    ragTags: '',
-    ragUploading: false,
-    ragUploadResult: '',
-    ragUploadError: false,
+    mediaFiles: [],
+    mediaFilter: null,
+    userTenantFilter: null,
 
-    // Media
-    mediaItems: [],
-    showMediaUpload: false,
-    mediaFile: null,
-    mediaFolder: 'media',
-    mediaDescription: '',
-    mediaUploading: false,
-    mediaUploadResult: '',
-    mediaUploadError: false,
-    mediaListFolder: 'media',
+    // Modals
+    showUploadDoc: false,
+    showUploadMedia: false,
+    showCreateTenant: false,
+    showCreateUser: false,
+    showChangePw: false,
 
-    // Chunks
-    chunks: { total: 0, chunks: [] },
-    chunksOffset: 0,
+    // Forms
+    uploadDoc: { tenant_id:'', name:'', file:null, text:'', tags:'', loading:false, result:'', error:'' },
+    uploadMedia: { tenant_id:'', folder:'media', file:null, description:'', loading:false, result:'', error:'' },
+    newTenant: { name:'', slug:'', email:'', plan:'starter' },
+    newUser: { email:'', password:'', display_name:'', role:'user', tenant_id:'' },
+    changePwUser: null,
+    newPassword: '',
 
-    // Chat
-    chatInput: '',
-    chatMessages: [],
-    chatLoading: false,
+    // Content Browser
+    browserTenantId: '',
+    browserContent: null,
 
-    // Tenant Admin
-    showNewTenant: false,
-    newTenant: { name: '', slug: '', email: '', plan: 'starter' },
-    tenantFormMsg: '', tenantFormErr: false,
-    editTenantId: null,
-    editTenantData: { name: '', email: '', plan: '' },
+    // Toast
+    toast: { show:false, msg:'', type:'success' },
 
     async init() {
-      const stored = localStorage.getItem('eppcom_session');
-      if (stored) {
+      const saved = localStorage.getItem('rag_session');
+      if (saved) {
         try {
-          const s = JSON.parse(stored);
-          this.sessionToken = s.token;
-          this.userEmail = s.email;
-          this.role = s.role;
-          const me = await this.api('/api/me');
-          this.userEmail = me.email;
-          this.role = me.role;
+          const d = JSON.parse(saved);
+          this.token = d.token;
+          const r = await this.api('GET', '/api/me');
+          this.session = r;
           this.authenticated = true;
-          await this.loadAll();
-        } catch (e) {
-          localStorage.removeItem('eppcom_session');
-          this.sessionToken = '';
+          this.loadAll();
+        } catch(e) {
+          localStorage.removeItem('rag_session');
         }
       }
     },
 
-    async login() {
-      if (!this.loginEmail || !this.loginPassword) { this.loginError = 'E-Mail und Passwort eingeben'; return; }
+    async doLogin() {
       this.loginLoading = true;
       this.loginError = '';
       try {
         const r = await fetch('/api/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword }),
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword })
         });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || 'Login fehlgeschlagen');
-        this.sessionToken = data.token;
-        this.userEmail = data.email;
-        this.role = data.role;
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Login fehlgeschlagen');
+        this.token = d.token;
+        this.session = d;
+        localStorage.setItem('rag_session', JSON.stringify({token:d.token}));
         this.authenticated = true;
-        localStorage.setItem('eppcom_session', JSON.stringify({ token: data.token, email: data.email, role: data.role }));
-        await this.loadAll();
-      } catch (e) { this.loginError = e.message; }
-      finally { this.loginLoading = false; }
+        this.loadAll();
+      } catch(e) {
+        this.loginError = e.message;
+      }
+      this.loginLoading = false;
     },
 
-    async logout() {
-      try { await this.api('/api/logout', 'POST'); } catch(e) {}
+    doLogout() {
+      this.api('POST', '/api/logout').catch(()=>{});
       this.authenticated = false;
-      this.sessionToken = '';
-      this.userEmail = '';
-      this.role = '';
-      localStorage.removeItem('eppcom_session');
+      this.session = {};
+      this.token = '';
+      localStorage.removeItem('rag_session');
+      this.loginPassword = '';
+    },
+
+    go(p) {
+      this.page = p;
+      if (p==='documents') this.loadSources();
+      if (p==='media') this.loadMedia();
+      if (p==='tenants') this.loadTenants();
+      if (p==='users') this.loadUsers();
+      if (p==='dashboard') this.loadStats();
     },
 
     async loadAll() {
-      await Promise.all([this.loadTenants(), this.loadHealth(), this.refreshStats()]);
-      if (this.tenants.length > 0 && !this.selectedTenantId) {
-        this.selectedTenantId = this.tenants[0].id;
-        this.selectedTenant = this.tenants[0];
-      }
-      if (this.selectedTenantId) await this.loadTenantData();
+      this.loadStats();
+      this.loadTenants();
     },
 
-    async loadTenantData() {
-      await Promise.all([this.loadSources(), this.loadMedia(), this.loadChunks()]);
-    },
-
-    async onTenantChange() {
-      this.selectedTenant = this.tenants.find(t => t.id === this.selectedTenantId) || null;
-      this.sources = [];
-      this.mediaItems = [];
-      this.chunks = { total: 0, chunks: [] };
-      this.chunksOffset = 0;
-      if (this.selectedTenantId) await this.loadTenantData();
-    },
-
-    async refreshStats() { try { this.stats = await this.api('/api/stats'); } catch(e) {} },
-    async loadHealth() { try { this.health = await this.api('/api/health'); } catch(e) {} },
+    async loadStats() { try { this.stats = await this.api('GET','/api/stats'); } catch(e){} },
 
     async loadTenants() {
       try {
-        this.tenants = await this.api('/api/tenants');
-        if (this.selectedTenantId) {
-          this.selectedTenant = this.tenants.find(t => t.id === this.selectedTenantId) || this.selectedTenant;
+        this.tenants = await this.api('GET','/api/tenants');
+        if (this.tenants.length > 0 && !this.uploadDoc.tenant_id) {
+          const tid = this.session.tenant_id || this.tenants[0]?.id;
+          this.uploadDoc.tenant_id = tid;
+          this.uploadMedia.tenant_id = tid;
         }
-      } catch(e) {}
+      } catch(e){}
     },
 
-    // RAG
+    async loadUsers() {
+      try {
+        let url = '/api/users';
+        if (this.userTenantFilter) url += '?tenant_id=' + this.userTenantFilter;
+        this.users = await this.api('GET', url);
+      } catch(e){}
+    },
+
     async loadSources() {
-      if (!this.selectedTenantId) return;
-      try { this.sources = await this.api(`/api/tenants/${this.selectedTenantId}/sources`); }
-      catch(e) { this.sources = []; }
+      try { this.sources = await this.api('GET','/api/sources'); } catch(e){}
     },
 
-    async uploadRagDocument() {
-      if (!this.selectedTenantId) return;
-      this.ragUploading = true; this.ragUploadResult = ''; this.ragUploadError = false;
-      try {
-        const fd = new FormData();
-        if (this.ragUploadMode === 'file' && this.ragFile) {
-          fd.append('file', this.ragFile);
-          fd.append('name', this.ragDocName || this.ragFile.name);
-        } else if (this.ragUploadMode === 'text' && this.ragText) {
-          fd.append('text_content', this.ragText);
-          fd.append('name', this.ragDocName || 'Direkteingabe');
-        } else { throw new Error('Datei auswaehlen oder Text eingeben'); }
-        fd.append('doc_type', this.ragDocType);
-        fd.append('tags', this.ragTags);
-        const r = await fetch(`/api/tenants/${this.selectedTenantId}/ingest`, {
-          method: 'POST', headers: { 'X-Session-Token': this.sessionToken }, body: fd,
-        });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
-        this.ragUploadResult = `${data.chunks_created} Chunks, ${data.embeddings_created} Embeddings\nSource: ${data.source_id}\nStatus: ${data.status}`;
-        if (data.embed_error) this.ragUploadResult += `\nWarnung: ${data.embed_error}`;
-        this.ragFile = null; this.ragText = ''; this.ragDocName = ''; this.ragTags = '';
-        await Promise.all([this.loadSources(), this.refreshStats()]);
-      } catch (e) { this.ragUploadError = true; this.ragUploadResult = e.message; }
-      finally { this.ragUploading = false; }
-    },
-
-    async deleteSource(sourceId) {
-      if (!confirm('Quelle inkl. aller Chunks und Embeddings loeschen?')) return;
-      await this.api(`/api/sources/${sourceId}?tenant_id=${this.selectedTenantId}`, 'DELETE');
-      await Promise.all([this.loadSources(), this.refreshStats()]);
-    },
-
-    async reembedSource(sourceId) {
-      if (!confirm('Embeddings neu generieren?')) return;
-      try {
-        const r = await this.api(`/api/tenants/${this.selectedTenantId}/sources/${sourceId}/reembed`, 'POST');
-        alert(`Re-Embedding: ${r.embeddings_created} Embeddings erstellt`);
-        await this.loadSources();
-      } catch (e) { alert('Fehler: ' + e.message); }
-    },
-
-    handleRagFileDrop(event) { if (event.dataTransfer.files.length > 0) this.ragFile = event.dataTransfer.files[0]; },
-
-    // Media
     async loadMedia() {
-      if (!this.selectedTenantId) return;
-      try { const r = await this.api(`/api/tenants/${this.selectedTenantId}/media?folder=${this.mediaListFolder}`); this.mediaItems = r.items || []; }
-      catch(e) { this.mediaItems = []; }
+      try {
+        let url = '/api/media';
+        if (this.mediaFilter) url += '?folder=' + this.mediaFilter;
+        this.mediaFiles = await this.api('GET', url);
+      } catch(e){}
     },
 
-    async uploadMedia() {
-      if (!this.selectedTenantId || !this.mediaFile) return;
-      this.mediaUploading = true; this.mediaUploadResult = ''; this.mediaUploadError = false;
+    async doIngestDoc() {
+      this.uploadDoc.loading = true;
+      this.uploadDoc.result = '';
+      this.uploadDoc.error = '';
       try {
         const fd = new FormData();
-        fd.append('file', this.mediaFile);
-        fd.append('folder', this.mediaFolder);
-        fd.append('description', this.mediaDescription);
-        const r = await fetch(`/api/tenants/${this.selectedTenantId}/media`, {
-          method: 'POST', headers: { 'X-Session-Token': this.sessionToken }, body: fd,
+        fd.append('tenant_id', this.session.role==='superadmin' ? this.uploadDoc.tenant_id : (this.session.tenant_id||''));
+        fd.append('name', this.uploadDoc.name || 'Unbenanntes Dokument');
+        fd.append('tags', this.uploadDoc.tags);
+        if (this.uploadDoc.file) fd.append('file', this.uploadDoc.file);
+        else if (this.uploadDoc.text) fd.append('text_content', this.uploadDoc.text);
+        else { this.uploadDoc.error='Datei oder Text erforderlich'; this.uploadDoc.loading=false; return; }
+
+        const r = await fetch('/api/sources/ingest', {
+          method: 'POST', headers: {'X-Session-Token': this.token}, body: fd
         });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
-        this.mediaUploadResult = `Hochgeladen: ${data.filename} (${data.size_human})\nURL: ${data.url}`;
-        this.mediaFile = null; this.mediaDescription = '';
-        this.mediaListFolder = this.mediaFolder;
-        await this.loadMedia();
-      } catch (e) { this.mediaUploadError = true; this.mediaUploadResult = e.message; }
-      finally { this.mediaUploading = false; }
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Fehler');
+        this.uploadDoc.result = `Erfolgreich: ${d.chunks_created} Chunks, ${d.embeddings_created} Embeddings`;
+        this.loadSources();
+        this.loadStats();
+      } catch(e) { this.uploadDoc.error = e.message; }
+      this.uploadDoc.loading = false;
     },
 
-    async deleteMedia(s3Key) {
-      if (!confirm('Mediendatei endgueltig aus S3 loeschen?')) return;
-      await this.api(`/api/tenants/${this.selectedTenantId}/media?s3_key=${encodeURIComponent(s3Key)}`, 'DELETE');
-      await this.loadMedia();
-    },
-
-    handleMediaFileDrop(event) { if (event.dataTransfer.files.length > 0) this.mediaFile = event.dataTransfer.files[0]; },
-
-    // Chunks
-    async loadChunks() {
-      if (!this.selectedTenantId) return;
-      try { this.chunks = await this.api(`/api/tenants/${this.selectedTenantId}/chunks?limit=50&offset=${this.chunksOffset}`); }
-      catch(e) { this.chunks = { total: 0, chunks: [] }; }
-    },
-
-    // Chat
-    async sendChat() {
-      if (!this.chatInput || !this.selectedTenantId) return;
-      const q = this.chatInput; this.chatInput = ''; this.chatLoading = true;
-      this.chatMessages.push({ id: Date.now(), role: 'user', content: q });
+    async doUploadMedia() {
+      this.uploadMedia.loading = true;
+      this.uploadMedia.result = '';
+      this.uploadMedia.error = '';
       try {
-        const data = await this.api('/api/chat', 'POST', { tenant_id: this.selectedTenantId, api_key: 'session-auth', query: q });
-        this.chatMessages.push({ id: Date.now()+1, role: 'assistant', content: data.answer || JSON.stringify(data), timing: data.timing });
-      } catch (e) { this.chatMessages.push({ id: Date.now()+1, role: 'assistant', content: 'Fehler: ' + e.message }); }
-      finally {
-        this.chatLoading = false;
-        this.$nextTick(() => { const el = document.getElementById('chat-messages'); if (el) el.scrollTop = el.scrollHeight; });
-      }
+        const fd = new FormData();
+        fd.append('tenant_id', this.session.role==='superadmin' ? this.uploadMedia.tenant_id : (this.session.tenant_id||''));
+        fd.append('file', this.uploadMedia.file);
+        fd.append('folder', this.uploadMedia.folder);
+        fd.append('description', this.uploadMedia.description);
+
+        const r = await fetch('/api/media/upload', {
+          method: 'POST', headers: {'X-Session-Token': this.token}, body: fd
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail || 'Fehler');
+        this.uploadMedia.result = `Hochgeladen: ${d.filename} (${d.size_human})`;
+        this.uploadMedia.file = null;
+        this.loadMedia();
+        this.loadStats();
+      } catch(e) { this.uploadMedia.error = e.message; }
+      this.uploadMedia.loading = false;
     },
 
-    // Tenant Admin
-    async createTenant() {
-      this.tenantFormMsg = '';
+    async doCreateTenant() {
       try {
-        const r = await this.api('/api/tenants', 'POST', this.newTenant);
-        this.tenantFormMsg = `Kunde "${this.newTenant.name}" angelegt (${r.slug})`; this.tenantFormErr = false;
-        this.newTenant = { name: '', slug: '', email: '', plan: 'starter' };
-        await Promise.all([this.loadTenants(), this.refreshStats()]);
-      } catch (e) { this.tenantFormMsg = e.message; this.tenantFormErr = true; }
+        await this.api('POST','/api/tenants', this.newTenant);
+        this.showCreateTenant = false;
+        this.showToast('Kunde angelegt');
+        this.loadTenants();
+      } catch(e) { alert(e.message); }
     },
 
-    startEditTenant(t) { this.editTenantId = t.id; this.editTenantData = { name: t.name, email: t.email, plan: t.plan }; },
+    async deleteTenant(id) {
+      try { await this.api('DELETE',`/api/tenants/${id}`); this.showToast('Deaktiviert'); this.loadTenants(); } catch(e) { alert(e.message); }
+    },
 
-    async saveEditTenant(tenantId) {
+    async doCreateUser() {
       try {
-        await this.api(`/api/tenants/${tenantId}`, 'PUT', this.editTenantData);
-        this.editTenantId = null;
-        await this.loadTenants();
-      } catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); }
+        await this.api('POST','/api/users', this.newUser);
+        this.showCreateUser = false;
+        this.showToast('User angelegt');
+        this.loadUsers();
+      } catch(e) { alert(e.message); }
     },
 
-    async deleteTenant(tenantId, name) {
-      if (!confirm(`Kunde "${name}" wirklich deaktivieren?`)) return;
-      await this.api(`/api/tenants/${tenantId}`, 'DELETE');
-      await Promise.all([this.loadTenants(), this.refreshStats()]);
+    async deleteUser(id) {
+      try { await this.api('DELETE',`/api/users/${id}`); this.showToast('User deaktiviert'); this.loadUsers(); } catch(e) { alert(e.message); }
     },
 
-    jumpToTenant(t, targetTab) {
-      this.selectedTenantId = t.id; this.selectedTenant = t;
-      this.tab = targetTab; this.loadTenantData();
+    async doChangePw() {
+      if (!this.changePwUser || this.newPassword.length < 6) { alert('Passwort mind. 6 Zeichen'); return; }
+      try {
+        await this.api('PUT',`/api/users/${this.changePwUser.id}/password`, { new_password: this.newPassword });
+        this.showChangePw = false;
+        this.showToast('Passwort geändert');
+      } catch(e) { alert(e.message); }
+    },
+
+    async deleteSource(id) {
+      try {
+        await this.api('DELETE',`/api/sources/${id}`);
+        this.showToast('Gelöscht');
+        this.loadSources();
+        if (this.browserTenantId) this.loadTenantContent();
+      } catch(e) { alert(e.message); }
+    },
+
+    async deleteMedia(id) {
+      try { await this.api('DELETE',`/api/media/${id}`); this.showToast('Gelöscht'); this.loadMedia(); } catch(e) { alert(e.message); }
+    },
+
+    async deleteMediaFromBrowser(id) {
+      try { await this.api('DELETE',`/api/media/${id}`); this.showToast('Gelöscht'); this.loadTenantContent(); } catch(e) { alert(e.message); }
+    },
+
+    // Content Browser
+    async browseTenantContent(tid) {
+      this.page = 'content-browser';
+      this.browserTenantId = tid;
+      this.loadTenantContent();
+    },
+
+    async loadTenantContent() {
+      if (!this.browserTenantId) { this.browserContent = null; return; }
+      try {
+        this.browserContent = await this.api('GET', `/api/admin/tenant/${this.browserTenantId}/content`);
+      } catch(e) { this.browserContent = null; }
     },
 
     // Helpers
-    async api(path, method = 'GET', body = null) {
-      const opts = { method, headers: { 'X-Session-Token': this.sessionToken } };
+    async api(method, url, body=null) {
+      const opts = { method, headers: { 'X-Session-Token': this.token } };
       if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-      const r = await fetch(path, opts);
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.detail || JSON.stringify(data));
-      return data;
+      const r = await fetch(url, opts);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Fehler');
+      return d;
     },
 
     fmtDate(d) {
-      if (!d) return '';
-      return new Date(d).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+      if (!d) return '-';
+      return new Date(d).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
     },
 
-    humanSize(bytes) {
-      if (!bytes) return '0 B';
-      const u = ['B','KB','MB','GB'];
-      const i = Math.min(Math.floor(Math.log(bytes)/Math.log(1024)), u.length-1);
-      return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
-    },
-
-    async copyToClipboard(text) {
-      try { await navigator.clipboard.writeText(text); }
-      catch(e) { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
-    },
+    showToast(msg, type='success') {
+      this.toast = { show:true, msg, type };
+      setTimeout(()=> this.toast.show=false, 3000);
+    }
   };
 }
 </script>

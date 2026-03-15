@@ -60,7 +60,7 @@ Führe beim Start **immer automatisch** folgende Schritte aus — frage nicht, o
 - Hetzner S3 braucht **`path_style = true`** (virtual-hosted funktioniert nicht)
 - HNSW-Index erst nach **>1000 Embeddings** erstellen
 - Secrets **niemals** in git committen — `.env` ist in `.gitignore`
-- Migrations immer in Reihenfolge: 001 → 002 → 004 → 005 (003 ist nur Referenz)
+- Migrations immer in Reihenfolge: 001 → 002 → 004 → 005 → 006 (003 ist nur Referenz)
 - Tenant-Slug: nur Kleinbuchstaben, Zahlen, `-` und `_` erlaubt
 
 ## ENV-Variablen Übersicht
