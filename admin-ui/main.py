@@ -87,6 +87,35 @@ app = FastAPI(title="EPPCOM RAG Admin", version="3.0.0", docs_url="/api/docs")
 _cors_origins = os.getenv("CORS_ORIGINS", "").strip()
 _allowed_origins = [o.strip() for o in _cors_origins.split(",") if o.strip()] if _cors_origins else []
 
+# Dynamische CORS für Widget-Endpoints: alle Domains aus domain_whitelist erlauben
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
+class WidgetCORSMiddleware(BaseHTTPMiddleware):
+    """Erlaubt CORS für /api/public/widget-chat von allen whitelisted Domains."""
+    async def dispatch(self, request, call_next):
+        origin = request.headers.get("origin", "")
+        is_widget = request.url.path.startswith("/api/public/widget-chat")
+
+        if is_widget and request.method == "OPTIONS":
+            return Response(status_code=200, headers={
+                "Access-Control-Allow-Origin": origin or "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Max-Age": "86400",
+            })
+
+        response = await call_next(request)
+
+        if is_widget and origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+
+        return response
+
+app.add_middleware(WidgetCORSMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
@@ -1501,6 +1530,72 @@ async def _summarize_conversation(question: str, answer: str) -> tuple:
         return "", ""
 
 
+async def _resolve_tenant_by_domain(origin: str) -> Optional[str]:
+    """Findet den Tenant anhand der Domain aus dem Origin-Header."""
+    if not origin:
+        return None
+    # Origin: "https://www.eppcom.de" → "www.eppcom.de"
+    domain = re.sub(r"^https?://", "", origin).split("/")[0].split(":")[0].lower()
+    db = await get_db()
+    row = await db.fetchrow(
+        """SELECT dw.tenant_id FROM public.domain_whitelist dw
+           JOIN public.tenants t ON t.id = dw.tenant_id
+           WHERE dw.domain = $1 AND dw.is_active = true AND t.is_active = true""",
+        domain,
+    )
+    return str(row["tenant_id"]) if row else None
+
+
+@app.post("/api/public/widget-chat")
+async def widget_chat(request: Request):
+    """Öffentlicher Chat-Endpoint für Website-Widgets — Auth via Domain-Whitelist, kein API-Key nötig."""
+    origin = request.headers.get("origin", "") or request.headers.get("referer", "")
+    tenant_id = await _resolve_tenant_by_domain(origin)
+    if not tenant_id:
+        raise HTTPException(403, f"Domain nicht autorisiert")
+
+    body = await request.json()
+    query = (body.get("query") or "").strip()
+    session_id = body.get("session_id", "anonymous")
+
+    if not query:
+        raise HTTPException(400, "query darf nicht leer sein")
+
+    t_start = time.time()
+
+    try:
+        answer, sources_info, chunks_used = await _rag_pipeline(tenant_id, query)
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Ollama Timeout")
+    except httpx.ConnectError:
+        raise HTTPException(502, "Ollama nicht erreichbar")
+
+    elapsed = int((time.time() - t_start) * 1000)
+
+    kernaussage, kernfrage = await _summarize_conversation(query, answer)
+
+    db = await get_db()
+    try:
+        await db.execute(
+            """INSERT INTO public.conversations
+               (tenant_id, session_id, user_question, rag_answer,
+                kernaussage, kernfrage, chunks_used, latency_ms, sources)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
+            uuid.UUID(tenant_id), session_id, query, answer,
+            kernaussage or None, kernfrage or None,
+            chunks_used, elapsed, json.dumps(sources_info),
+        )
+    except Exception:
+        pass
+
+    return {
+        "answer": answer,
+        "sources": sources_info,
+        "chunks_used": chunks_used,
+        "latency_ms": elapsed,
+    }
+
+
 @app.post("/api/public/chat")
 async def public_chat(request: Request):
     """Öffentlicher Endpoint für Typebot — Auth via X-API-Key + X-Tenant-ID Header."""
@@ -1621,6 +1716,80 @@ async def delete_conversations(request: Request, session: SessionInfo = Depends(
         deleted += 1
 
     return {"deleted": deleted}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROUTES: Domain-Whitelist Verwaltung
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/api/domains")
+async def list_domains(
+    tenant_id: str = Query(None),
+    session: SessionInfo = Depends(require_auth),
+):
+    """Listet Domain-Whitelist-Einträge (Superadmin: alle, Admin: eigener Tenant)."""
+    db = await get_db()
+    if session.is_superadmin():
+        if tenant_id:
+            rows = await db.fetch(
+                """SELECT dw.*, t.slug AS tenant_slug FROM public.domain_whitelist dw
+                   JOIN public.tenants t ON t.id=dw.tenant_id
+                   WHERE dw.tenant_id=$1::uuid ORDER BY dw.domain""", tenant_id)
+        else:
+            rows = await db.fetch(
+                """SELECT dw.*, t.slug AS tenant_slug FROM public.domain_whitelist dw
+                   JOIN public.tenants t ON t.id=dw.tenant_id ORDER BY t.slug, dw.domain""")
+    elif session.tenant_id:
+        rows = await db.fetch(
+            """SELECT dw.*, t.slug AS tenant_slug FROM public.domain_whitelist dw
+               JOIN public.tenants t ON t.id=dw.tenant_id
+               WHERE dw.tenant_id=$1::uuid ORDER BY dw.domain""", session.tenant_id)
+    else:
+        return []
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/domains")
+async def add_domain(request: Request, session: SessionInfo = Depends(require_auth)):
+    """Fügt eine Domain zur Whitelist hinzu."""
+    if not session.is_superadmin() and not session.is_admin():
+        raise HTTPException(403, "Nur Admins")
+    body = await request.json()
+    tenant_id = body.get("tenant_id", session.tenant_id or "")
+    domain = (body.get("domain") or "").strip().lower()
+    if not domain:
+        raise HTTPException(400, "Domain erforderlich")
+    if not tenant_id:
+        raise HTTPException(400, "Tenant erforderlich")
+    if not session.can_access_tenant(tenant_id):
+        raise HTTPException(403, "Kein Zugriff auf Tenant")
+
+    # Domain bereinigen
+    domain = re.sub(r"^https?://", "", domain).split("/")[0].split(":")[0]
+
+    db = await get_db()
+    try:
+        await db.execute(
+            "INSERT INTO public.domain_whitelist (tenant_id, domain) VALUES ($1::uuid, $2)",
+            tenant_id, domain,
+        )
+    except Exception:
+        raise HTTPException(409, f"Domain '{domain}' existiert bereits für diesen Tenant")
+    return {"domain": domain, "tenant_id": tenant_id}
+
+
+@app.delete("/api/domains/{domain_id}")
+async def delete_domain(domain_id: str, session: SessionInfo = Depends(require_auth)):
+    """Entfernt eine Domain aus der Whitelist."""
+    if not session.is_superadmin() and not session.is_admin():
+        raise HTTPException(403, "Nur Admins")
+    db = await get_db()
+    row = await db.fetchrow("SELECT tenant_id FROM public.domain_whitelist WHERE id=$1::uuid", domain_id)
+    if not row:
+        raise HTTPException(404, "Domain nicht gefunden")
+    if not session.can_access_tenant(str(row["tenant_id"])):
+        raise HTTPException(403, "Kein Zugriff")
+    await db.execute("DELETE FROM public.domain_whitelist WHERE id=$1::uuid", domain_id)
+    return {"deleted": domain_id}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
