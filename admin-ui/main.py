@@ -12,6 +12,7 @@ Features:
   - RAG Dokument-Ingestion (Parse → Chunk → Embed → Store)
   - Chat-Tester (Proxy zu n8n)
 """
+import asyncio
 import os
 import re
 import uuid
@@ -1530,6 +1531,27 @@ async def _summarize_conversation(question: str, answer: str) -> tuple:
         return "", ""
 
 
+async def _save_conversation_bg(
+    tenant_id: str, session_id: str, query: str, answer: str,
+    chunks_used: int, elapsed: int, sources_info: list,
+):
+    """Speichert Conversation + Summarization im Hintergrund (fire-and-forget)."""
+    try:
+        kernaussage, kernfrage = await _summarize_conversation(query, answer)
+        db = await get_db()
+        await db.execute(
+            """INSERT INTO public.conversations
+               (tenant_id, session_id, user_question, rag_answer,
+                kernaussage, kernfrage, chunks_used, latency_ms, sources)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
+            uuid.UUID(tenant_id), session_id, query, answer,
+            kernaussage or None, kernfrage or None,
+            chunks_used, elapsed, json.dumps(sources_info),
+        )
+    except Exception:
+        pass
+
+
 async def _resolve_tenant_by_domain(origin: str) -> Optional[str]:
     """Findet den Tenant anhand der Domain aus dem Origin-Header."""
     if not origin:
@@ -1572,21 +1594,10 @@ async def widget_chat(request: Request):
 
     elapsed = int((time.time() - t_start) * 1000)
 
-    kernaussage, kernfrage = await _summarize_conversation(query, answer)
-
-    db = await get_db()
-    try:
-        await db.execute(
-            """INSERT INTO public.conversations
-               (tenant_id, session_id, user_question, rag_answer,
-                kernaussage, kernfrage, chunks_used, latency_ms, sources)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
-            uuid.UUID(tenant_id), session_id, query, answer,
-            kernaussage or None, kernfrage or None,
-            chunks_used, elapsed, json.dumps(sources_info),
-        )
-    except Exception:
-        pass
+    # Summarization + DB-Save im Hintergrund (nicht blockierend)
+    asyncio.create_task(_save_conversation_bg(
+        tenant_id, session_id, query, answer, chunks_used, elapsed, sources_info
+    ))
 
     return {
         "answer": answer,
@@ -1626,23 +1637,10 @@ async def public_chat(request: Request):
 
     elapsed = int((time.time() - t_start) * 1000)
 
-    # Zusammenfassung im Hintergrund (nicht blockierend für Antwort)
-    kernaussage, kernfrage = await _summarize_conversation(query, answer)
-
-    # In conversations-Tabelle speichern
-    db = await get_db()
-    try:
-        await db.execute(
-            """INSERT INTO public.conversations
-               (tenant_id, session_id, user_question, rag_answer,
-                kernaussage, kernfrage, chunks_used, latency_ms, sources)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
-            uuid.UUID(tenant_id), session_id, query, answer,
-            kernaussage or None, kernfrage or None,
-            chunks_used, elapsed, json.dumps(sources_info),
-        )
-    except Exception:
-        pass  # Speichern darf Antwort nicht blockieren
+    # Summarization + DB-Save im Hintergrund (nicht blockierend)
+    asyncio.create_task(_save_conversation_bg(
+        tenant_id, session_id, query, answer, chunks_used, elapsed, sources_info
+    ))
 
     return {
         "answer": answer,
