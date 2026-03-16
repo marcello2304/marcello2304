@@ -212,6 +212,20 @@ def get_s3():
     )
 
 
+def presign_url(s3_key: str, bucket: str = None, expires: int = 3600) -> str:
+    """Erzeugt eine temporäre presigned URL (Standard: 1h gültig)."""
+    if not S3_KEY or not s3_key:
+        return ""
+    try:
+        return get_s3().generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket or S3_BUCKET, "Key": s3_key},
+            ExpiresIn=expires,
+        )
+    except Exception:
+        return f"{S3_ENDPOINT}/{bucket or S3_BUCKET}/{s3_key}"
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1130,7 +1144,7 @@ async def list_media(
     items = []
     for r in rows:
         d = dict(r)
-        d["url"] = f"{S3_ENDPOINT}/{r['s3_bucket']}/{r['s3_key']}"
+        d["url"] = presign_url(r['s3_key'], r['s3_bucket'])
         d["size_human"] = _human_size(r["file_size"])
         d["is_image"] = (r["content_type"] or "").startswith("image/")
         d["is_video"] = (r["content_type"] or "").startswith("video/")
@@ -1196,7 +1210,7 @@ async def upload_media(
         s3_key, S3_BUCKET, content_type, len(file_bytes), folder, description)
 
     return {
-        "id": str(media_id), "s3_key": s3_key, "url": f"{S3_ENDPOINT}/{S3_BUCKET}/{s3_key}",
+        "id": str(media_id), "s3_key": s3_key, "url": presign_url(s3_key),
         "content_type": content_type, "size_bytes": len(file_bytes),
         "size_human": _human_size(len(file_bytes)), "filename": original_name,
     }
@@ -1306,7 +1320,7 @@ async def admin_tenant_content(tenant_id: str, session: SessionInfo = Depends(re
         "tenant": dict(tenant),
         "users": [dict(u) for u in users],
         "sources": [dict(s) for s in sources],
-        "media": [{**dict(m), "url": f"{S3_ENDPOINT}/{S3_BUCKET}/{m['s3_key']}",
+        "media": [{**dict(m), "url": presign_url(m['s3_key']),
                     "size_human": _human_size(m["file_size"]),
                     "is_image": (m["content_type"] or "").startswith("image/")}
                    for m in media],

@@ -210,24 +210,45 @@
       <!-- Editor Modal -->
       <div x-show="docEditor.open" class="modal-overlay" @click.self="docEditor.open=false">
         <div class="modal-box max-w-3xl">
-          <h3 class="text-lg font-bold mb-1">Dokument bearbeiten</h3>
-          <p class="text-xs text-gray-400 mb-4" x-text="'ID: '+docEditor.sourceId"></p>
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
-              <input type="text" x-model="docEditor.name" class="input">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Inhalt</label>
-              <textarea x-model="docEditor.content" class="input font-mono text-xs" style="min-height:320px; resize:vertical;" placeholder="Lade..."></textarea>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-lg font-bold" x-text="docEditor.editing ? 'Dokument bearbeiten' : 'Dokument anzeigen'"></h3>
+            <div class="flex gap-2">
+              <button x-show="!docEditor.editing" class="btn btn-primary btn-sm" @click="docEditor.editing=true">Bearbeiten</button>
+              <button x-show="docEditor.editing" class="btn btn-secondary btn-sm" @click="docEditor.editing=false">Nur Anzeigen</button>
             </div>
           </div>
+          <p class="text-xs text-gray-400 mb-4" x-text="'ID: '+docEditor.sourceId"></p>
+
+          <!-- Loading -->
+          <div x-show="docEditor.loading" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin h-8 w-8 mx-auto mb-3 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+            <p>Inhalt wird geladen...</p>
+          </div>
+
+          <!-- Content -->
+          <div x-show="!docEditor.loading" class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
+              <input x-show="docEditor.editing" type="text" x-model="docEditor.name" class="input">
+              <p x-show="!docEditor.editing" class="text-sm font-medium text-gray-800 py-2" x-text="docEditor.name"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Inhalt <span x-show="!docEditor.editing" class="text-gray-300">(schreibgeschützt)</span></label>
+              <textarea x-show="docEditor.editing" x-model="docEditor.content" class="input font-mono text-xs" style="min-height:360px; resize:vertical;"></textarea>
+              <div x-show="!docEditor.editing" class="bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-xs whitespace-pre-wrap" style="min-height:200px; max-height:500px; overflow-y:auto;" x-text="docEditor.content"></div>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+              <span x-text="'Zeichen: '+(docEditor.content||'').length"></span>
+              <span x-text="'Wörter: '+(docEditor.content||'').split(/\\s+/).filter(w=>w).length"></span>
+            </div>
+          </div>
+
           <div class="flex gap-2 mt-4">
-            <button class="btn btn-primary flex-1" @click="saveDocEditor()" :disabled="docEditor.saving">
+            <button x-show="docEditor.editing" class="btn btn-primary flex-1" @click="saveDocEditor()" :disabled="docEditor.saving">
               <span x-show="!docEditor.saving">Speichern & Neu-Embedden</span>
               <span x-show="docEditor.saving">Verarbeitung...</span>
             </button>
-            <button class="btn btn-secondary" @click="docEditor.open=false">Abbrechen</button>
+            <button class="btn btn-secondary" :class="docEditor.editing?'':'flex-1'" @click="docEditor.open=false">Schließen</button>
           </div>
           <div x-show="docEditor.result" class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" x-text="docEditor.result"></div>
           <div x-show="docEditor.error" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="docEditor.error"></div>
@@ -263,7 +284,8 @@
                   <template x-if="session.role==='superadmin'"><td class="py-3 pr-4 text-gray-500 text-xs" x-text="s.user_name||'-'"></td></template>
                   <td class="py-3 pr-4 text-gray-400 text-xs" x-text="fmtDate(s.created_at)"></td>
                   <td class="py-3 text-right space-x-1">
-                    <button class="btn btn-secondary btn-sm" @click="openDocEditor(s)">Bearbeiten</button>
+                    <button class="btn btn-secondary btn-sm" @click="openDocEditor(s, false)">Anzeigen</button>
+                    <button class="btn btn-primary btn-sm" @click="openDocEditor(s, true)">Bearbeiten</button>
                     <button class="btn btn-danger btn-sm" @click="if(confirm('Dokument wirklich löschen?')) deleteSource(s.id)">Löschen</button>
                   </td>
                 </tr>
@@ -852,7 +874,7 @@ function app() {
     newPassword: '',
 
     // Doc Editor
-    docEditor: { open:false, sourceId:'', name:'', content:'', saving:false, result:'', error:'', loading:false },
+    docEditor: { open:false, editing:false, sourceId:'', name:'', content:'', saving:false, result:'', error:'', loading:false },
 
     // Chat
     chatMessages: [],
@@ -1001,8 +1023,8 @@ function app() {
       this.uploadDoc.loading = false;
     },
 
-    async openDocEditor(source) {
-      this.docEditor = { open:true, sourceId:source.id, name:source.name, content:'', saving:false, result:'', error:'', loading:true };
+    async openDocEditor(source, editMode) {
+      this.docEditor = { open:true, editing:!!editMode, sourceId:source.id, name:source.name, content:'', saving:false, result:'', error:'', loading:true };
       try {
         const d = await this.api('GET', `/api/sources/${source.id}/content`);
         this.docEditor.content = d.content || '';
