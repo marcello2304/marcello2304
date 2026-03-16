@@ -162,7 +162,7 @@
     <div x-show="page==='documents'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-800">RAG Dokumente</h1>
-        <button class="btn btn-primary" @click="showUploadDoc=true">+ Dokument hochladen</button>
+        <button class="btn btn-primary" @click="showUploadDoc=true; if(!uploadDoc.tenant_id && tenants.length) uploadDoc.tenant_id=session.tenant_id||tenants[0]?.id||''">+ Dokument hochladen</button>
       </div>
 
       <!-- Upload Modal -->
@@ -940,24 +940,30 @@ function app() {
     },
 
     async doIngestDoc() {
-      this.uploadDoc.loading = true;
       this.uploadDoc.result = '';
       this.uploadDoc.error = '';
+      const tid = this.session.role==='superadmin' ? this.uploadDoc.tenant_id : (this.session.tenant_id||'');
+      if (!tid) { this.uploadDoc.error='Bitte zuerst einen Kunden auswählen'; return; }
+      if (!this.uploadDoc.file && !this.uploadDoc.text) { this.uploadDoc.error='Datei oder Text erforderlich'; return; }
+      this.uploadDoc.loading = true;
       try {
         const fd = new FormData();
-        fd.append('tenant_id', this.session.role==='superadmin' ? this.uploadDoc.tenant_id : (this.session.tenant_id||''));
+        fd.append('tenant_id', tid);
         fd.append('name', this.uploadDoc.name || 'Unbenanntes Dokument');
-        fd.append('tags', this.uploadDoc.tags);
+        fd.append('tags', this.uploadDoc.tags || '');
         if (this.uploadDoc.file) fd.append('file', this.uploadDoc.file);
-        else if (this.uploadDoc.text) fd.append('text_content', this.uploadDoc.text);
-        else { this.uploadDoc.error='Datei oder Text erforderlich'; this.uploadDoc.loading=false; return; }
+        else fd.append('text_content', this.uploadDoc.text);
 
         const r = await fetch('/api/sources/ingest', {
           method: 'POST', headers: {'X-Session-Token': this.token}, body: fd
         });
         const d = await r.json();
-        if (!r.ok) throw new Error(d.detail || 'Fehler');
+        if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
         this.uploadDoc.result = `Erfolgreich: ${d.chunks_created} Chunks, ${d.embeddings_created} Embeddings`;
+        this.uploadDoc.file = null;
+        this.uploadDoc.text = '';
+        this.uploadDoc.name = '';
+        this.uploadDoc.tags = '';
         this.loadSources();
         this.loadStats();
       } catch(e) { this.uploadDoc.error = e.message; }

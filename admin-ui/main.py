@@ -797,12 +797,14 @@ async def ingest_document(
 ):
     db = await get_db()
     # Tenant-Zugriff prüfen
-    effective_tenant = tenant_id
+    effective_tenant = tenant_id.strip() if tenant_id else ""
     if not session.is_superadmin():
         if session.tenant_id:
             effective_tenant = session.tenant_id
         else:
             raise HTTPException(403, "Kein Tenant zugewiesen")
+    if not effective_tenant:
+        raise HTTPException(400, "Kein Tenant ausgewählt")
     if not session.can_access_tenant(effective_tenant):
         raise HTTPException(403, "Kein Zugriff auf diesen Tenant")
 
