@@ -923,6 +923,120 @@ async def ingest_document(
     }
 
 
+@app.get("/api/sources/{source_id}/content")
+async def get_source_content(source_id: str, session: SessionInfo = Depends(require_auth)):
+    """Gibt den Text-Inhalt eines Dokuments zurück (zum Anzeigen/Bearbeiten)."""
+    db = await get_db()
+    source = await db.fetchrow(
+        "SELECT s.tenant_id, s.user_id, s.name FROM public.sources s WHERE s.id=$1::uuid", source_id
+    )
+    if not source:
+        raise HTTPException(404, "Quelle nicht gefunden")
+    if not session.is_superadmin():
+        if not session.can_access_tenant(str(source["tenant_id"])):
+            raise HTTPException(403, "Kein Zugriff")
+        if not session.is_admin() and str(source["user_id"]) != session.user_id:
+            raise HTTPException(403, "Nur eigene Quellen einsehen")
+
+    doc = await db.fetchrow(
+        "SELECT content FROM public.documents WHERE source_id=$1::uuid ORDER BY created_at DESC LIMIT 1",
+        source_id,
+    )
+    return {"source_id": source_id, "name": source["name"], "content": doc["content"] if doc else ""}
+
+
+@app.put("/api/sources/{source_id}/content")
+async def update_source_content(source_id: str, request: Request, session: SessionInfo = Depends(require_auth)):
+    """Aktualisiert den Text eines Dokuments: neu chunken + neu embedden."""
+    db = await get_db()
+    source = await db.fetchrow(
+        "SELECT s.id, s.tenant_id, s.user_id, s.name FROM public.sources s WHERE s.id=$1::uuid", source_id
+    )
+    if not source:
+        raise HTTPException(404, "Quelle nicht gefunden")
+    if not session.is_superadmin():
+        if not session.can_access_tenant(str(source["tenant_id"])):
+            raise HTTPException(403, "Kein Zugriff")
+        if not session.is_admin() and str(source["user_id"]) != session.user_id:
+            raise HTTPException(403, "Nur eigene Quellen bearbeiten")
+
+    body = await request.json()
+    new_content = (body.get("content") or "").strip()
+    new_name = (body.get("name") or "").strip()
+    if len(new_content) < 10:
+        raise HTTPException(400, "Zu wenig Text (mind. 10 Zeichen)")
+
+    tenant_id = str(source["tenant_id"])
+
+    # Altes Dokument holen
+    doc = await db.fetchrow(
+        "SELECT id FROM public.documents WHERE source_id=$1::uuid ORDER BY created_at DESC LIMIT 1",
+        source_id,
+    )
+    if not doc:
+        raise HTTPException(404, "Kein Dokument gefunden")
+    doc_id = str(doc["id"])
+
+    # Alte Embeddings + Chunks löschen
+    await db.execute(
+        "DELETE FROM public.embeddings WHERE chunk_id IN (SELECT id FROM public.chunks WHERE document_id=$1::uuid)",
+        doc_id,
+    )
+    await db.execute("DELETE FROM public.chunks WHERE document_id=$1::uuid", doc_id)
+
+    # Dokument-Inhalt aktualisieren
+    await db.execute("UPDATE public.documents SET content=$2 WHERE id=$1::uuid", doc_id, new_content)
+
+    # Name aktualisieren falls angegeben
+    if new_name:
+        await db.execute("UPDATE public.sources SET name=$2 WHERE id=$1::uuid", source_id, new_name)
+
+    # Neue Chunks erzeugen
+    chunks = chunk_text(new_content)
+    chunk_ids = []
+    for chunk in chunks:
+        chunk_id = str(uuid.uuid4())
+        chunk_ids.append(chunk_id)
+        await db.execute("""
+            INSERT INTO public.chunks (id, document_id, tenant_id, content, chunk_index, token_count, metadata)
+            VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7::jsonb)
+        """, chunk_id, doc_id, tenant_id, chunk["content"],
+            chunk["chunk_index"], chunk["token_count"],
+            json.dumps({"content_hash": chunk["content_hash"], "char_count": chunk["char_count"]}))
+
+    # Neue Embeddings erzeugen
+    embed_count = 0
+    try:
+        vectors = await generate_embeddings_batch([c["content"] for c in chunks])
+        for i, vector in enumerate(vectors):
+            if i < len(chunk_ids) and vector:
+                vec_str = "[" + ",".join(str(v) for v in vector) + "]"
+                await db.execute(f"""
+                    INSERT INTO public.embeddings (chunk_id, tenant_id, embedding, model_name)
+                    VALUES ($1::uuid, $2::uuid, $3::vector({EMBED_DIM}), $4)
+                """, chunk_ids[i], tenant_id, vec_str, EMBED_MODEL)
+                embed_count += 1
+        await db.execute("UPDATE public.sources SET status='completed' WHERE id=$1::uuid", source_id)
+    except Exception as e:
+        await db.execute(
+            "UPDATE public.sources SET status='error', metadata=metadata||$2::jsonb WHERE id=$1::uuid",
+            source_id, json.dumps({"error": f"Embedding-Fehler: {str(e)}"})
+        )
+
+    # Metadaten aktualisieren
+    metadata_update = json.dumps({"word_count": len(new_content.split()), "updated_by": session.user_id})
+    await db.execute(
+        "UPDATE public.sources SET metadata=metadata||$2::jsonb, updated_at=NOW() WHERE id=$1::uuid",
+        source_id, metadata_update,
+    )
+
+    return {
+        "source_id": source_id,
+        "chunks_created": len(chunks),
+        "embeddings_created": embed_count,
+    }
+
+
 @app.delete("/api/sources/{source_id}")
 async def delete_source(source_id: str, session: SessionInfo = Depends(require_auth)):
     db = await get_db()
