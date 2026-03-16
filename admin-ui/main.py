@@ -1600,6 +1600,29 @@ async def list_conversations(
     return result
 
 
+@app.post("/api/conversations/delete")
+async def delete_conversations(request: Request, session: SessionInfo = Depends(require_auth)):
+    """Löscht mehrere Conversations anhand einer Liste von IDs."""
+    body = await request.json()
+    ids = body.get("ids", [])
+    if not ids:
+        raise HTTPException(400, "Keine IDs angegeben")
+
+    db = await get_db()
+    deleted = 0
+    for cid in ids:
+        # Zugriffsprüfung pro Conversation
+        row = await db.fetchrow("SELECT tenant_id FROM public.conversations WHERE id=$1::uuid", cid)
+        if not row:
+            continue
+        if not session.is_superadmin() and not session.can_access_tenant(str(row["tenant_id"])):
+            continue
+        await db.execute("DELETE FROM public.conversations WHERE id=$1::uuid", cid)
+        deleted += 1
+
+    return {"deleted": deleted}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Statische Dateien
 # ══════════════════════════════════════════════════════════════════════════════
