@@ -93,6 +93,15 @@
       </div>
 
       <!-- Admin-Only -->
+      <template x-if="session.role==='superadmin' || session.role==='admin'">
+        <div>
+          <div class="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Analyse</div>
+          <div class="sidebar-link" :class="page==='conversations' && 'active'" @click="go('conversations')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
+            Conversations
+          </div>
+        </div>
+      </template>
       <template x-if="session.role==='superadmin'">
         <div>
           <div class="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</div>
@@ -442,6 +451,94 @@
       </div>
     </div>
 
+    <!-- ═══ CONVERSATIONS ═══ -->
+    <div x-show="page==='conversations'" class="fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Conversations</h1>
+        <div class="flex items-center gap-3">
+          <template x-if="session.role==='superadmin'">
+            <select x-model="convTenantFilter" @change="loadConversations()" class="input w-56">
+              <option value="">Alle Kunden</option>
+              <template x-for="t in tenants" :key="t.id">
+                <option :value="t.id" x-text="t.name"></option>
+              </template>
+            </select>
+          </template>
+        </div>
+      </div>
+
+      <div class="card">
+        <div x-show="conversations.length===0" class="text-center py-12 text-gray-400">
+          <p>Noch keine Conversations vorhanden.</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table x-show="conversations.length>0" class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase">
+                <th class="pb-3 pr-4">Zeitpunkt</th>
+                <th class="pb-3 pr-4" x-show="session.role==='superadmin'">Kunde</th>
+                <th class="pb-3 pr-4">Frage</th>
+                <th class="pb-3 pr-4">Kernfrage</th>
+                <th class="pb-3 pr-4">Kernaussage</th>
+                <th class="pb-3 pr-4">Quellen</th>
+                <th class="pb-3">Latenz</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="c in conversations" :key="c.id">
+                <tr class="border-b border-gray-50 table-row cursor-pointer" @click="convDetail=c">
+                  <td class="py-3 pr-4 text-xs text-gray-500 whitespace-nowrap" x-text="fmtDate(c.created_at)"></td>
+                  <td class="py-3 pr-4" x-show="session.role==='superadmin'">
+                    <span class="badge bg-blue-50 text-blue-700" x-text="c.tenant_slug"></span>
+                  </td>
+                  <td class="py-3 pr-4 max-w-[200px] truncate" x-text="c.user_question"></td>
+                  <td class="py-3 pr-4 max-w-[200px] truncate text-purple-700" x-text="c.kernfrage || '-'"></td>
+                  <td class="py-3 pr-4 max-w-[200px] truncate text-green-700" x-text="c.kernaussage || '-'"></td>
+                  <td class="py-3 pr-4 text-center" x-text="c.chunks_used"></td>
+                  <td class="py-3 text-xs text-gray-400" x-text="(c.latency_ms/1000).toFixed(1)+'s'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detail Modal -->
+      <div x-show="convDetail" class="modal-overlay" @click.self="convDetail=null">
+        <div class="modal-box max-w-2xl" x-show="convDetail">
+          <h3 class="text-lg font-bold mb-4">Conversation Detail</h3>
+          <div class="space-y-4 text-sm">
+            <div>
+              <div class="text-xs font-medium text-gray-400 uppercase mb-1">Frage</div>
+              <div class="bg-blue-50 rounded-lg p-3" x-text="convDetail?.user_question"></div>
+            </div>
+            <div>
+              <div class="text-xs font-medium text-gray-400 uppercase mb-1">Antwort</div>
+              <div class="bg-gray-50 rounded-lg p-3 whitespace-pre-wrap" x-text="convDetail?.rag_answer"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <div class="text-xs font-medium text-purple-500 uppercase mb-1">Kernfrage</div>
+                <div class="bg-purple-50 rounded-lg p-3" x-text="convDetail?.kernfrage || 'Nicht analysiert'"></div>
+              </div>
+              <div>
+                <div class="text-xs font-medium text-green-500 uppercase mb-1">Kernaussage</div>
+                <div class="bg-green-50 rounded-lg p-3" x-text="convDetail?.kernaussage || 'Nicht analysiert'"></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+              <span x-text="'Session: ' + (convDetail?.session_id||'')"></span>
+              <span x-text="'Chunks: ' + (convDetail?.chunks_used||0)"></span>
+              <span x-text="'Latenz: ' + ((convDetail?.latency_ms||0)/1000).toFixed(1) + 's'"></span>
+            </div>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button class="btn btn-secondary" @click="convDetail=null">Schließen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ KUNDEN (Superadmin) ═══ -->
     <div x-show="page==='tenants'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
@@ -732,6 +829,11 @@ function app() {
     chatLoading: false,
     chatTenantId: '',
 
+    // Conversations
+    conversations: [],
+    convTenantFilter: '',
+    convDetail: null,
+
     // Content Browser
     browserTenantId: '',
     browserContent: null,
@@ -796,6 +898,7 @@ function app() {
       if (p==='chat') {
         if (!this.chatTenantId) this.chatTenantId = this.session.tenant_id || (this.tenants[0]?.id || '');
       }
+      if (p==='conversations') this.loadConversations();
     },
 
     async loadAll() {
@@ -935,6 +1038,15 @@ function app() {
 
     async deleteMediaFromBrowser(id) {
       try { await this.api('DELETE',`/api/media/${id}`); this.showToast('Gelöscht'); this.loadTenantContent(); } catch(e) { alert(e.message); }
+    },
+
+    // Conversations
+    async loadConversations() {
+      try {
+        let url = '/api/conversations';
+        if (this.convTenantFilter) url += '?tenant_id=' + this.convTenantFilter;
+        this.conversations = await this.api('GET', url);
+      } catch(e) { this.conversations = []; }
     },
 
     // RAG Chat

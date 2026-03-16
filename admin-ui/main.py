@@ -1224,23 +1224,79 @@ async def rag_chat(body: RagChatRequest, session: SessionInfo = Depends(require_
 
     t_start = time.time()
 
-    # 1) Query-Embedding via Ollama
-    async with httpx.AsyncClient(timeout=30) as client:
-        try:
-            embed_resp = await client.post(
-                f"{OLLAMA_URL}/api/embed",
-                json={"model": EMBED_MODEL, "input": query},
-            )
-            embed_data = embed_resp.json()
-            embedding = embed_data.get("embeddings", [[]])[0] or embed_data.get("embedding", [])
-            if not embedding:
-                raise HTTPException(502, "Ollama hat kein Embedding zurückgegeben")
-        except httpx.TimeoutException:
-            raise HTTPException(504, "Ollama Embedding Timeout")
-        except httpx.ConnectError:
-            raise HTTPException(502, f"Ollama nicht erreichbar unter {OLLAMA_URL}")
+    try:
+        answer, sources_info, chunks_used = await _rag_pipeline(tenant_id, query)
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Ollama Timeout")
+    except httpx.ConnectError:
+        raise HTTPException(502, f"Ollama nicht erreichbar unter {OLLAMA_URL}")
 
-    # 2) Vektor-Suche in DB
+    elapsed = int((time.time() - t_start) * 1000)
+
+    # Conversation speichern (mit Zusammenfassung)
+    kernaussage, kernfrage = await _summarize_conversation(query, answer)
+    db = await get_db()
+    try:
+        await db.execute(
+            """INSERT INTO public.conversations
+               (tenant_id, session_id, user_question, rag_answer,
+                kernaussage, kernfrage, chunks_used, latency_ms, sources)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
+            uuid.UUID(tenant_id), f"ui_{session.user_id}", query, answer,
+            kernaussage or None, kernfrage or None,
+            chunks_used, elapsed, json.dumps(sources_info),
+        )
+    except Exception:
+        pass
+
+    return {
+        "answer": answer,
+        "sources": sources_info,
+        "chunks_used": chunks_used,
+        "latency_ms": elapsed,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROUTES: Öffentlicher Chat für Typebot (API-Key Auth)
+# ══════════════════════════════════════════════════════════════════════════════
+SUMMARY_PROMPT = """Analysiere diese Konversation und extrahiere zwei Dinge:
+1. KERNAUSSAGE: Die zentrale Aussage/Information aus der Antwort (1 Satz)
+2. KERNFRAGE: Das eigentliche Anliegen/Bedürfnis hinter der Frage des Users (1 Satz)
+
+Antworte NUR im folgenden Format, ohne weitere Erklärung:
+KERNAUSSAGE: ...
+KERNFRAGE: ..."""
+
+
+async def _verify_api_key(tenant_id: str, api_key: str) -> bool:
+    """Prüft API-Key gegen DB (SHA-256 Hash)."""
+    db = await get_db()
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+    row = await db.fetchval(
+        """SELECT 1 FROM public.api_keys
+           WHERE tenant_id = $1 AND key_hash = $2 AND is_active = true""",
+        uuid.UUID(tenant_id), key_hash,
+    )
+    return row is not None
+
+
+async def _rag_pipeline(tenant_id: str, query: str):
+    """Führt die RAG-Pipeline aus: Embed → Search → LLM. Gibt (answer, sources_info, chunks_used) zurück."""
+    db = await get_db()
+
+    # 1) Embedding
+    async with httpx.AsyncClient(timeout=30) as client:
+        embed_resp = await client.post(
+            f"{OLLAMA_URL}/api/embed",
+            json={"model": EMBED_MODEL, "input": query},
+        )
+        embed_data = embed_resp.json()
+        embedding = embed_data.get("embeddings", [[]])[0] or embed_data.get("embedding", [])
+        if not embedding:
+            return "Embedding-Fehler: Ollama hat kein Ergebnis zurückgegeben.", [], 0
+
+    # 2) Vektor-Suche
     vector_str = "[" + ",".join(str(round(x, 8)) for x in embedding) + "]"
     chunks = await db.fetch(
         """SELECT c.content, c.chunk_index, s.name AS source_name,
@@ -1256,57 +1312,162 @@ async def rag_chat(body: RagChatRequest, session: SessionInfo = Depends(require_
         uuid.UUID(tenant_id), vector_str,
     )
 
-    # 3) Kontext zusammenbauen
+    # 3) Kontext
+    sources_info = []
     if chunks:
-        context_parts = []
-        sources_info = []
-        for ch in chunks:
-            context_parts.append(ch["content"])
-            sources_info.append({
-                "source": ch["source_name"],
-                "similarity": round(float(ch["similarity"]), 3),
-            })
-        context = "\n\n---\n\n".join(context_parts)[:6000]
-    else:
-        context = ""
-        sources_info = []
-
-    # 4) LLM-Antwort via Ollama
-    if context:
+        context = "\n\n---\n\n".join(ch["content"] for ch in chunks)[:6000]
+        sources_info = [{"source": ch["source_name"], "similarity": round(float(ch["similarity"]), 3)} for ch in chunks]
         user_msg = f"Kontext:\n{context}\n\nFrage: {query}"
     else:
         user_msg = f"Es wurden keine relevanten Dokumente gefunden. Frage: {query}"
 
+    # 4) LLM
     async with httpx.AsyncClient(timeout=90) as client:
-        try:
-            llm_resp = await client.post(
+        llm_resp = await client.post(
+            f"{OLLAMA_URL}/api/chat",
+            json={
+                "model": CHAT_MODEL,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+                "stream": False,
+            },
+        )
+        llm_data = llm_resp.json()
+        answer = llm_data.get("message", {}).get("content", "")
+        answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
+
+    return answer, sources_info, len(chunks)
+
+
+async def _summarize_conversation(question: str, answer: str) -> tuple:
+    """Extrahiert Kernaussage und Kernfrage via Ollama."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
                 f"{OLLAMA_URL}/api/chat",
                 json={
                     "model": CHAT_MODEL,
                     "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_msg},
+                        {"role": "system", "content": SUMMARY_PROMPT},
+                        {"role": "user", "content": f"Frage: {question}\n\nAntwort: {answer[:2000]}"},
                     ],
                     "stream": False,
                 },
             )
-            llm_data = llm_resp.json()
-            answer = llm_data.get("message", {}).get("content", "")
-            # <think>-Tags entfernen
-            answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
-        except httpx.TimeoutException:
-            raise HTTPException(504, "Ollama LLM Timeout — Antwort dauerte zu lange")
-        except httpx.ConnectError:
-            raise HTTPException(502, f"Ollama nicht erreichbar unter {OLLAMA_URL}")
+            text = resp.json().get("message", {}).get("content", "")
+            text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+            kernaussage, kernfrage = "", ""
+            for line in text.split("\n"):
+                line = line.strip()
+                if line.upper().startswith("KERNAUSSAGE:"):
+                    kernaussage = line.split(":", 1)[1].strip()
+                elif line.upper().startswith("KERNFRAGE:"):
+                    kernfrage = line.split(":", 1)[1].strip()
+            return kernaussage, kernfrage
+    except Exception:
+        return "", ""
+
+
+@app.post("/api/public/chat")
+async def public_chat(request: Request):
+    """Öffentlicher Endpoint für Typebot — Auth via X-API-Key + X-Tenant-ID Header."""
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    api_key = request.headers.get("X-API-Key", "")
+
+    if not tenant_id or not api_key:
+        raise HTTPException(401, "X-Tenant-ID und X-API-Key Header erforderlich")
+
+    if not await _verify_api_key(tenant_id, api_key):
+        raise HTTPException(403, "Ungültiger API-Key oder Tenant")
+
+    body = await request.json()
+    query = (body.get("query") or "").strip()
+    session_id = body.get("session_id", "anonymous")
+
+    if not query:
+        raise HTTPException(400, "query darf nicht leer sein")
+
+    t_start = time.time()
+
+    try:
+        answer, sources_info, chunks_used = await _rag_pipeline(tenant_id, query)
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Ollama Timeout")
+    except httpx.ConnectError:
+        raise HTTPException(502, "Ollama nicht erreichbar")
 
     elapsed = int((time.time() - t_start) * 1000)
+
+    # Zusammenfassung im Hintergrund (nicht blockierend für Antwort)
+    kernaussage, kernfrage = await _summarize_conversation(query, answer)
+
+    # In conversations-Tabelle speichern
+    db = await get_db()
+    try:
+        await db.execute(
+            """INSERT INTO public.conversations
+               (tenant_id, session_id, user_question, rag_answer,
+                kernaussage, kernfrage, chunks_used, latency_ms, sources)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
+            uuid.UUID(tenant_id), session_id, query, answer,
+            kernaussage or None, kernfrage or None,
+            chunks_used, elapsed, json.dumps(sources_info),
+        )
+    except Exception:
+        pass  # Speichern darf Antwort nicht blockieren
 
     return {
         "answer": answer,
         "sources": sources_info,
-        "chunks_used": len(chunks),
+        "chunks_used": chunks_used,
         "latency_ms": elapsed,
     }
+
+
+# ── Conversations Admin-Endpoint ─────────────────────────────────────────────
+@app.get("/api/conversations")
+async def list_conversations(
+    tenant_id: Optional[str] = Query(None),
+    session: SessionInfo = Depends(require_auth),
+):
+    db = await get_db()
+    if session.is_superadmin():
+        if tenant_id:
+            rows = await db.fetch(
+                """SELECT c.*, t.slug AS tenant_slug FROM public.conversations c
+                   JOIN public.tenants t ON t.id = c.tenant_id
+                   WHERE c.tenant_id = $1 ORDER BY c.created_at DESC LIMIT 200""",
+                uuid.UUID(tenant_id),
+            )
+        else:
+            rows = await db.fetch(
+                """SELECT c.*, t.slug AS tenant_slug FROM public.conversations c
+                   JOIN public.tenants t ON t.id = c.tenant_id
+                   ORDER BY c.created_at DESC LIMIT 200""",
+            )
+    elif session.tenant_id:
+        rows = await db.fetch(
+            """SELECT c.*, t.slug AS tenant_slug FROM public.conversations c
+               JOIN public.tenants t ON t.id = c.tenant_id
+               WHERE c.tenant_id = $1 ORDER BY c.created_at DESC LIMIT 200""",
+            uuid.UUID(session.tenant_id),
+        )
+    else:
+        return []
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["id"] = str(d["id"])
+        d["tenant_id"] = str(d["tenant_id"])
+        d["created_at"] = d["created_at"].isoformat() if d["created_at"] else None
+        if isinstance(d.get("sources"), str):
+            d["sources"] = json.loads(d["sources"])
+        result.append(d)
+    return result
 
 
 # ══════════════════════════════════════════════════════════════════════════════

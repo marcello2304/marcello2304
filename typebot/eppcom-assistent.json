@@ -57,7 +57,7 @@
           "id": "blk-set-vars",
           "type": "script",
           "content": {
-            "code": "// Tenant & API-Key setzen (wird über prefilledVariables überschrieben wenn vom Embed übergeben)\nif (!getVariable('tenantId') || getVariable('tenantId') === '') {\n  setVariable('tenantId', 'a0000000-0000-0000-0000-000000000001');\n}\nif (!getVariable('apiKey') || getVariable('apiKey') === '') {\n  setVariable('apiKey', 'CHANGE_ME_SET_VIA_EMBED_PARAMS');\n}\n// Session-ID generieren\nconst id = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);\nsetVariable('sessionId', id);"
+            "code": "// Tenant & API-Key setzen (wird über prefilledVariables überschrieben wenn vom Embed übergeben)\nif (!getVariable('tenantId') || getVariable('tenantId') === '') {\n  setVariable('tenantId', 'a0000000-0000-0000-0000-000000000001');\n}\nif (!getVariable('apiKey') || getVariable('apiKey') === '') {\n  setVariable('apiKey', 'SET_VIA_EMBED_PARAMS');\n}\n// Session-ID generieren\nconst id = 'web_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);\nsetVariable('sessionId', id);"
           }
         }
       ],
@@ -115,7 +115,7 @@
           "id": "blk-http",
           "type": "http request",
           "options": {
-            "url": "https://workflows.eppcom.de/webhook/rag-chat",
+            "url": "https://appdb.eppcom.de/api/public/chat",
             "method": "POST",
             "headers": [
               { "key": "Content-Type", "value": "application/json" },
@@ -128,7 +128,7 @@
               { "bodyPath": "chunks_used", "variableId": "v-chunks-used" }
             ],
             "isAdvancedConfig": false,
-            "timeout": 30000
+            "timeout": 120000
           }
         }
       ],
@@ -187,7 +187,7 @@
     {
       "id": "v-api-key",
       "name": "apiKey",
-      "value": "CHANGE_ME_SET_VIA_EMBED_PARAMS"
+      "value": "SET_VIA_EMBED_PARAMS"
     },
     {
       "id": "v-session-id",
