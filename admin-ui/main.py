@@ -614,6 +614,47 @@ async def delete_tenant(tenant_id: str, session: SessionInfo = Depends(require_s
     return {"message": "Tenant deaktiviert"}
 
 
+@app.put("/api/tenants/{tenant_id}/restore")
+async def restore_tenant(tenant_id: str, session: SessionInfo = Depends(require_superadmin)):
+    db = await get_db()
+    result = await db.execute(
+        "UPDATE public.tenants SET status='active' WHERE id=$1::uuid AND status='deleted'", tenant_id
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(404, "Tenant nicht gefunden oder bereits aktiv")
+    return {"message": "Tenant wiederhergestellt"}
+
+
+@app.delete("/api/tenants/{tenant_id}/permanent")
+async def delete_tenant_permanent(tenant_id: str, session: SessionInfo = Depends(require_superadmin)):
+    db = await get_db()
+    tenant = await db.fetchrow(
+        "SELECT slug, schema_name, status FROM public.tenants WHERE id=$1::uuid", tenant_id
+    )
+    if not tenant:
+        raise HTTPException(404, "Tenant nicht gefunden")
+    if tenant["status"] == "active":
+        raise HTTPException(400, "Aktive Tenants müssen zuerst deaktiviert werden")
+
+    schema = tenant["schema_name"] or f"tenant_{tenant['slug']}"
+
+    # Zugehörige Daten löschen
+    await db.execute("DELETE FROM public.media_files WHERE tenant_id=$1::uuid", tenant_id)
+    await db.execute("DELETE FROM public.sources WHERE tenant_id=$1::uuid", tenant_id)
+    await db.execute("DELETE FROM public.conversations WHERE tenant_id=$1::uuid", tenant_id)
+    await db.execute("DELETE FROM public.domain_whitelist WHERE tenant_id=$1::uuid", tenant_id)
+    await db.execute("DELETE FROM public.users WHERE tenant_id=$1::uuid", tenant_id)
+    await db.execute("DELETE FROM public.tenants WHERE id=$1::uuid", tenant_id)
+
+    # Tenant-Schema löschen (falls vorhanden)
+    try:
+        await db.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+    except Exception:
+        pass  # Schema existiert möglicherweise nicht
+
+    return {"message": f"Tenant '{tenant['slug']}' und alle zugehörigen Daten endgültig gelöscht"}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ROUTES: User-Verwaltung (Admin)
 # ══════════════════════════════════════════════════════════════════════════════

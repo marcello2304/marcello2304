@@ -766,7 +766,7 @@ tailwind.config = {
         <template x-for="t in tenants" :key="t.id">
           <div class="card">
             <!-- Kunden-Header -->
-            <div class="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 transition-colors" @click="toggleTenantExpand(t.id)">
+            <div class="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 transition-colors" :class="t.status==='deleted' && 'opacity-60'" @click="toggleTenantExpand(t.id)">
               <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
                      :class="t.plan==='enterprise'?'bg-violet-500':t.plan==='pro'?'bg-brand-500':'bg-slate-400'"
@@ -787,7 +787,15 @@ tailwind.config = {
               </div>
               <div class="flex items-center gap-2">
                 <button class="btn btn-secondary btn-sm" @click.stop="browseTenantContent(t.id)">Inhalte</button>
-                <button class="btn btn-danger btn-sm" @click.stop="if(confirm('Kunde deaktivieren?')) deleteTenant(t.id)" x-show="t.status==='active'">Deaktiv.</button>
+                <template x-if="t.status==='active'">
+                  <button class="btn btn-danger btn-sm" @click.stop="if(confirm('Kunde deaktivieren?')) deleteTenant(t.id)">Deaktivieren</button>
+                </template>
+                <template x-if="t.status==='deleted'">
+                  <button class="btn btn-primary btn-sm" @click.stop="restoreTenant(t.id)">Wiederherstellen</button>
+                </template>
+                <template x-if="t.status==='deleted'">
+                  <button class="btn btn-danger btn-sm" @click.stop="if(confirm('Kunde \''+t.name+'\' und ALLE zugehörigen Daten (User, Dokumente, Medien) ENDGÜLTIG löschen? Dies kann NICHT rückgängig gemacht werden!')) deleteTenantPermanent(t.id)">Endgültig löschen</button>
+                </template>
                 <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" :class="expandedTenant===t.id && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
               </div>
             </div>
@@ -1304,8 +1312,29 @@ function app() {
     async loadTenantUsers(tenantId) {
       try {
         const users = await this.api('GET', '/api/users?tenant_id=' + tenantId);
-        this.tenantUsers[tenantId] = users;
-      } catch(e) { this.tenantUsers[tenantId] = []; }
+        // Alpine reactive: neues Objekt erzeugen damit Änderungen erkannt werden
+        this.tenantUsers = { ...this.tenantUsers, [tenantId]: users };
+      } catch(e) {
+        this.tenantUsers = { ...this.tenantUsers, [tenantId]: [] };
+      }
+    },
+
+    async restoreTenant(id) {
+      try {
+        await this.api('PUT', `/api/tenants/${id}/restore`);
+        this.showToast('Kunde wiederhergestellt');
+        this.loadTenants();
+      } catch(e) { alert(e.message); }
+    },
+
+    async deleteTenantPermanent(id) {
+      try {
+        await this.api('DELETE', `/api/tenants/${id}/permanent`);
+        this.showToast('Kunde und alle Daten endgültig gelöscht');
+        this.expandedTenant = null;
+        this.loadTenants();
+        this.loadStats();
+      } catch(e) { alert(e.message); }
     },
 
     async doCreateUser() {
