@@ -128,7 +128,7 @@
               { "bodyPath": "chunks_used", "variableId": "v-chunks-used" }
             ],
             "isAdvancedConfig": false,
-            "timeout": 120000
+            "timeout": 120
           }
         }
       ],

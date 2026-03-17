@@ -93,29 +93,27 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 class WidgetCORSMiddleware(BaseHTTPMiddleware):
-    """Erlaubt CORS für /api/public/widget-chat von allen whitelisted Domains."""
+    """Erlaubt CORS für /api/public/* Endpoints (widget-chat + chat für Typebot)."""
     async def dispatch(self, request, call_next):
         origin = request.headers.get("origin", "")
-        is_widget = request.url.path.startswith("/api/public/widget-chat")
+        is_public = request.url.path.startswith("/api/public/")
 
-        if is_widget and request.method == "OPTIONS":
+        if is_public and request.method == "OPTIONS":
             return Response(status_code=200, headers={
                 "Access-Control-Allow-Origin": origin or "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Headers": "Content-Type, X-Tenant-ID, X-API-Key",
                 "Access-Control-Max-Age": "86400",
             })
 
         response = await call_next(request)
 
-        if is_widget and origin:
+        if is_public and origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Tenant-ID, X-API-Key"
 
         return response
-
-app.add_middleware(WidgetCORSMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -124,6 +122,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# WidgetCORSMiddleware muss NACH CORSMiddleware registriert werden,
+# damit es in der Middleware-Kette VOR CORSMiddleware ausgeführt wird
+app.add_middleware(WidgetCORSMiddleware)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # DB-Pool
