@@ -2074,4 +2074,5 @@ app.mount("/widget", StaticFiles(directory="widget"), name="widget")
 @app.get("/", response_class=HTMLResponse)
 async def root():
     with open("static/index.html") as f:
-        return f.read()
+        content = f.read()
+    return HTMLResponse(content, headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"})

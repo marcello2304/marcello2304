@@ -1545,7 +1545,12 @@ function app() {
         this.voiceStatus = 'Verbunden — Spreche jetzt!';
       } catch (e) {
         this.voiceConnecting = false;
-        const msg = e instanceof Error ? e.message : (typeof e === 'string' ? e : JSON.stringify(e));
+        let msg = 'Unbekannter Fehler';
+        if (e instanceof Error) msg = e.message;
+        else if (typeof e === 'string') msg = e;
+        else if (e && e.type) msg = 'Netzwerkfehler: ' + e.type;
+        else if (e && e.reason) msg = e.reason;
+        else try { msg = JSON.stringify(e); } catch(_) { msg = String(e); }
         this.voiceStatus = 'Fehler: ' + msg;
         this.showToast(this.voiceStatus, 'error');
         console.error('Voice Bot Fehler:', e);
