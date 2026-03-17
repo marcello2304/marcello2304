@@ -484,11 +484,41 @@
         },
         {
           "id": "blk-aa-ollama",
-          "type": "Code",
+          "type": "Webhook",
           "options": {
-            "name": "RAG Abfrage",
-            "content": "try {\n  var frage = '{{frage}}';\n  var xhr = new XMLHttpRequest();\n  xhr.open('POST', 'https://appdb.eppcom.de/api/public/chat', false);\n  xhr.setRequestHeader('Content-Type', 'application/json');\n  xhr.setRequestHeader('X-Tenant-ID', 'a0000000-0000-0000-0000-000000000001');\n  xhr.setRequestHeader('X-API-Key', 'c9c2f723d67806e57d5a058f8320aac6491295a4cfbfa716247cfc70d9e739de');\n  xhr.timeout = 120000;\n  xhr.send(JSON.stringify({query: frage, session_id: 'tb_' + Date.now()}));\n  if (xhr.status === 200) {\n    var data = JSON.parse(xhr.responseText);\n    setVariable('ai_antwort', data.answer);\n  } else {\n    setVariable('ai_antwort', 'Fehler bei der Verarbeitung (Status: ' + xhr.status + ')');\n  }\n} catch(e) {\n  setVariable('ai_antwort', 'Technischer Fehler: ' + e.message);\n}",
-            "shouldExecuteInParentContext": false
+            "timeout": 120,
+            "webhook": {
+              "url": "https://appdb.eppcom.de/api/public/chat",
+              "body": "{\"query\": \"{{frage}}\", \"session_id\": \"typebot_{{name}}\"}",
+              "method": "POST",
+              "headers": [
+                {
+                  "id": "hdr-ct",
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "id": "hdr-tenant",
+                  "key": "X-Tenant-ID",
+                  "value": "a0000000-0000-0000-0000-000000000001"
+                },
+                {
+                  "id": "hdr-apikey",
+                  "key": "X-API-Key",
+                  "value": "c9c2f723d67806e57d5a058f8320aac6491295a4cfbfa716247cfc70d9e739de"
+                }
+              ],
+              "queryParams": []
+            },
+            "isCustomBody": true,
+            "isExecutedOnClient": true,
+            "responseVariableMapping": [
+              {
+                "id": "rvm-ai-antwort",
+                "bodyPath": "answer",
+                "variableId": "var-ai-antwort"
+              }
+            ]
           }
         }
       ],
