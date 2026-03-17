@@ -1431,6 +1431,9 @@ function app() {
       if (!q || this.chatLoading) return;
       this.chatMessages.push({ role: 'user', content: q });
       this.chatInput = '';
+      // Input-Feld sofort im DOM leeren (Alpine-Sync kann verzögert sein)
+      const inp = document.querySelector('[x-model="chatInput"]');
+      if (inp) inp.value = '';
       this.chatLoading = true;
       this.chatMessages.push({ role: 'loading', content: '' });
       this.$nextTick(() => { if (this.$refs.chatScroll) this.$refs.chatScroll.scrollTop = this.$refs.chatScroll.scrollHeight; });
