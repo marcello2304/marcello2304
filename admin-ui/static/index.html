@@ -21,21 +21,27 @@ tailwind.config = {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-<style>
+<style type="text/tailwindcss">
   [x-cloak] { display: none !important; }
   .fade-in { animation: fadeIn .2s ease-out; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   .drag-over { border-color: #3558ff !important; background: #eef4ff !important; }
 
+  /* Global: alle klickbaren Elemente mit Pointer-Cursor */
+  button, a, [role="button"], select, [type="checkbox"], [type="radio"],
+  .sidebar-link, .btn, label[for], summary,
+  [x-on\:click], [\\@click], [\\@click\\.self], [\\@click\\.stop],
+  .tbl tbody tr, .ec-msg.ec-bot, .group { cursor: pointer; }
+
   /* Sidebar */
-  .sidebar-link { @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer text-slate-400; }
-  .sidebar-link:hover { @apply bg-sidebar-hover text-slate-200; }
-  .sidebar-link.active { @apply bg-brand-600/20 text-brand-300; }
+  .sidebar-link { @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer text-slate-400; }
+  .sidebar-link:hover { @apply bg-sidebar-hover text-white; }
+  .sidebar-link.active { @apply bg-brand-600/20 text-brand-300 shadow-sm; }
   .sidebar-link.active svg { @apply text-brand-400; }
   .sidebar-section { @apply mt-6 mb-2 px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-[0.08em]; }
 
   /* Badges */
-  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium; }
+  .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
   .badge-success { @apply bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200; }
   .badge-error { @apply bg-red-50 text-red-700 ring-1 ring-red-200; }
   .badge-warning { @apply bg-amber-50 text-amber-700 ring-1 ring-amber-200; }
@@ -44,34 +50,36 @@ tailwind.config = {
   .badge-purple { @apply bg-violet-50 text-violet-700 ring-1 ring-violet-200; }
 
   /* Buttons */
-  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed; }
-  .btn-primary { @apply bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500 shadow-sm; }
-  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm; }
+  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn:hover:not(:disabled) { @apply -translate-y-px shadow-md; }
+  .btn:active:not(:disabled) { @apply translate-y-0 shadow-sm; }
+  .btn-primary { @apply bg-brand-600 text-white hover:bg-brand-500 focus:ring-brand-500 shadow-sm; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-500 focus:ring-red-500 shadow-sm; }
   .btn-secondary { @apply bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 focus:ring-slate-400 shadow-sm; }
   .btn-ghost { @apply bg-transparent text-slate-600 hover:bg-slate-100 focus:ring-slate-400; }
   .btn-sm { @apply px-3 py-1.5 text-xs; }
 
   /* Inputs */
-  .input { @apply w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-shadow placeholder:text-slate-400; }
+  .input { @apply w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-all placeholder:text-slate-400; }
 
   /* Cards */
-  .card { @apply bg-white rounded-xl border border-slate-200/80 shadow-sm; }
+  .card { @apply bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden; }
   .card-body { @apply p-6; }
 
   /* Modals */
-  .modal-overlay { @apply fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50; }
+  .modal-overlay { @apply fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 cursor-default; }
   .modal-box { @apply bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto fade-in border border-slate-100; }
 
   /* Tables */
   .tbl { @apply w-full text-sm; }
-  .tbl thead th { @apply pb-3 pr-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider; }
-  .tbl tbody tr { @apply border-b border-slate-100 transition-colors; }
-  .tbl tbody tr:hover { @apply bg-slate-50/80; }
+  .tbl thead th { @apply pb-3 pr-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100; }
+  .tbl tbody tr { @apply border-b border-slate-50 transition-colors; }
+  .tbl tbody tr:hover { @apply bg-brand-50/40; }
   .tbl tbody td { @apply py-3.5 pr-4; }
 
   /* Stat cards */
-  .stat-card { @apply card p-5 flex items-center gap-4; }
-  .stat-icon { @apply w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0; }
+  .stat-card { @apply bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 flex items-center gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5; }
+  .stat-icon { @apply w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0; }
   .stat-value { @apply text-2xl font-bold text-slate-900 leading-none; }
   .stat-label { @apply text-sm text-slate-500 mt-1; }
 
