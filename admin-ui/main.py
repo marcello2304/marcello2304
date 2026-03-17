@@ -1796,6 +1796,7 @@ async def delete_domain(domain_id: str, session: SessionInfo = Depends(require_a
 # Statische Dateien
 # ══════════════════════════════════════════════════════════════════════════════
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/widget", StaticFiles(directory="widget"), name="widget")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():

@@ -1,82 +1,24 @@
 <!--
   EPPCOM KI-Chatbot — Embed-Code für www.eppcom.de
   ==================================================
-  Bot: "EPPCOM Chatbot v2 (RAG)" auf bot.eppcom.de
+  Eigenes Chat-Widget — ruft direkt die RAG-API auf (kein Typebot nötig).
 
   RAG-Pipeline:
-    Typebot → n8n (workflows.eppcom.de/webhook/rag-query) → Ollama → Antwort
+    Widget → appdb.eppcom.de/api/public/chat → Ollama → Antwort
 
-  Wähle eine der 3 Varianten und kopiere den Code in deine Website.
+  Platzierung: Vor </body> auf jeder Seite.
 -->
 
-
 <!-- ═══════════════════════════════════════════════════════════════════
-     VARIANTE 1: BUBBLE (empfohlen für Homepage)
+     CHAT-WIDGET (empfohlen)
      Schwebendes Chat-Icon unten rechts, öffnet sich bei Klick.
-     Platzierung: Vor </body> auf jeder Seite.
+     Spricht direkt mit der RAG-API — kein Typebot, kein Iframe.
      ═══════════════════════════════════════════════════════════════════ -->
 
-<script type="module">
-  import Typebot from 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js';
-
-  Typebot.initBubble({
-    typebot: "eppcom-chatbot-v2",
-    apiHost: "https://bot.eppcom.de",
-    theme: {
-      button: {
-        backgroundColor: "#2563EB",
-        iconColor: "#FFFFFF",
-        size: "medium"
-      },
-      previewMessage: {
-        message: "Hallo! Kann ich Ihnen helfen?",
-        autoShowDelay: 5000
-      },
-      chatWindow: {
-        backgroundColor: "#FFFFFF"
-      }
-    }
-  });
-</script>
-
-
-<!-- ═══════════════════════════════════════════════════════════════════
-     VARIANTE 2: POPUP (Modal nach Button-Klick)
-     ═══════════════════════════════════════════════════════════════════ -->
-
-<!--
-<button onclick="openChat()" style="
-  background: #2563EB; color: white; padding: 12px 24px;
-  border: none; border-radius: 8px; font-size: 16px;
-  cursor: pointer; font-family: Inter, sans-serif;
-">
-  KI-Assistent starten
-</button>
-
-<script type="module">
-  import Typebot from 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js';
-  window.openChat = function() {
-    Typebot.initPopup({
-      typebot: "eppcom-chatbot-v2",
-      apiHost: "https://bot.eppcom.de",
-      autoShowDelay: 0
-    });
-  };
-</script>
--->
-
-
-<!-- ═══════════════════════════════════════════════════════════════════
-     VARIANTE 3: INLINE (eingebettet in die Seite, z.B. Kontaktbereich)
-     ═══════════════════════════════════════════════════════════════════ -->
-
-<!--
-<div style="width:100%; max-width:800px; height:600px; margin:0 auto; border-radius:12px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.1);">
-  <typebot-standard
-    style="width:100%; height:100%;"
-    typebot="eppcom-chatbot-v2"
-    api-host="https://bot.eppcom.de"
-  ></typebot-standard>
-</div>
-<script type="module" src="https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js"></script>
--->
+<script src="https://appdb.eppcom.de/widget/chat-widget.js"
+        data-tenant="a0000000-0000-0000-0000-000000000001"
+        data-api-key="c9c2f723d67806e57d5a058f8320aac6491295a4cfbfa716247cfc70d9e739de"
+        data-api-url="https://appdb.eppcom.de/api/public/chat"
+        data-accent="#2563EB"
+        data-welcome="Hallo! Wie kann ich Ihnen helfen? Ich beantworte Fragen zu EPPCOM — schnell, präzise und DSGVO-konform."
+        defer></script>
