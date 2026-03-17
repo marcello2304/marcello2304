@@ -819,7 +819,8 @@ tailwind.config = {
                       <td><span class="badge" :class="u.is_active?'badge-success':'badge-error'" x-text="u.is_active?'Aktiv':'Inaktiv'"></span></td>
                       <td class="text-right space-x-1 pr-5">
                         <button class="btn btn-secondary btn-sm" @click.stop="changePwUser=u; newPassword=''; showChangePw=true">Passwort</button>
-                        <button class="btn btn-danger btn-sm" @click.stop="if(confirm('User deaktivieren?')) deleteUser(u.id).then(()=>loadTenantUsers(t.id))" x-show="u.is_active && u.email!==session.email">Deaktiv.</button>
+                        <button class="btn btn-danger btn-sm" @click.stop="if(confirm('User deaktivieren?')) deleteUser(u.id)" x-show="u.is_active && u.email!==session.email">Deaktiv.</button>
+                        <button class="btn btn-danger btn-sm" @click.stop="if(confirm('User \"'+u.display_name+'\" ENDGÜLTIG löschen?')) deleteUserPermanent(u.id)" x-show="!u.is_active">Endgültig löschen</button>
                       </td>
                     </tr>
                   </template>
@@ -902,6 +903,7 @@ tailwind.config = {
                 <td class="text-right space-x-1">
                   <button class="btn btn-secondary btn-sm" @click="changePwUser=u; newPassword=''; showChangePw=true">Passwort</button>
                   <button class="btn btn-danger btn-sm" @click="if(confirm('User deaktivieren?')) deleteUser(u.id)" x-show="u.is_active && u.email!==session.email">Deaktiv.</button>
+                  <button class="btn btn-danger btn-sm" @click="if(confirm('User \"'+u.display_name+'\" ENDGÜLTIG löschen? Dies kann nicht rückgängig gemacht werden!')) deleteUserPermanent(u.id)" x-show="!u.is_active">Endgültig löschen</button>
                 </td>
               </tr>
             </template>
@@ -1323,6 +1325,16 @@ function app() {
       try {
         await this.api('DELETE',`/api/users/${id}`);
         this.showToast('User deaktiviert');
+        this.loadUsers();
+        this.loadTenants();
+        if (this.expandedTenant) this.loadTenantUsers(this.expandedTenant);
+      } catch(e) { alert(e.message); }
+    },
+
+    async deleteUserPermanent(id) {
+      try {
+        await this.api('DELETE',`/api/users/${id}/permanent`);
+        this.showToast('User endgültig gelöscht');
         this.loadUsers();
         this.loadTenants();
         if (this.expandedTenant) this.loadTenantUsers(this.expandedTenant);

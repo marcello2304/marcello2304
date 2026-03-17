@@ -775,6 +775,21 @@ async def delete_user(user_id: str, session: SessionInfo = Depends(require_admin
     return {"message": "User deaktiviert"}
 
 
+@app.delete("/api/users/{user_id}/permanent")
+async def delete_user_permanent(user_id: str, session: SessionInfo = Depends(require_superadmin)):
+    if user_id == session.user_id:
+        raise HTTPException(400, "Eigenen Account kann man nicht löschen")
+    db = await get_db()
+    target = await db.fetchrow("SELECT role, email FROM public.users WHERE id=$1::uuid", user_id)
+    if not target:
+        raise HTTPException(404, "User nicht gefunden")
+    if target["role"] == "superadmin":
+        raise HTTPException(403, "Super-Admin kann nicht endgültig gelöscht werden")
+
+    await db.execute("DELETE FROM public.users WHERE id=$1::uuid", user_id)
+    return {"message": f"User {target['email']} endgültig gelöscht"}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ROUTES: Sources / RAG-Dokumente (User-scoped)
 # ══════════════════════════════════════════════════════════════════════════════
