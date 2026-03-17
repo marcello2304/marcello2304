@@ -5,57 +5,116 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EPPCOM RAG Platform</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { 50:'#eef4ff', 100:'#dae6ff', 200:'#bdcfff', 300:'#8faeff', 400:'#5b82ff', 500:'#3558ff', 600:'#1a33f5', 700:'#1526d9', 800:'#1622af', 900:'#181f89', 950:'#111342' },
+        sidebar: { DEFAULT:'#0f172a', hover:'#1e293b', active:'#334155', muted:'#64748b', accent:'#38bdf8' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <style>
   [x-cloak] { display: none !important; }
-  .fade-in { animation: fadeIn .25s ease-out; }
-  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-  .drag-over { border-color: #3b82f6 !important; background: #eff6ff !important; }
-  .sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer; }
-  .sidebar-link:hover { @apply bg-gray-100; }
-  .sidebar-link.active { @apply bg-blue-50 text-blue-700; }
-  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
-  .btn { @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2; }
-  .btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500; }
-  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500; }
-  .btn-secondary { @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-400; }
+  .fade-in { animation: fadeIn .2s ease-out; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  .drag-over { border-color: #3558ff !important; background: #eef4ff !important; }
+
+  /* Sidebar */
+  .sidebar-link { @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer text-slate-400; }
+  .sidebar-link:hover { @apply bg-sidebar-hover text-slate-200; }
+  .sidebar-link.active { @apply bg-brand-600/20 text-brand-300; }
+  .sidebar-link.active svg { @apply text-brand-400; }
+  .sidebar-section { @apply mt-6 mb-2 px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-[0.08em]; }
+
+  /* Badges */
+  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium; }
+  .badge-success { @apply bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200; }
+  .badge-error { @apply bg-red-50 text-red-700 ring-1 ring-red-200; }
+  .badge-warning { @apply bg-amber-50 text-amber-700 ring-1 ring-amber-200; }
+  .badge-info { @apply bg-sky-50 text-sky-700 ring-1 ring-sky-200; }
+  .badge-neutral { @apply bg-slate-100 text-slate-600 ring-1 ring-slate-200; }
+  .badge-purple { @apply bg-violet-50 text-violet-700 ring-1 ring-violet-200; }
+
+  /* Buttons */
+  .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-primary { @apply bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500 shadow-sm; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm; }
+  .btn-secondary { @apply bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 focus:ring-slate-400 shadow-sm; }
+  .btn-ghost { @apply bg-transparent text-slate-600 hover:bg-slate-100 focus:ring-slate-400; }
   .btn-sm { @apply px-3 py-1.5 text-xs; }
-  .input { @apply w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent; }
-  .card { @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6; }
-  .modal-overlay { @apply fixed inset-0 bg-black/40 flex items-center justify-center z-50; }
-  .modal-box { @apply bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto fade-in; }
-  .table-row:hover { @apply bg-gray-50; }
+
+  /* Inputs */
+  .input { @apply w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-shadow placeholder:text-slate-400; }
+
+  /* Cards */
+  .card { @apply bg-white rounded-xl border border-slate-200/80 shadow-sm; }
+  .card-body { @apply p-6; }
+
+  /* Modals */
+  .modal-overlay { @apply fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50; }
+  .modal-box { @apply bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto fade-in border border-slate-100; }
+
+  /* Tables */
+  .tbl { @apply w-full text-sm; }
+  .tbl thead th { @apply pb-3 pr-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider; }
+  .tbl tbody tr { @apply border-b border-slate-100 transition-colors; }
+  .tbl tbody tr:hover { @apply bg-slate-50/80; }
+  .tbl tbody td { @apply py-3.5 pr-4; }
+
+  /* Stat cards */
+  .stat-card { @apply card p-5 flex items-center gap-4; }
+  .stat-icon { @apply w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0; }
+  .stat-value { @apply text-2xl font-bold text-slate-900 leading-none; }
+  .stat-label { @apply text-sm text-slate-500 mt-1; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
 </head>
-<body class="bg-gray-50 min-h-screen" x-data="app()" x-init="init()" x-cloak>
+<body class="bg-slate-50 min-h-screen font-sans" x-data="app()" x-init="init()" x-cloak>
 
 <!-- ═══════════════ LOGIN ═══════════════ -->
-<div x-show="!authenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-  <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm fade-in">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">E</div>
-      <div>
-        <h1 class="text-xl font-bold text-gray-800">EPPCOM RAG Platform</h1>
-        <p class="text-xs text-gray-400">Dokumente &amp; Medien verwalten</p>
+<div x-show="!authenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900">
+  <div class="w-full max-w-sm fade-in">
+    <div class="text-center mb-8">
+      <div class="w-14 h-14 bg-brand-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto shadow-lg shadow-brand-600/30">E</div>
+      <h1 class="text-2xl font-bold text-white mt-4">EPPCOM RAG Platform</h1>
+      <p class="text-slate-400 text-sm mt-1">Melden Sie sich an, um fortzufahren</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+      <div x-show="loginError" class="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-300 text-sm" x-text="loginError"></div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">E-Mail</label>
+          <input type="email" x-model="loginEmail" placeholder="name@firma.de" class="w-full bg-white/10 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-shadow"
+                 @keyup.enter="$refs.pwInput.focus()">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Passwort</label>
+          <input type="password" x-model="loginPassword" placeholder="Passwort" class="w-full bg-white/10 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-shadow"
+                 x-ref="pwInput" @keyup.enter="doLogin()">
+        </div>
+        <button class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-2.5 px-4 rounded-lg transition-colors shadow-lg shadow-brand-600/25 text-sm" @click="doLogin()" :disabled="loginLoading">
+          <span x-show="!loginLoading">Anmelden</span>
+          <span x-show="loginLoading" class="flex items-center justify-center gap-2">
+            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            Anmeldung...
+          </span>
+        </button>
       </div>
     </div>
-    <div x-show="loginError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="loginError"></div>
-    <div class="space-y-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">E-Mail</label>
-        <input type="email" x-model="loginEmail" placeholder="name@firma.de" class="input"
-               @keyup.enter="$refs.pwInput.focus()">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">Passwort</label>
-        <input type="password" x-model="loginPassword" placeholder="Passwort" class="input"
-               x-ref="pwInput" @keyup.enter="doLogin()">
-      </div>
-      <button class="btn btn-primary w-full" @click="doLogin()" :disabled="loginLoading">
-        <span x-show="!loginLoading">Anmelden</span>
-        <span x-show="loginLoading">Anmeldung...</span>
-      </button>
-    </div>
+    <p class="text-center text-slate-600 text-xs mt-6">EPPCOM Solutions &mdash; KI-Automatisierung</p>
   </div>
 </div>
 
@@ -63,101 +122,134 @@
 <div x-show="authenticated" class="flex min-h-screen">
 
   <!-- Sidebar -->
-  <aside class="w-64 bg-white border-r border-gray-100 flex flex-col fixed h-full z-40">
-    <div class="p-4 border-b border-gray-100">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">E</div>
-        <div>
-          <div class="text-sm font-bold text-gray-800">EPPCOM RAG</div>
-          <div class="text-xs text-gray-400" x-text="session.display_name"></div>
-        </div>
+  <aside class="w-60 bg-sidebar flex flex-col fixed h-full z-40 border-r border-slate-800">
+    <!-- Logo -->
+    <div class="px-4 py-5 flex items-center gap-3">
+      <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md shadow-brand-600/20">E</div>
+      <div>
+        <div class="text-sm font-semibold text-white">EPPCOM RAG</div>
+        <div class="text-[11px] text-slate-500" x-text="session.display_name"></div>
       </div>
     </div>
 
-    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+    <nav class="flex-1 px-3 overflow-y-auto">
+      <!-- Main -->
       <div class="sidebar-link" :class="page==='dashboard' && 'active'" @click="go('dashboard')">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zm0 9.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
         Dashboard
       </div>
       <div class="sidebar-link" :class="page==='documents' && 'active'" @click="go('documents')">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        RAG Dokumente
+        <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+        Dokumente
       </div>
       <div class="sidebar-link" :class="page==='chat' && 'active'" @click="go('chat')">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+        <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/></svg>
         RAG Chat
       </div>
       <div class="sidebar-link" :class="page==='media' && 'active'" @click="go('media')">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        Medien &amp; Dateien
+        <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+        Medien
       </div>
 
-      <!-- Admin-Only -->
+      <!-- Analyse -->
       <template x-if="session.role==='superadmin' || session.role==='admin'">
         <div>
-          <div class="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Analyse</div>
+          <div class="sidebar-section">Analyse</div>
           <div class="sidebar-link" :class="page==='conversations' && 'active'" @click="go('conversations')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
+            <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></svg>
             Conversations
           </div>
         </div>
       </template>
+
+      <!-- Admin -->
       <template x-if="session.role==='superadmin'">
         <div>
-          <div class="mt-4 mb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</div>
+          <div class="sidebar-section">Administration</div>
           <div class="sidebar-link" :class="page==='tenants' && 'active'" @click="go('tenants')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21"/></svg>
             Kunden
           </div>
           <div class="sidebar-link" :class="page==='users' && 'active'" @click="go('users')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            User-Verwaltung
+            <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+            User
           </div>
           <div class="sidebar-link" :class="page==='domains' && 'active'" @click="go('domains')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-            Domain-Whitelist
+            <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg>
+            Domains
           </div>
           <div class="sidebar-link" :class="page==='content-browser' && 'active'" @click="go('content-browser')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"/></svg>
             Content-Browser
           </div>
         </div>
       </template>
     </nav>
 
-    <div class="p-3 border-t border-gray-100">
-      <div class="sidebar-link text-gray-500" @click="doLogout()">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+    <!-- User -->
+    <div class="px-3 py-4 border-t border-slate-800">
+      <div class="sidebar-link text-slate-500" @click="doLogout()">
+        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/></svg>
         Abmelden
       </div>
-      <div class="px-4 py-1 text-xs text-gray-300">
-        <span class="badge" :class="session.role==='superadmin' ? 'bg-purple-100 text-purple-700' : session.role==='admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'"
+      <div class="px-3 mt-2">
+        <span class="badge" :class="session.role==='superadmin' ? 'badge-purple' : session.role==='admin' ? 'badge-info' : 'badge-neutral'"
               x-text="session.role==='superadmin' ? 'Super-Admin' : session.role==='admin' ? 'Admin' : 'User'"></span>
       </div>
     </div>
   </aside>
 
   <!-- Main Content -->
-  <main class="flex-1 ml-64 p-8">
+  <main class="flex-1 ml-60">
+    <!-- Top Bar -->
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-8 py-4 flex items-center justify-between">
+      <h1 class="text-lg font-semibold text-slate-800"
+          x-text="page==='dashboard'?'Dashboard':page==='documents'?'RAG Dokumente':page==='chat'?'RAG Chat':page==='media'?'Medien & Dateien':page==='conversations'?'Conversations':page==='tenants'?'Kunden-Verwaltung':page==='users'?'User-Verwaltung':page==='domains'?'Domain-Whitelist':page==='content-browser'?'Content-Browser':''"></h1>
+      <div class="flex items-center gap-3">
+        <span class="text-sm text-slate-500" x-text="session.display_name"></span>
+        <div class="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold" x-text="(session.display_name||'U')[0].toUpperCase()"></div>
+      </div>
+    </header>
+
+    <div class="p-8">
 
     <!-- ═══ DASHBOARD ═══ -->
     <div x-show="page==='dashboard'" class="fade-in">
-      <h1 class="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <template x-if="session.role==='superadmin'">
-          <div class="card"><div class="text-3xl font-bold text-blue-600" x-text="stats.tenants||0"></div><div class="text-sm text-gray-500 mt-1">Kunden</div></div>
+          <div class="stat-card">
+            <div class="stat-icon bg-brand-50 text-brand-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21"/></svg>
+            </div>
+            <div><div class="stat-value" x-text="stats.tenants||0"></div><div class="stat-label">Kunden</div></div>
+          </div>
         </template>
         <template x-if="session.role==='superadmin'">
-          <div class="card"><div class="text-3xl font-bold text-green-600" x-text="stats.users||0"></div><div class="text-sm text-gray-500 mt-1">User</div></div>
+          <div class="stat-card">
+            <div class="stat-icon bg-emerald-50 text-emerald-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+            </div>
+            <div><div class="stat-value" x-text="stats.users||0"></div><div class="stat-label">User</div></div>
+          </div>
         </template>
-        <div class="card"><div class="text-3xl font-bold text-indigo-600" x-text="stats.sources||0"></div><div class="text-sm text-gray-500 mt-1">RAG Dokumente</div></div>
-        <div class="card"><div class="text-3xl font-bold text-amber-600" x-text="stats.media||0"></div><div class="text-sm text-gray-500 mt-1">Medien-Dateien</div></div>
+        <div class="stat-card">
+          <div class="stat-icon bg-violet-50 text-violet-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+          </div>
+          <div><div class="stat-value" x-text="stats.sources||0"></div><div class="stat-label">RAG Dokumente</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-amber-50 text-amber-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+          </div>
+          <div><div class="stat-value" x-text="stats.media||0"></div><div class="stat-label">Medien-Dateien</div></div>
+        </div>
       </div>
-      <div class="card">
-        <h2 class="text-lg font-semibold text-gray-700 mb-2">Willkommen, <span x-text="session.display_name"></span></h2>
-        <p class="text-sm text-gray-500">Verwende die Seitenleiste um deine Dokumente und Medien zu verwalten.</p>
+      <div class="card card-body">
+        <h2 class="text-lg font-semibold text-slate-800 mb-1">Willkommen, <span x-text="session.display_name"></span></h2>
+        <p class="text-sm text-slate-500">Verwende die Seitenleiste um deine Dokumente und Medien zu verwalten.</p>
         <template x-if="session.tenant_slug">
-          <p class="text-sm text-gray-500 mt-1">Dein Arbeitsbereich: <span class="font-mono badge bg-blue-50 text-blue-700" x-text="session.tenant_slug"></span></p>
+          <p class="text-sm text-slate-500 mt-2">Dein Arbeitsbereich: <span class="badge badge-info font-mono" x-text="session.tenant_slug"></span></p>
         </template>
       </div>
     </div>
@@ -165,48 +257,51 @@
     <!-- ═══ RAG DOKUMENTE ═══ -->
     <div x-show="page==='documents'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">RAG Dokumente</h1>
-        <button class="btn btn-primary" @click="showUploadDoc=true; if(!uploadDoc.tenant_id && tenants.length) uploadDoc.tenant_id=session.tenant_id||tenants[0]?.id||''">+ Dokument hochladen</button>
+        <div></div>
+        <button class="btn btn-primary" @click="showUploadDoc=true; if(!uploadDoc.tenant_id && tenants.length) uploadDoc.tenant_id=session.tenant_id||tenants[0]?.id||''">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Dokument hochladen
+        </button>
       </div>
 
       <!-- Upload Modal -->
       <div x-show="showUploadDoc" class="modal-overlay" @click.self="showUploadDoc=false">
         <div class="modal-box">
-          <h3 class="text-lg font-bold mb-4">Dokument hochladen</h3>
-          <div class="space-y-3">
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Dokument hochladen</h3>
+          <div class="space-y-4">
             <template x-if="session.role==='superadmin' && tenants.length>0">
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Kunde</label>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Kunde</label>
                 <select x-model="uploadDoc.tenant_id" class="input">
                   <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
                 </select>
               </div>
             </template>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Name</label>
               <input type="text" x-model="uploadDoc.name" class="input" placeholder="Dokumentname">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Datei (PDF, TXT, DOCX, MD, CSV, HTML)</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Datei (PDF, TXT, DOCX, MD, CSV, HTML)</label>
               <input type="file" @change="uploadDoc.file=$event.target.files[0]" class="input" accept=".pdf,.txt,.md,.csv,.json,.html,.htm,.docx">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Oder Text direkt eingeben</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Oder Text direkt eingeben</label>
               <textarea x-model="uploadDoc.text" class="input h-24" placeholder="Text hier einfügen..."></textarea>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Tags (kommagetrennt)</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Tags (kommagetrennt)</label>
               <input type="text" x-model="uploadDoc.tags" class="input" placeholder="faq, produkt, anleitung">
             </div>
           </div>
-          <div class="flex gap-2 mt-4">
+          <div class="flex gap-2 mt-5">
             <button class="btn btn-primary flex-1" @click="doIngestDoc()" :disabled="uploadDoc.loading">
-              <span x-show="!uploadDoc.loading">Hochladen &amp; Verarbeiten</span>
-              <span x-show="uploadDoc.loading">Verarbeitung...</span>
+              <span x-show="!uploadDoc.loading">Hochladen & Verarbeiten</span>
+              <span x-show="uploadDoc.loading" class="flex items-center gap-2"><svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Verarbeitung...</span>
             </button>
             <button class="btn btn-secondary" @click="showUploadDoc=false">Abbrechen</button>
           </div>
-          <div x-show="uploadDoc.result" class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" x-text="uploadDoc.result"></div>
+          <div x-show="uploadDoc.result" class="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm" x-text="uploadDoc.result"></div>
           <div x-show="uploadDoc.error" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="uploadDoc.error"></div>
         </div>
       </div>
@@ -215,79 +310,69 @@
       <div x-show="docEditor.open" class="modal-overlay" @click.self="docEditor.open=false">
         <div class="modal-box max-w-3xl">
           <div class="flex items-center justify-between mb-1">
-            <h3 class="text-lg font-bold" x-text="docEditor.editing ? 'Dokument bearbeiten' : 'Dokument anzeigen'"></h3>
+            <h3 class="text-lg font-semibold text-slate-800" x-text="docEditor.editing ? 'Dokument bearbeiten' : 'Dokument anzeigen'"></h3>
             <div class="flex gap-2">
               <button x-show="!docEditor.editing" class="btn btn-primary btn-sm" @click="docEditor.editing=true">Bearbeiten</button>
               <button x-show="docEditor.editing" class="btn btn-secondary btn-sm" @click="docEditor.editing=false">Nur Anzeigen</button>
             </div>
           </div>
-          <p class="text-xs text-gray-400 mb-4" x-text="'ID: '+docEditor.sourceId"></p>
-
-          <!-- Loading -->
-          <div x-show="docEditor.loading" class="text-center py-12 text-gray-400">
-            <svg class="animate-spin h-8 w-8 mx-auto mb-3 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+          <p class="text-xs text-slate-400 mb-4" x-text="'ID: '+docEditor.sourceId"></p>
+          <div x-show="docEditor.loading" class="text-center py-12 text-slate-400">
+            <svg class="animate-spin h-8 w-8 mx-auto mb-3 text-brand-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
             <p>Inhalt wird geladen...</p>
           </div>
-
-          <!-- Content -->
           <div x-show="!docEditor.loading" class="space-y-3">
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Name</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Name</label>
               <input x-show="docEditor.editing" type="text" x-model="docEditor.name" class="input">
-              <p x-show="!docEditor.editing" class="text-sm font-medium text-gray-800 py-2" x-text="docEditor.name"></p>
+              <p x-show="!docEditor.editing" class="text-sm font-medium text-slate-800 py-2" x-text="docEditor.name"></p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Inhalt <span x-show="!docEditor.editing" class="text-gray-300">(schreibgeschützt)</span></label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Inhalt <span x-show="!docEditor.editing" class="text-slate-300">(schreibgeschützt)</span></label>
               <textarea x-show="docEditor.editing" x-model="docEditor.content" class="input font-mono text-xs" style="min-height:360px; resize:vertical;"></textarea>
-              <div x-show="!docEditor.editing" class="bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-xs whitespace-pre-wrap" style="min-height:200px; max-height:500px; overflow-y:auto;" x-text="docEditor.content"></div>
+              <div x-show="!docEditor.editing" class="bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs whitespace-pre-wrap" style="min-height:200px; max-height:500px; overflow-y:auto;" x-text="docEditor.content"></div>
             </div>
-            <div class="flex items-center gap-4 text-xs text-gray-400">
+            <div class="flex items-center gap-4 text-xs text-slate-400">
               <span x-text="'Zeichen: '+(docEditor.content||'').length"></span>
               <span x-text="'Wörter: '+(docEditor.content||'').split(/\\s+/).filter(w=>w).length"></span>
             </div>
           </div>
-
-          <div class="flex gap-2 mt-4">
+          <div class="flex gap-2 mt-5">
             <button x-show="docEditor.editing" class="btn btn-primary flex-1" @click="saveDocEditor()" :disabled="docEditor.saving">
               <span x-show="!docEditor.saving">Speichern & Neu-Embedden</span>
               <span x-show="docEditor.saving">Verarbeitung...</span>
             </button>
             <button class="btn btn-secondary" :class="docEditor.editing?'':'flex-1'" @click="docEditor.open=false">Schließen</button>
           </div>
-          <div x-show="docEditor.result" class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" x-text="docEditor.result"></div>
+          <div x-show="docEditor.result" class="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm" x-text="docEditor.result"></div>
           <div x-show="docEditor.error" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="docEditor.error"></div>
         </div>
       </div>
 
       <!-- Doc List -->
       <div class="card">
-        <div x-show="sources.length===0" class="text-center py-12 text-gray-400">
-          <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          <p>Noch keine Dokumente. Lade dein erstes Dokument hoch.</p>
+        <div x-show="sources.length===0" class="text-center py-16 text-slate-400">
+          <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+          <p class="text-sm">Noch keine Dokumente. Lade dein erstes Dokument hoch.</p>
         </div>
         <div class="overflow-x-auto">
-          <table x-show="sources.length>0" class="w-full text-sm">
+          <table x-show="sources.length>0" class="tbl">
             <thead>
-              <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                <th class="pb-3 pr-4">Name</th>
-                <th class="pb-3 pr-4">Typ</th>
-                <th class="pb-3 pr-4">Status</th>
-                <template x-if="session.role==='superadmin'"><th class="pb-3 pr-4">User</th></template>
-                <th class="pb-3 pr-4">Erstellt</th>
-                <th class="pb-3"></th>
+              <tr>
+                <th>Name</th><th>Typ</th><th>Status</th>
+                <template x-if="session.role==='superadmin'"><th>User</th></template>
+                <th>Erstellt</th><th class="text-right">Aktionen</th>
               </tr>
             </thead>
             <tbody>
               <template x-for="s in sources" :key="s.id">
-                <tr class="border-b border-gray-50 table-row">
-                  <td class="py-3 pr-4 font-medium text-gray-800" x-text="s.name"></td>
-                  <td class="py-3 pr-4"><span class="badge bg-gray-100 text-gray-600" x-text="s.source_type"></span></td>
-                  <td class="py-3 pr-4">
-                    <span class="badge" :class="s.status==='completed'?'bg-green-100 text-green-700':s.status==='error'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'" x-text="s.status"></span>
-                  </td>
-                  <template x-if="session.role==='superadmin'"><td class="py-3 pr-4 text-gray-500 text-xs" x-text="s.user_name||'-'"></td></template>
-                  <td class="py-3 pr-4 text-gray-400 text-xs" x-text="fmtDate(s.created_at)"></td>
-                  <td class="py-3 text-right space-x-1">
+                <tr>
+                  <td class="font-medium text-slate-800" x-text="s.name"></td>
+                  <td><span class="badge badge-neutral" x-text="s.source_type"></span></td>
+                  <td><span class="badge" :class="s.status==='completed'?'badge-success':s.status==='error'?'badge-error':'badge-warning'" x-text="s.status"></span></td>
+                  <template x-if="session.role==='superadmin'"><td class="text-slate-500 text-xs" x-text="s.user_name||'-'"></td></template>
+                  <td class="text-slate-400 text-xs" x-text="fmtDate(s.created_at)"></td>
+                  <td class="text-right space-x-1">
                     <button class="btn btn-secondary btn-sm" @click="openDocEditor(s, false)">Anzeigen</button>
                     <button class="btn btn-primary btn-sm" @click="openDocEditor(s, true)">Bearbeiten</button>
                     <button class="btn btn-danger btn-sm" @click="if(confirm('Dokument wirklich löschen?')) deleteSource(s.id)">Löschen</button>
@@ -303,69 +388,58 @@
     <!-- ═══ RAG CHAT ═══ -->
     <div x-show="page==='chat'" class="fade-in">
       <div class="flex items-center justify-between mb-4">
-        <h1 class="text-2xl font-bold text-gray-800">RAG Chat</h1>
+        <div></div>
         <div class="flex items-center gap-3">
           <template x-if="session.role==='superadmin'">
             <select x-model="chatTenantId" class="input w-56" @change="chatMessages=[]">
-              <template x-for="t in tenants" :key="t.id">
-                <option :value="t.id" x-text="t.name"></option>
-              </template>
+              <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name"></option></template>
             </select>
           </template>
           <button class="btn btn-secondary btn-sm" @click="chatMessages=[]">Chat leeren</button>
         </div>
       </div>
-
-      <!-- Chat Area -->
-      <div class="card p-0 flex flex-col" style="height: calc(100vh - 180px);">
-        <!-- Messages -->
+      <div class="card flex flex-col overflow-hidden" style="height: calc(100vh - 200px);">
         <div class="flex-1 overflow-y-auto p-6 space-y-4" x-ref="chatScroll">
-          <div x-show="chatMessages.length===0" class="flex items-center justify-center h-full text-gray-400">
+          <div x-show="chatMessages.length===0" class="flex items-center justify-center h-full text-slate-400">
             <div class="text-center">
-              <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-              <p class="text-lg font-medium">Stelle eine Frage</p>
+              <svg class="w-14 h-14 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/></svg>
+              <p class="text-base font-medium">Stelle eine Frage</p>
               <p class="text-sm mt-1">Deine Frage wird mit den hochgeladenen RAG-Dokumenten beantwortet.</p>
             </div>
           </div>
           <template x-for="(msg, i) in chatMessages" :key="i">
             <div>
-              <!-- User Message -->
               <div x-show="msg.role==='user'" class="flex justify-end">
-                <div class="bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2.5 max-w-[75%] text-sm" x-text="msg.content"></div>
+                <div class="bg-brand-600 text-white rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[75%] text-sm shadow-sm" x-text="msg.content"></div>
               </div>
-              <!-- Assistant Message -->
               <div x-show="msg.role==='assistant'" class="flex justify-start">
-                <div class="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[85%] text-sm">
-                  <div class="whitespace-pre-wrap" x-text="msg.content"></div>
-                  <div x-show="msg.sources && msg.sources.length > 0" class="mt-2 pt-2 border-t border-gray-200">
-                    <div class="text-xs text-gray-400 mb-1">Quellen:</div>
+                <div class="bg-slate-100 rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-[85%] text-sm">
+                  <div class="whitespace-pre-wrap text-slate-700" x-text="msg.content"></div>
+                  <div x-show="msg.sources && msg.sources.length > 0" class="mt-2 pt-2 border-t border-slate-200">
+                    <div class="text-xs text-slate-400 mb-1">Quellen:</div>
                     <template x-for="src in (msg.sources||[])" :key="src.source">
-                      <span class="inline-block text-xs bg-white border border-gray-200 rounded px-2 py-0.5 mr-1 mb-1">
+                      <span class="inline-block text-xs bg-white border border-slate-200 rounded-md px-2 py-0.5 mr-1 mb-1">
                         <span x-text="src.source"></span>
-                        <span class="text-gray-400 ml-1" x-text="Math.round(src.similarity*100)+'%'"></span>
+                        <span class="text-slate-400 ml-1" x-text="Math.round(src.similarity*100)+'%'"></span>
                       </span>
                     </template>
                   </div>
-                  <div x-show="msg.latency_ms" class="text-xs text-gray-300 mt-1" x-text="msg.latency_ms+'ms'"></div>
+                  <div x-show="msg.latency_ms" class="text-xs text-slate-300 mt-1" x-text="msg.latency_ms+'ms'"></div>
                 </div>
               </div>
-              <!-- Error Message -->
               <div x-show="msg.role==='error'" class="flex justify-start">
                 <div class="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-4 py-2.5 max-w-[75%] text-sm" x-text="msg.content"></div>
               </div>
-              <!-- Loading -->
               <div x-show="msg.role==='loading'" class="flex justify-start">
-                <div class="bg-gray-100 rounded-2xl px-4 py-3 text-sm text-gray-400 flex items-center gap-2">
-                  <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                <div class="bg-slate-100 rounded-2xl px-4 py-3 text-sm text-slate-400 flex items-center gap-2">
+                  <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                   Denke nach...
                 </div>
               </div>
             </div>
           </template>
         </div>
-
-        <!-- Input -->
-        <div class="border-t border-gray-100 p-4">
+        <div class="border-t border-slate-200 p-4 bg-white">
           <div class="flex gap-3">
             <input type="text" x-model="chatInput" class="input flex-1" placeholder="Stelle eine Frage zu deinen Dokumenten..."
                    @keyup.enter="sendChat()" :disabled="chatLoading">
@@ -381,122 +455,98 @@
     <!-- ═══ MEDIEN ═══ -->
     <div x-show="page==='media'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Medien &amp; Dateien</h1>
-        <button class="btn btn-primary" @click="showUploadMedia=true">+ Datei hochladen</button>
+        <div></div>
+        <button class="btn btn-primary" @click="showUploadMedia=true">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Datei hochladen
+        </button>
       </div>
 
       <!-- Upload Media Modal -->
       <div x-show="showUploadMedia" class="modal-overlay" @click.self="showUploadMedia=false">
         <div class="modal-box">
-          <h3 class="text-lg font-bold mb-4">Mediendatei hochladen</h3>
-          <div class="space-y-3">
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Mediendatei hochladen</h3>
+          <div class="space-y-4">
             <template x-if="session.role==='superadmin' && tenants.length>0">
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Kunde</label>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Kunde</label>
                 <select x-model="uploadMedia.tenant_id" class="input">
                   <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
                 </select>
               </div>
             </template>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Ordner</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Ordner</label>
               <select x-model="uploadMedia.folder" class="input">
-                <option value="media">Medien</option>
-                <option value="images">Bilder</option>
-                <option value="videos">Videos</option>
-                <option value="audio">Audio</option>
-                <option value="docs">Dokumente</option>
+                <option value="media">Medien</option><option value="images">Bilder</option><option value="videos">Videos</option><option value="audio">Audio</option><option value="docs">Dokumente</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Datei</label>
-              <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Datei</label>
+              <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-brand-400 transition-colors"
                    @click="$refs.mediaFileInput.click()"
                    @dragover.prevent="$event.currentTarget.classList.add('drag-over')"
                    @dragleave.prevent="$event.currentTarget.classList.remove('drag-over')"
                    @drop.prevent="uploadMedia.file=$event.dataTransfer.files[0]; $event.currentTarget.classList.remove('drag-over')">
-                <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                <p class="text-sm text-gray-500" x-text="uploadMedia.file ? uploadMedia.file.name : 'Datei hierher ziehen oder klicken'"></p>
+                <svg class="w-8 h-8 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                <p class="text-sm text-slate-500" x-text="uploadMedia.file ? uploadMedia.file.name : 'Datei hierher ziehen oder klicken'"></p>
               </div>
               <input type="file" x-ref="mediaFileInput" class="hidden" @change="uploadMedia.file=$event.target.files[0]">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Beschreibung (optional)</label>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Beschreibung (optional)</label>
               <input type="text" x-model="uploadMedia.description" class="input" placeholder="Kurze Beschreibung">
             </div>
           </div>
-          <div class="flex gap-2 mt-4">
+          <div class="flex gap-2 mt-5">
             <button class="btn btn-primary flex-1" @click="doUploadMedia()" :disabled="uploadMedia.loading || !uploadMedia.file">
               <span x-show="!uploadMedia.loading">Hochladen</span>
               <span x-show="uploadMedia.loading">Upload...</span>
             </button>
             <button class="btn btn-secondary" @click="showUploadMedia=false">Abbrechen</button>
           </div>
-          <div x-show="uploadMedia.result" class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" x-text="uploadMedia.result"></div>
+          <div x-show="uploadMedia.result" class="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm" x-text="uploadMedia.result"></div>
           <div x-show="uploadMedia.error" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" x-text="uploadMedia.error"></div>
         </div>
       </div>
 
       <!-- Media Grid -->
-      <div class="card">
-        <!-- Filter -->
-        <div class="flex gap-2 mb-4 flex-wrap">
+      <div class="card card-body">
+        <div class="flex gap-2 mb-5 flex-wrap">
           <button class="btn btn-sm" :class="mediaFilter===null?'btn-primary':'btn-secondary'" @click="mediaFilter=null; loadMedia()">Alle</button>
           <button class="btn btn-sm" :class="mediaFilter==='images'?'btn-primary':'btn-secondary'" @click="mediaFilter='images'; loadMedia()">Bilder</button>
           <button class="btn btn-sm" :class="mediaFilter==='videos'?'btn-primary':'btn-secondary'" @click="mediaFilter='videos'; loadMedia()">Videos</button>
           <button class="btn btn-sm" :class="mediaFilter==='audio'?'btn-primary':'btn-secondary'" @click="mediaFilter='audio'; loadMedia()">Audio</button>
           <button class="btn btn-sm" :class="mediaFilter==='docs'?'btn-primary':'btn-secondary'" @click="mediaFilter='docs'; loadMedia()">Dokumente</button>
         </div>
-        <div x-show="mediaFiles.length===0" class="text-center py-12 text-gray-400">
-          <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          <p>Keine Medien. Lade deine erste Datei hoch.</p>
+        <div x-show="mediaFiles.length===0" class="text-center py-16 text-slate-400">
+          <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+          <p class="text-sm">Keine Medien. Lade deine erste Datei hoch.</p>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           <template x-for="m in mediaFiles" :key="m.id">
-            <div class="border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow group relative">
-              <!-- Image Preview -->
-              <div class="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
-                <template x-if="m.is_image">
-                  <img :src="m.url" :alt="m.original_name" class="w-full h-full object-cover" loading="lazy">
-                </template>
-                <template x-if="m.is_video">
-                  <div class="text-center">
-                    <svg class="w-10 h-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <p class="text-xs text-gray-400 mt-1">Video</p>
-                  </div>
-                </template>
-                <template x-if="m.is_audio">
-                  <div class="text-center">
-                    <svg class="w-10 h-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
-                    <p class="text-xs text-gray-400 mt-1">Audio</p>
-                  </div>
-                </template>
-                <template x-if="!m.is_image && !m.is_video && !m.is_audio">
-                  <div class="text-center">
-                    <svg class="w-10 h-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                    <p class="text-xs text-gray-400 mt-1">Datei</p>
-                  </div>
-                </template>
+            <div class="border border-slate-200 rounded-xl overflow-hidden hover:shadow-md hover:border-slate-300 transition-all group relative bg-white">
+              <div class="aspect-square bg-slate-50 flex items-center justify-center overflow-hidden">
+                <template x-if="m.is_image"><img :src="m.url" :alt="m.original_name" class="w-full h-full object-cover" loading="lazy"></template>
+                <template x-if="m.is_video"><div class="text-center"><svg class="w-10 h-10 text-slate-300 mx-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z"/></svg><p class="text-xs text-slate-400 mt-1">Video</p></div></template>
+                <template x-if="m.is_audio"><div class="text-center"><svg class="w-10 h-10 text-slate-300 mx-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z"/></svg><p class="text-xs text-slate-400 mt-1">Audio</p></div></template>
+                <template x-if="!m.is_image && !m.is_video && !m.is_audio"><div class="text-center"><svg class="w-10 h-10 text-slate-300 mx-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg><p class="text-xs text-slate-400 mt-1">Datei</p></div></template>
               </div>
-              <!-- Info -->
-              <div class="p-2">
-                <p class="text-xs font-medium text-gray-700 truncate" x-text="m.original_name" :title="m.original_name"></p>
+              <div class="p-2.5">
+                <p class="text-xs font-medium text-slate-700 truncate" x-text="m.original_name" :title="m.original_name"></p>
                 <div class="flex items-center justify-between mt-1">
-                  <span class="text-xs text-gray-400" x-text="m.size_human"></span>
-                  <span class="badge bg-gray-100 text-gray-500 text-xs" x-text="m.folder"></span>
+                  <span class="text-[11px] text-slate-400" x-text="m.size_human"></span>
+                  <span class="badge badge-neutral text-[10px] py-0" x-text="m.folder"></span>
                 </div>
-                <template x-if="session.role==='superadmin'">
-                  <p class="text-xs text-gray-400 mt-0.5" x-text="m.user_name||'-'"></p>
-                </template>
+                <template x-if="session.role==='superadmin'"><p class="text-[11px] text-slate-400 mt-0.5" x-text="m.user_name||'-'"></p></template>
               </div>
-              <!-- Hover Actions -->
               <div class="absolute top-2 right-2 hidden group-hover:flex gap-1">
-                <a :href="m.url" target="_blank" class="w-7 h-7 bg-white/90 rounded-lg flex items-center justify-center shadow hover:bg-white" title="Öffnen">
-                  <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                <a :href="m.url" target="_blank" class="w-7 h-7 bg-white/90 rounded-lg flex items-center justify-center shadow-sm hover:bg-white border border-slate-200" title="Öffnen">
+                  <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                 </a>
-                <button class="w-7 h-7 bg-red-500/90 rounded-lg flex items-center justify-center shadow hover:bg-red-600" title="Löschen"
+                <button class="w-7 h-7 bg-red-500 rounded-lg flex items-center justify-center shadow-sm hover:bg-red-600" title="Löschen"
                         @click="if(confirm('Datei wirklich löschen?')) deleteMedia(m.id)">
-                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
                 </button>
               </div>
             </div>
@@ -508,98 +558,89 @@
     <!-- ═══ CONVERSATIONS ═══ -->
     <div x-show="page==='conversations'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Conversations</h1>
+        <div></div>
         <div class="flex items-center gap-3">
           <template x-if="convSelected.length > 0">
             <button class="btn btn-danger btn-sm" @click="deleteSelectedConversations()">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
               <span x-text="convSelected.length + ' löschen'"></span>
             </button>
           </template>
           <template x-if="session.role==='superadmin'">
             <select x-model="convTenantFilter" @change="loadConversations()" class="input w-56">
               <option value="">Alle Kunden</option>
-              <template x-for="t in tenants" :key="t.id">
-                <option :value="t.id" x-text="t.name"></option>
-              </template>
+              <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name"></option></template>
             </select>
           </template>
         </div>
       </div>
 
       <div class="card">
-        <div x-show="conversations.length===0" class="text-center py-12 text-gray-400">
-          <p>Noch keine Conversations vorhanden.</p>
+        <div x-show="conversations.length===0" class="text-center py-16 text-slate-400">
+          <p class="text-sm">Noch keine Conversations vorhanden.</p>
         </div>
         <div class="overflow-x-auto">
-          <table x-show="conversations.length>0" class="w-full text-sm">
+          <table x-show="conversations.length>0" class="tbl">
             <thead>
-              <tr class="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase">
-                <th class="pb-3 pr-2 w-8"><input type="checkbox" class="rounded" @change="toggleAllConv($event.target.checked)" :checked="convSelected.length===conversations.length && conversations.length>0"></th>
-                <th class="pb-3 pr-4">Zeitpunkt</th>
-                <th class="pb-3 pr-4" x-show="session.role==='superadmin'">Kunde</th>
-                <th class="pb-3 pr-4">Frage</th>
-                <th class="pb-3 pr-4">Kernfrage</th>
-                <th class="pb-3 pr-4">Kernaussage</th>
-                <th class="pb-3 pr-4">Quellen</th>
-                <th class="pb-3">Latenz</th>
+              <tr>
+                <th class="w-8"><input type="checkbox" class="rounded border-slate-300" @change="toggleAllConv($event.target.checked)" :checked="convSelected.length===conversations.length && conversations.length>0"></th>
+                <th>Zeitpunkt</th>
+                <th x-show="session.role==='superadmin'">Kunde</th>
+                <th>Frage</th><th>Kernfrage</th><th>Kernaussage</th><th>Quellen</th><th>Latenz</th>
               </tr>
             </thead>
             <tbody>
               <template x-for="c in conversations" :key="c.id">
-                <tr class="border-b border-gray-50 table-row" :class="convSelected.includes(c.id) ? 'bg-blue-50' : ''">
-                  <td class="py-3 pr-2" @click.stop>
-                    <input type="checkbox" class="rounded" :checked="convSelected.includes(c.id)" @change="toggleConvSelect(c.id)">
-                  </td>
-                  <td class="py-3 pr-4 text-xs text-gray-500 whitespace-nowrap cursor-pointer" @click="convDetail=c" x-text="fmtDate(c.created_at)"></td>
-                  <td class="py-3 pr-4 cursor-pointer" @click="convDetail=c" x-show="session.role==='superadmin'">
-                    <span class="badge bg-blue-50 text-blue-700" x-text="c.tenant_slug"></span>
-                  </td>
-                  <td class="py-3 pr-4 max-w-[200px] truncate cursor-pointer" @click="convDetail=c" x-text="c.user_question"></td>
-                  <td class="py-3 pr-4 max-w-[200px] truncate text-purple-700 cursor-pointer" @click="convDetail=c" x-text="c.kernfrage || '-'"></td>
-                  <td class="py-3 pr-4 max-w-[200px] truncate text-green-700 cursor-pointer" @click="convDetail=c" x-text="c.kernaussage || '-'"></td>
-                  <td class="py-3 pr-4 text-center cursor-pointer" @click="convDetail=c" x-text="c.chunks_used"></td>
-                  <td class="py-3 text-xs text-gray-400 cursor-pointer" @click="convDetail=c" x-text="(c.latency_ms/1000).toFixed(1)+'s'"></td>
+                <tr :class="convSelected.includes(c.id) ? 'bg-brand-50/50' : ''">
+                  <td @click.stop><input type="checkbox" class="rounded border-slate-300" :checked="convSelected.includes(c.id)" @change="toggleConvSelect(c.id)"></td>
+                  <td class="text-xs text-slate-500 whitespace-nowrap cursor-pointer" @click="convDetail=c" x-text="fmtDate(c.created_at)"></td>
+                  <td class="cursor-pointer" @click="convDetail=c" x-show="session.role==='superadmin'"><span class="badge badge-info" x-text="c.tenant_slug"></span></td>
+                  <td class="max-w-[200px] truncate cursor-pointer text-slate-700" @click="convDetail=c" x-text="c.user_question"></td>
+                  <td class="max-w-[200px] truncate text-violet-600 cursor-pointer" @click="convDetail=c" x-text="c.kernfrage || '-'"></td>
+                  <td class="max-w-[200px] truncate text-emerald-600 cursor-pointer" @click="convDetail=c" x-text="c.kernaussage || '-'"></td>
+                  <td class="text-center cursor-pointer" @click="convDetail=c" x-text="c.chunks_used"></td>
+                  <td class="text-xs text-slate-400 cursor-pointer" @click="convDetail=c" x-text="(c.latency_ms/1000).toFixed(1)+'s'"></td>
                 </tr>
               </template>
             </tbody>
           </table>
         </div>
-        <div x-show="conversations.length>0" class="mt-3 text-xs text-gray-400 flex items-center justify-between">
+        <div x-show="conversations.length>0" class="mt-4 px-4 pb-4 text-xs text-slate-400 flex items-center justify-between">
           <span x-text="conversations.length + ' Conversations'"></span>
-          <span x-show="convSelected.length>0" class="text-blue-600 font-medium" x-text="convSelected.length + ' ausgewählt'"></span>
+          <span x-show="convSelected.length>0" class="text-brand-600 font-medium" x-text="convSelected.length + ' ausgewählt'"></span>
         </div>
       </div>
 
       <!-- Detail Modal -->
       <div x-show="convDetail" class="modal-overlay" @click.self="convDetail=null">
         <div class="modal-box max-w-2xl" x-show="convDetail">
-          <h3 class="text-lg font-bold mb-4">Conversation Detail</h3>
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Conversation Detail</h3>
           <div class="space-y-4 text-sm">
             <div>
-              <div class="text-xs font-medium text-gray-400 uppercase mb-1">Frage</div>
-              <div class="bg-blue-50 rounded-lg p-3" x-text="convDetail?.user_question"></div>
+              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Frage</div>
+              <div class="bg-brand-50 border border-brand-100 rounded-lg p-3 text-slate-700" x-text="convDetail?.user_question"></div>
             </div>
             <div>
-              <div class="text-xs font-medium text-gray-400 uppercase mb-1">Antwort</div>
-              <div class="bg-gray-50 rounded-lg p-3 whitespace-pre-wrap" x-text="convDetail?.rag_answer"></div>
+              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Antwort</div>
+              <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap text-slate-700" x-text="convDetail?.rag_answer"></div>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <div class="text-xs font-medium text-purple-500 uppercase mb-1">Kernfrage</div>
-                <div class="bg-purple-50 rounded-lg p-3" x-text="convDetail?.kernfrage || 'Nicht analysiert'"></div>
+                <div class="text-[11px] font-semibold text-violet-500 uppercase tracking-wider mb-1.5">Kernfrage</div>
+                <div class="bg-violet-50 border border-violet-100 rounded-lg p-3 text-slate-700" x-text="convDetail?.kernfrage || 'Nicht analysiert'"></div>
               </div>
               <div>
-                <div class="text-xs font-medium text-green-500 uppercase mb-1">Kernaussage</div>
-                <div class="bg-green-50 rounded-lg p-3" x-text="convDetail?.kernaussage || 'Nicht analysiert'"></div>
+                <div class="text-[11px] font-semibold text-emerald-500 uppercase tracking-wider mb-1.5">Kernaussage</div>
+                <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-slate-700" x-text="convDetail?.kernaussage || 'Nicht analysiert'"></div>
               </div>
             </div>
-            <div class="flex items-center gap-4 text-xs text-gray-400">
+            <div class="flex items-center gap-4 text-xs text-slate-400">
               <span x-text="'Session: ' + (convDetail?.session_id||'')"></span>
               <span x-text="'Chunks: ' + (convDetail?.chunks_used||0)"></span>
               <span x-text="'Latenz: ' + ((convDetail?.latency_ms||0)/1000).toFixed(1) + 's'"></span>
             </div>
           </div>
-          <div class="mt-4 flex justify-end">
+          <div class="mt-5 flex justify-end">
             <button class="btn btn-secondary" @click="convDetail=null">Schließen</button>
           </div>
         </div>
@@ -608,12 +649,8 @@
 
     <!-- ═══ DOMAIN-WHITELIST ═══ -->
     <div x-show="page==='domains'" class="fade-in">
-      <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Domain-Whitelist</h1>
-      </div>
-
-      <div class="card mb-6">
-        <h3 class="text-sm font-semibold text-gray-600 mb-3">Domain hinzufügen</h3>
+      <div class="card card-body mb-6">
+        <h3 class="text-sm font-semibold text-slate-700 mb-3">Domain hinzufügen</h3>
         <div class="flex gap-3">
           <template x-if="session.role==='superadmin' && tenants.length>0">
             <select x-model="newDomain.tenant_id" class="input w-48">
@@ -623,43 +660,33 @@
           <input type="text" x-model="newDomain.domain" class="input flex-1" placeholder="z.B. www.meine-website.de" @keydown.enter="addDomain()">
           <button class="btn btn-primary" @click="addDomain()">Hinzufügen</button>
         </div>
-        <p class="text-xs text-gray-400 mt-2">Domains, von denen der Chat-Widget ohne API-Key funktioniert. Der Browser sendet die Domain automatisch als Origin-Header.</p>
+        <p class="text-xs text-slate-400 mt-2">Domains, von denen der Chat-Widget ohne API-Key funktioniert.</p>
       </div>
 
       <div class="card">
-        <div x-show="domains.length===0" class="text-center py-8 text-gray-400">
-          <p>Noch keine Domains konfiguriert.</p>
-        </div>
-        <table x-show="domains.length>0" class="w-full text-sm">
+        <div x-show="domains.length===0" class="text-center py-12 text-slate-400"><p class="text-sm">Noch keine Domains konfiguriert.</p></div>
+        <table x-show="domains.length>0" class="tbl">
           <thead>
-            <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-              <th class="pb-3 pr-4">Domain</th>
-              <th class="pb-3 pr-4">Kunde</th>
-              <th class="pb-3 pr-4">Status</th>
-              <th class="pb-3 pr-4">Erstellt</th>
-              <th class="pb-3"></th>
-            </tr>
+            <tr><th>Domain</th><th>Kunde</th><th>Status</th><th>Erstellt</th><th class="text-right">Aktionen</th></tr>
           </thead>
           <tbody>
             <template x-for="d in domains" :key="d.id">
-              <tr class="border-b border-gray-50 table-row">
-                <td class="py-3 pr-4 font-mono text-sm font-medium" x-text="d.domain"></td>
-                <td class="py-3 pr-4"><span class="badge bg-blue-50 text-blue-700" x-text="d.tenant_slug"></span></td>
-                <td class="py-3 pr-4"><span class="badge" :class="d.is_active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'" x-text="d.is_active?'Aktiv':'Inaktiv'"></span></td>
-                <td class="py-3 pr-4 text-xs text-gray-400" x-text="fmtDate(d.created_at)"></td>
-                <td class="py-3 text-right">
-                  <button class="btn btn-danger btn-sm" @click="if(confirm('Domain '+d.domain+' entfernen?')) deleteDomain(d.id)">Entfernen</button>
-                </td>
+              <tr>
+                <td class="font-mono text-sm font-medium text-slate-800" x-text="d.domain"></td>
+                <td><span class="badge badge-info" x-text="d.tenant_slug"></span></td>
+                <td><span class="badge" :class="d.is_active?'badge-success':'badge-neutral'" x-text="d.is_active?'Aktiv':'Inaktiv'"></span></td>
+                <td class="text-xs text-slate-400" x-text="fmtDate(d.created_at)"></td>
+                <td class="text-right"><button class="btn btn-danger btn-sm" @click="if(confirm('Domain '+d.domain+' entfernen?')) deleteDomain(d.id)">Entfernen</button></td>
               </tr>
             </template>
           </tbody>
         </table>
       </div>
 
-      <div class="card mt-6">
-        <h3 class="text-sm font-semibold text-gray-600 mb-2">Embed-Code (ohne API-Key)</h3>
-        <p class="text-xs text-gray-400 mb-3">Diesen Code auf deiner Website vor &lt;/body&gt; einfügen:</p>
-        <pre class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs overflow-x-auto whitespace-pre">&lt;script type="module"&gt;
+      <div class="card card-body mt-6">
+        <h3 class="text-sm font-semibold text-slate-700 mb-2">Embed-Code (ohne API-Key)</h3>
+        <p class="text-xs text-slate-400 mb-3">Diesen Code auf deiner Website vor &lt;/body&gt; einfügen:</p>
+        <pre class="bg-slate-900 text-emerald-400 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre">&lt;script type="module"&gt;
   import Typebot from 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js'
 
   Typebot.initBubble({
@@ -675,58 +702,56 @@
     }
   })
 &lt;/script&gt;</pre>
-        <p class="text-xs text-gray-400 mt-2">Der Chat-Endpoint erkennt die Domain automatisch und ordnet den richtigen Kunden zu. Kein API-Key im Quelltext nötig.</p>
+        <p class="text-xs text-slate-400 mt-2">Der Chat-Endpoint erkennt die Domain automatisch und ordnet den richtigen Kunden zu.</p>
       </div>
     </div>
 
     <!-- ═══ KUNDEN (Superadmin) ═══ -->
     <div x-show="page==='tenants'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Kunden-Verwaltung</h1>
-        <button class="btn btn-primary" @click="showCreateTenant=true; newTenant={name:'',slug:'',email:'',plan:'starter'}">+ Neuer Kunde</button>
+        <div></div>
+        <button class="btn btn-primary" @click="showCreateTenant=true; newTenant={name:'',slug:'',email:'',plan:'starter'}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Neuer Kunde
+        </button>
       </div>
 
       <!-- Create Tenant Modal -->
       <div x-show="showCreateTenant" class="modal-overlay" @click.self="showCreateTenant=false">
         <div class="modal-box">
-          <h3 class="text-lg font-bold mb-4">Neuen Kunden anlegen</h3>
-          <div class="space-y-3">
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">Firmenname</label><input type="text" x-model="newTenant.name" class="input" placeholder="Musterfirma GmbH"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">Slug (URL-Name)</label><input type="text" x-model="newTenant.slug" class="input" placeholder="musterfirma" @input="newTenant.slug=$event.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,'')"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">E-Mail</label><input type="email" x-model="newTenant.email" class="input" placeholder="kontakt@firma.de"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">Plan</label>
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Neuen Kunden anlegen</h3>
+          <div class="space-y-4">
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Firmenname</label><input type="text" x-model="newTenant.name" class="input" placeholder="Musterfirma GmbH"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Slug (URL-Name)</label><input type="text" x-model="newTenant.slug" class="input" placeholder="musterfirma" @input="newTenant.slug=$event.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,'')"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">E-Mail</label><input type="email" x-model="newTenant.email" class="input" placeholder="kontakt@firma.de"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Plan</label>
               <select x-model="newTenant.plan" class="input"><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select>
             </div>
           </div>
-          <div class="flex gap-2 mt-4">
+          <div class="flex gap-2 mt-5">
             <button class="btn btn-primary flex-1" @click="doCreateTenant()">Anlegen</button>
             <button class="btn btn-secondary" @click="showCreateTenant=false">Abbrechen</button>
           </div>
         </div>
       </div>
 
-      <!-- Tenant List -->
       <div class="card">
-        <table class="w-full text-sm">
+        <table class="tbl">
           <thead>
-            <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-              <th class="pb-3 pr-4">Name</th><th class="pb-3 pr-4">Slug</th><th class="pb-3 pr-4">Plan</th>
-              <th class="pb-3 pr-4">User</th><th class="pb-3 pr-4">Quellen</th><th class="pb-3 pr-4">Medien</th>
-              <th class="pb-3 pr-4">Status</th><th class="pb-3"></th>
-            </tr>
+            <tr><th>Name</th><th>Slug</th><th>Plan</th><th>User</th><th>Quellen</th><th>Medien</th><th>Status</th><th class="text-right">Aktionen</th></tr>
           </thead>
           <tbody>
             <template x-for="t in tenants" :key="t.id">
-              <tr class="border-b border-gray-50 table-row">
-                <td class="py-3 pr-4 font-medium text-gray-800" x-text="t.name"></td>
-                <td class="py-3 pr-4 font-mono text-xs text-gray-500" x-text="t.slug"></td>
-                <td class="py-3 pr-4"><span class="badge" :class="t.plan==='enterprise'?'bg-purple-100 text-purple-700':t.plan==='pro'?'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-600'" x-text="t.plan"></span></td>
-                <td class="py-3 pr-4 text-gray-600" x-text="t.user_count||0"></td>
-                <td class="py-3 pr-4 text-gray-600" x-text="t.source_count||0"></td>
-                <td class="py-3 pr-4 text-gray-600" x-text="t.media_count||0"></td>
-                <td class="py-3 pr-4"><span class="badge" :class="t.status==='active'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'" x-text="t.status"></span></td>
-                <td class="py-3 text-right">
-                  <button class="btn btn-secondary btn-sm mr-1" @click="browseTenantContent(t.id)">Inhalte</button>
+              <tr>
+                <td class="font-medium text-slate-800" x-text="t.name"></td>
+                <td class="font-mono text-xs text-slate-500" x-text="t.slug"></td>
+                <td><span class="badge" :class="t.plan==='enterprise'?'badge-purple':t.plan==='pro'?'badge-info':'badge-neutral'" x-text="t.plan"></span></td>
+                <td class="text-slate-600" x-text="t.user_count||0"></td>
+                <td class="text-slate-600" x-text="t.source_count||0"></td>
+                <td class="text-slate-600" x-text="t.media_count||0"></td>
+                <td><span class="badge" :class="t.status==='active'?'badge-success':'badge-error'" x-text="t.status"></span></td>
+                <td class="text-right space-x-1">
+                  <button class="btn btn-secondary btn-sm" @click="browseTenantContent(t.id)">Inhalte</button>
                   <button class="btn btn-danger btn-sm" @click="if(confirm('Kunde deaktivieren?')) deleteTenant(t.id)" x-show="t.status==='active'">Deaktiv.</button>
                 </td>
               </tr>
@@ -739,37 +764,37 @@
     <!-- ═══ USER-VERWALTUNG (Superadmin) ═══ -->
     <div x-show="page==='users'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">User-Verwaltung</h1>
-        <button class="btn btn-primary" @click="showCreateUser=true; newUser={email:'',password:'',display_name:'',role:'user',tenant_id:tenants[0]?.id||''}">+ Neuer User</button>
-      </div>
-
-      <!-- Filter by Tenant -->
-      <div class="flex gap-2 mb-4 flex-wrap">
-        <button class="btn btn-sm" :class="userTenantFilter===null?'btn-primary':'btn-secondary'" @click="userTenantFilter=null; loadUsers()">Alle</button>
-        <template x-for="t in tenants" :key="t.id">
-          <button class="btn btn-sm" :class="userTenantFilter===t.id?'btn-primary':'btn-secondary'" @click="userTenantFilter=t.id; loadUsers()" x-text="t.name"></button>
-        </template>
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-sm" :class="userTenantFilter===null?'btn-primary':'btn-secondary'" @click="userTenantFilter=null; loadUsers()">Alle</button>
+          <template x-for="t in tenants" :key="t.id">
+            <button class="btn btn-sm" :class="userTenantFilter===t.id?'btn-primary':'btn-secondary'" @click="userTenantFilter=t.id; loadUsers()" x-text="t.name"></button>
+          </template>
+        </div>
+        <button class="btn btn-primary" @click="showCreateUser=true; newUser={email:'',password:'',display_name:'',role:'user',tenant_id:tenants[0]?.id||''}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Neuer User
+        </button>
       </div>
 
       <!-- Create User Modal -->
       <div x-show="showCreateUser" class="modal-overlay" @click.self="showCreateUser=false">
         <div class="modal-box">
-          <h3 class="text-lg font-bold mb-4">Neuen User anlegen</h3>
-          <div class="space-y-3">
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">Anzeigename</label><input type="text" x-model="newUser.display_name" class="input" placeholder="Max Mustermann"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">E-Mail</label><input type="email" x-model="newUser.email" class="input" placeholder="max@firma.de"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">Passwort</label><input type="text" x-model="newUser.password" class="input" placeholder="Mindestens 6 Zeichen"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">Rolle</label>
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Neuen User anlegen</h3>
+          <div class="space-y-4">
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Anzeigename</label><input type="text" x-model="newUser.display_name" class="input" placeholder="Max Mustermann"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">E-Mail</label><input type="email" x-model="newUser.email" class="input" placeholder="max@firma.de"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Passwort</label><input type="text" x-model="newUser.password" class="input" placeholder="Mindestens 6 Zeichen"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Rolle</label>
               <select x-model="newUser.role" class="input"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super-Admin</option></select>
             </div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">Kunde zuweisen</label>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Kunde zuweisen</label>
               <select x-model="newUser.tenant_id" class="input">
-                <option value="">— Keiner —</option>
+                <option value="">-- Keiner --</option>
                 <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
               </select>
             </div>
           </div>
-          <div class="flex gap-2 mt-4">
+          <div class="flex gap-2 mt-5">
             <button class="btn btn-primary flex-1" @click="doCreateUser()">Anlegen</button>
             <button class="btn btn-secondary" @click="showCreateUser=false">Abbrechen</button>
           </div>
@@ -779,37 +804,32 @@
       <!-- Change Password Modal -->
       <div x-show="showChangePw" class="modal-overlay" @click.self="showChangePw=false">
         <div class="modal-box">
-          <h3 class="text-lg font-bold mb-4">Passwort ändern</h3>
-          <p class="text-sm text-gray-500 mb-3">Für: <strong x-text="changePwUser?.display_name"></strong> (<span x-text="changePwUser?.email"></span>)</p>
-          <div><label class="block text-xs font-medium text-gray-500 mb-1">Neues Passwort</label><input type="text" x-model="newPassword" class="input" placeholder="Neues Passwort (min. 6 Zeichen)"></div>
-          <div class="flex gap-2 mt-4">
+          <h3 class="text-lg font-semibold text-slate-800 mb-4">Passwort ändern</h3>
+          <p class="text-sm text-slate-500 mb-3">Für: <strong x-text="changePwUser?.display_name"></strong> (<span x-text="changePwUser?.email"></span>)</p>
+          <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Neues Passwort</label><input type="text" x-model="newPassword" class="input" placeholder="Neues Passwort (min. 6 Zeichen)"></div>
+          <div class="flex gap-2 mt-5">
             <button class="btn btn-primary flex-1" @click="doChangePw()">Speichern</button>
             <button class="btn btn-secondary" @click="showChangePw=false">Abbrechen</button>
           </div>
         </div>
       </div>
 
-      <!-- Users List -->
       <div class="card">
-        <table class="w-full text-sm">
+        <table class="tbl">
           <thead>
-            <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-              <th class="pb-3 pr-4">Name</th><th class="pb-3 pr-4">E-Mail</th><th class="pb-3 pr-4">Rolle</th>
-              <th class="pb-3 pr-4">Kunde</th><th class="pb-3 pr-4">Quellen</th><th class="pb-3 pr-4">Medien</th>
-              <th class="pb-3 pr-4">Status</th><th class="pb-3"></th>
-            </tr>
+            <tr><th>Name</th><th>E-Mail</th><th>Rolle</th><th>Kunde</th><th>Quellen</th><th>Medien</th><th>Status</th><th class="text-right">Aktionen</th></tr>
           </thead>
           <tbody>
             <template x-for="u in users" :key="u.id">
-              <tr class="border-b border-gray-50 table-row">
-                <td class="py-3 pr-4 font-medium text-gray-800" x-text="u.display_name"></td>
-                <td class="py-3 pr-4 text-gray-500 text-xs" x-text="u.email"></td>
-                <td class="py-3 pr-4"><span class="badge" :class="u.role==='superadmin'?'bg-purple-100 text-purple-700':u.role==='admin'?'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-600'" x-text="u.role"></span></td>
-                <td class="py-3 pr-4 text-gray-500 text-xs" x-text="u.tenant_name||'—'"></td>
-                <td class="py-3 pr-4 text-gray-600" x-text="u.source_count||0"></td>
-                <td class="py-3 pr-4 text-gray-600" x-text="u.media_count||0"></td>
-                <td class="py-3 pr-4"><span class="badge" :class="u.is_active?'bg-green-100 text-green-700':'bg-red-100 text-red-700'" x-text="u.is_active?'Aktiv':'Deaktiv.'"></span></td>
-                <td class="py-3 text-right space-x-1">
+              <tr>
+                <td class="font-medium text-slate-800" x-text="u.display_name"></td>
+                <td class="text-slate-500 text-xs" x-text="u.email"></td>
+                <td><span class="badge" :class="u.role==='superadmin'?'badge-purple':u.role==='admin'?'badge-info':'badge-neutral'" x-text="u.role"></span></td>
+                <td class="text-slate-500 text-xs" x-text="u.tenant_name||'--'"></td>
+                <td class="text-slate-600" x-text="u.source_count||0"></td>
+                <td class="text-slate-600" x-text="u.media_count||0"></td>
+                <td><span class="badge" :class="u.is_active?'badge-success':'badge-error'" x-text="u.is_active?'Aktiv':'Deaktiv.'"></span></td>
+                <td class="text-right space-x-1">
                   <button class="btn btn-secondary btn-sm" @click="changePwUser=u; newPassword=''; showChangePw=true">Passwort</button>
                   <button class="btn btn-danger btn-sm" @click="if(confirm('User deaktivieren?')) deleteUser(u.id)" x-show="u.is_active && u.email!==session.email">Deaktiv.</button>
                 </td>
@@ -822,33 +842,29 @@
 
     <!-- ═══ CONTENT-BROWSER (Superadmin) ═══ -->
     <div x-show="page==='content-browser'" class="fade-in">
-      <h1 class="text-2xl font-bold text-gray-800 mb-6">Content-Browser</h1>
-
-      <!-- Tenant Selector -->
-      <div class="card mb-6">
-        <label class="block text-xs font-medium text-gray-500 mb-2">Kunde auswählen</label>
+      <div class="card card-body mb-6">
+        <label class="block text-xs font-medium text-slate-500 mb-2">Kunde auswählen</label>
         <select x-model="browserTenantId" @change="loadTenantContent()" class="input max-w-md">
-          <option value="">— Kunde wählen —</option>
+          <option value="">-- Kunde wählen --</option>
           <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
         </select>
       </div>
 
       <div x-show="browserContent" class="space-y-6">
-        <!-- Users in Tenant -->
-        <div class="card">
-          <h2 class="text-lg font-semibold text-gray-700 mb-4">User in diesem Kunden</h2>
-          <div x-show="(browserContent?.users||[]).length===0" class="text-sm text-gray-400">Keine User zugewiesen.</div>
+        <div class="card card-body">
+          <h2 class="text-base font-semibold text-slate-800 mb-4">User in diesem Kunden</h2>
+          <div x-show="(browserContent?.users||[]).length===0" class="text-sm text-slate-400">Keine User zugewiesen.</div>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <template x-for="u in browserContent?.users||[]" :key="u.id">
-              <div class="border border-gray-100 rounded-lg p-4 hover:shadow-sm transition-shadow">
+              <div class="border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="font-medium text-gray-800" x-text="u.display_name"></p>
-                    <p class="text-xs text-gray-400" x-text="u.email"></p>
+                    <p class="font-medium text-slate-800" x-text="u.display_name"></p>
+                    <p class="text-xs text-slate-400" x-text="u.email"></p>
                   </div>
-                  <span class="badge" :class="u.is_active?'bg-green-100 text-green-700':'bg-red-100 text-red-700'" x-text="u.is_active?'Aktiv':'Inaktiv'"></span>
+                  <span class="badge" :class="u.is_active?'badge-success':'badge-error'" x-text="u.is_active?'Aktiv':'Inaktiv'"></span>
                 </div>
-                <div class="flex gap-4 mt-2 text-xs text-gray-500">
+                <div class="flex gap-4 mt-2 text-xs text-slate-500">
                   <span x-text="u.source_count+' Quellen'"></span>
                   <span x-text="u.media_count+' Medien'"></span>
                 </div>
@@ -857,56 +873,51 @@
           </div>
         </div>
 
-        <!-- Sources in Tenant -->
-        <div class="card">
-          <h2 class="text-lg font-semibold text-gray-700 mb-4">RAG Dokumente</h2>
-          <div x-show="(browserContent?.sources||[]).length===0" class="text-sm text-gray-400">Keine Dokumente.</div>
-          <table x-show="(browserContent?.sources||[]).length>0" class="w-full text-sm">
+        <div class="card card-body">
+          <h2 class="text-base font-semibold text-slate-800 mb-4">RAG Dokumente</h2>
+          <div x-show="(browserContent?.sources||[]).length===0" class="text-sm text-slate-400">Keine Dokumente.</div>
+          <table x-show="(browserContent?.sources||[]).length>0" class="tbl">
             <thead>
-              <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase">
-                <th class="pb-3 pr-4">Name</th><th class="pb-3 pr-4">User</th><th class="pb-3 pr-4">Status</th>
-                <th class="pb-3 pr-4">Erstellt</th><th class="pb-3"></th>
-              </tr>
+              <tr><th>Name</th><th>User</th><th>Status</th><th>Erstellt</th><th class="text-right">Aktionen</th></tr>
             </thead>
             <tbody>
               <template x-for="s in browserContent?.sources||[]" :key="s.id">
-                <tr class="border-b border-gray-50 table-row">
-                  <td class="py-3 pr-4 font-medium text-gray-800" x-text="s.name"></td>
-                  <td class="py-3 pr-4 text-gray-500 text-xs" x-text="s.user_name||'-'"></td>
-                  <td class="py-3 pr-4"><span class="badge" :class="s.status==='completed'?'bg-green-100 text-green-700':s.status==='error'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'" x-text="s.status"></span></td>
-                  <td class="py-3 pr-4 text-gray-400 text-xs" x-text="fmtDate(s.created_at)"></td>
-                  <td class="py-3 text-right"><button class="btn btn-danger btn-sm" @click="if(confirm('Löschen?')) deleteSource(s.id)">Löschen</button></td>
+                <tr>
+                  <td class="font-medium text-slate-800" x-text="s.name"></td>
+                  <td class="text-slate-500 text-xs" x-text="s.user_name||'-'"></td>
+                  <td><span class="badge" :class="s.status==='completed'?'badge-success':s.status==='error'?'badge-error':'badge-warning'" x-text="s.status"></span></td>
+                  <td class="text-slate-400 text-xs" x-text="fmtDate(s.created_at)"></td>
+                  <td class="text-right"><button class="btn btn-danger btn-sm" @click="if(confirm('Löschen?')) deleteSource(s.id)">Löschen</button></td>
                 </tr>
               </template>
             </tbody>
           </table>
         </div>
 
-        <!-- Media in Tenant -->
-        <div class="card">
-          <h2 class="text-lg font-semibold text-gray-700 mb-4">Medien-Dateien</h2>
-          <div x-show="(browserContent?.media||[]).length===0" class="text-sm text-gray-400">Keine Medien.</div>
+        <div class="card card-body">
+          <h2 class="text-base font-semibold text-slate-800 mb-4">Medien-Dateien</h2>
+          <div x-show="(browserContent?.media||[]).length===0" class="text-sm text-slate-400">Keine Medien.</div>
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <template x-for="m in browserContent?.media||[]" :key="m.id">
-              <div class="border border-gray-100 rounded-lg overflow-hidden group relative">
-                <div class="aspect-square bg-gray-50 flex items-center justify-center">
+              <div class="border border-slate-200 rounded-lg overflow-hidden group relative">
+                <div class="aspect-square bg-slate-50 flex items-center justify-center">
                   <template x-if="m.is_image"><img :src="m.url" class="w-full h-full object-cover" loading="lazy"></template>
                   <template x-if="!m.is_image">
                     <div class="text-center">
-                      <svg class="w-8 h-8 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                      <svg class="w-8 h-8 text-slate-300 mx-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
                     </div>
                   </template>
                 </div>
                 <div class="p-1.5">
-                  <p class="text-xs truncate text-gray-600" x-text="m.original_name||m.file_name"></p>
-                  <p class="text-xs text-gray-400" x-text="m.user_name||'-'"></p>
+                  <p class="text-xs truncate text-slate-600" x-text="m.original_name||m.file_name"></p>
+                  <p class="text-[11px] text-slate-400" x-text="m.user_name||'-'"></p>
                 </div>
                 <div class="absolute top-1 right-1 hidden group-hover:flex gap-1">
-                  <a :href="m.url" target="_blank" class="w-6 h-6 bg-white/90 rounded flex items-center justify-center shadow text-xs">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                  <a :href="m.url" target="_blank" class="w-6 h-6 bg-white/90 rounded flex items-center justify-center shadow-sm border border-slate-200 text-xs">
+                    <svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                   </a>
-                  <button class="w-6 h-6 bg-red-500/90 rounded flex items-center justify-center shadow" @click="if(confirm('Löschen?')) deleteMediaFromBrowser(m.id)">
-                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  <button class="w-6 h-6 bg-red-500 rounded flex items-center justify-center shadow-sm" @click="if(confirm('Löschen?')) deleteMediaFromBrowser(m.id)">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
                   </button>
                 </div>
               </div>
@@ -916,12 +927,13 @@
       </div>
     </div>
 
+    </div><!-- end p-8 -->
   </main>
 </div>
 
 <!-- ═══════════════ TOAST ═══════════════ -->
 <div x-show="toast.show" x-transition class="fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50"
-     :class="toast.type==='error'?'bg-red-600 text-white':'bg-green-600 text-white'"
+     :class="toast.type==='error'?'bg-red-600 text-white':'bg-emerald-600 text-white'"
      x-text="toast.msg"></div>
 
 <script>
@@ -1306,10 +1318,10 @@ function app() {
       try {
         const tid = this.chatTenantId || this.session.tenant_id || (this.tenants[0]?.id || '');
         const r = await this.api('POST', '/api/rag-chat', { query: q, tenant_id: tid });
-        this.chatMessages.pop(); // remove loading
+        this.chatMessages.pop();
         this.chatMessages.push({ role: 'assistant', content: r.answer, sources: r.sources, latency_ms: r.latency_ms });
       } catch(e) {
-        this.chatMessages.pop(); // remove loading
+        this.chatMessages.pop();
         this.chatMessages.push({ role: 'error', content: e.message });
       }
       this.chatLoading = false;
