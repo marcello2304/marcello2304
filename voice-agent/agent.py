@@ -56,20 +56,35 @@ class WhisperSTT(stt.STT):
     def __init__(self):
         super().__init__(capabilities=stt.STTCapabilities(streaming=False, interim_results=False))
 
-    async def recognize(self, buffer: rtc.AudioFrame, *, language: str | None = "de") -> stt.SpeechEvent:
-        def _transcribe(audio_data: bytes, sample_rate: int) -> str:
+    async def _recognize_impl(self, buffer, *, language=None, conn_options=None) -> stt.SpeechEvent:
+        def _transcribe(frames) -> str:
+            # AudioBuffer zu raw bytes konvertieren
+            if hasattr(frames, 'data'):
+                audio_data = frames.data.tobytes() if hasattr(frames.data, 'tobytes') else bytes(frames.data)
+                sr = frames.sample_rate
+            elif isinstance(frames, list):
+                parts = []
+                sr = 16000
+                for f in frames:
+                    d = f.data.tobytes() if hasattr(f.data, 'tobytes') else bytes(f.data)
+                    parts.append(d)
+                    sr = f.sample_rate
+                audio_data = b''.join(parts)
+            else:
+                audio_data = bytes(frames)
+                sr = 16000
+
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
                 with wave.open(tmp, "wb") as wf:
                     wf.setnchannels(1)
                     wf.setsampwidth(2)
-                    wf.setframerate(sample_rate)
+                    wf.setframerate(sr)
                     wf.writeframes(audio_data)
                 tmp.flush()
                 segments, _ = whisper_model.transcribe(tmp.name, language="de")
                 return " ".join(s.text for s in segments).strip()
 
-        audio_bytes = buffer.data.tobytes() if hasattr(buffer.data, "tobytes") else bytes(buffer.data)
-        text = await asyncio.to_thread(_transcribe, audio_bytes, buffer.sample_rate)
+        text = await asyncio.to_thread(_transcribe, buffer)
         logger.info(f"STT: '{text}'")
 
         return stt.SpeechEvent(
@@ -89,7 +104,7 @@ class PiperTTS(tts.TTS):
             num_channels=1,
         )
 
-    def synthesize(self, text: str) -> tts.ChunkedStream:
+    def synthesize(self, text: str, *, conn_options=None) -> tts.ChunkedStream:
         return PiperChunkedStream(self, text)
 
 
@@ -98,7 +113,7 @@ class PiperChunkedStream(tts.ChunkedStream):
         super().__init__(tts=tts_instance, input_text=text)
         self._text = text
 
-    async def _run(self) -> None:
+    async def _run(self, output_emitter=None) -> None:
         try:
             proc = await asyncio.create_subprocess_exec(
                 "piper",
@@ -133,7 +148,8 @@ class RagLLM(llm.LLM):
         super().__init__(capabilities=llm.LLMCapabilities(supports_tools=False))
         self._session_id = "voice_default"
 
-    def chat(self, *, chat_ctx: llm.ChatContext, **kwargs) -> llm.LLMStream:
+    def chat(self, *, chat_ctx: llm.ChatContext, tools=None, conn_options=None,
+             parallel_tool_calls=None, tool_choice=None, extra_kwargs=None, **kwargs) -> llm.LLMStream:
         return RagLLMStream(self, chat_ctx)
 
 
