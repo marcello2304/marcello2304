@@ -6,7 +6,10 @@ rtc:
   tcp_port: 7881
   port_range_start: 50000
   port_range_end: 50100
-  use_external_ip: true  # Wichtig: Hetzner externe IP für ICE
+  # Hetzner: use_external_ip schlägt fehl, stattdessen node_ip explizit setzen
+  use_external_ip: false
+  # WICHTIG: Beim Deployment die echte Server-2-IP eintragen!
+  node_ip: 46.224.54.65
 
 # WICHTIG: Vor Deployment echte Keys generieren!
 # openssl rand -base64 32 → als API Key

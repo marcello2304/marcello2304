@@ -68,7 +68,7 @@ services:
       - ai-net
     # KEIN externer Port — nur via Nginx/Proxy erreichbar
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/version || exit 1"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 15s
       retries: 3
