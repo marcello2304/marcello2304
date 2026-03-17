@@ -847,44 +847,6 @@ tailwind.config = {
         </button>
       </div>
 
-      <!-- Create User Modal -->
-      <div x-show="showCreateUser" class="modal-overlay" @click.self="showCreateUser=false">
-        <div class="modal-box">
-          <h3 class="text-lg font-semibold text-slate-800 mb-4">Neuen User anlegen</h3>
-          <div class="space-y-4">
-            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Anzeigename</label><input type="text" x-model="newUser.display_name" class="input" placeholder="Max Mustermann"></div>
-            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">E-Mail</label><input type="email" x-model="newUser.email" class="input" placeholder="max@firma.de"></div>
-            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Passwort</label><input type="password" x-model="newUser.password" class="input" placeholder="Mindestens 6 Zeichen"></div>
-            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Rolle</label>
-              <select x-model="newUser.role" class="input"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super-Admin</option></select>
-            </div>
-            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Kunde zuweisen</label>
-              <select x-model="newUser.tenant_id" class="input">
-                <option value="">-- Keiner --</option>
-                <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
-              </select>
-            </div>
-          </div>
-          <div class="flex gap-2 mt-5">
-            <button class="btn btn-primary flex-1" @click="doCreateUser()">Anlegen</button>
-            <button class="btn btn-secondary" @click="showCreateUser=false">Abbrechen</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Change Password Modal -->
-      <div x-show="showChangePw" class="modal-overlay" @click.self="showChangePw=false">
-        <div class="modal-box">
-          <h3 class="text-lg font-semibold text-slate-800 mb-4">Passwort ändern</h3>
-          <p class="text-sm text-slate-500 mb-3">Für: <strong x-text="changePwUser?.display_name"></strong> (<span x-text="changePwUser?.email"></span>)</p>
-          <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Neues Passwort</label><input type="password" x-model="newPassword" class="input" placeholder="Neues Passwort (min. 6 Zeichen)"></div>
-          <div class="flex gap-2 mt-5">
-            <button class="btn btn-primary flex-1" @click="doChangePw()">Speichern</button>
-            <button class="btn btn-secondary" @click="showChangePw=false">Abbrechen</button>
-          </div>
-        </div>
-      </div>
-
       <div class="card">
         <table class="tbl">
           <thead>
@@ -1001,6 +963,46 @@ tailwind.config = {
 
     </div><!-- end p-8 -->
   </main>
+</div>
+
+<!-- ═══════════════ GLOBAL MODALS (von jeder Seite erreichbar) ═══════════════ -->
+
+<!-- Create User Modal -->
+<div x-show="showCreateUser" class="modal-overlay" @click.self="showCreateUser=false">
+  <div class="modal-box">
+    <h3 class="text-lg font-semibold text-slate-800 mb-4">Neuen User anlegen</h3>
+    <div class="space-y-4">
+      <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Anzeigename</label><input type="text" x-model="newUser.display_name" class="input" placeholder="Max Mustermann"></div>
+      <div><label class="block text-xs font-medium text-slate-500 mb-1.5">E-Mail</label><input type="email" x-model="newUser.email" class="input" placeholder="max@firma.de"></div>
+      <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Passwort</label><input type="password" x-model="newUser.password" class="input" placeholder="Mindestens 6 Zeichen"></div>
+      <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Rolle</label>
+        <select x-model="newUser.role" class="input"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super-Admin</option></select>
+      </div>
+      <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Kunde zuweisen</label>
+        <select x-model="newUser.tenant_id" class="input">
+          <option value="">-- Keiner --</option>
+          <template x-for="t in tenants" :key="t.id"><option :value="t.id" x-text="t.name+' ('+t.slug+')'"></option></template>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button class="btn btn-primary flex-1" @click="doCreateUser()">Anlegen</button>
+      <button class="btn btn-secondary" @click="showCreateUser=false">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div x-show="showChangePw" class="modal-overlay" @click.self="showChangePw=false">
+  <div class="modal-box">
+    <h3 class="text-lg font-semibold text-slate-800 mb-4">Passwort ändern</h3>
+    <p class="text-sm text-slate-500 mb-3">Für: <strong x-text="changePwUser?.display_name"></strong> (<span x-text="changePwUser?.email"></span>)</p>
+    <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Neues Passwort</label><input type="password" x-model="newPassword" class="input" placeholder="Neues Passwort (min. 6 Zeichen)"></div>
+    <div class="flex gap-2 mt-5">
+      <button class="btn btn-primary flex-1" @click="doChangePw()">Speichern</button>
+      <button class="btn btn-secondary" @click="showChangePw=false">Abbrechen</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════ TOAST ═══════════════ -->
