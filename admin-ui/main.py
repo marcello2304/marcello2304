@@ -1849,6 +1849,179 @@ async def delete_domain(domain_id: str, session: SessionInfo = Depends(require_a
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ROUTES: Terminverwaltung (Appointments)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _appointment_to_dict(row) -> dict:
+    d = dict(row)
+    for k in ("id", "user_id", "tenant_id"):
+        if d.get(k) is not None:
+            d[k] = str(d[k])
+    for k in ("start_time", "end_time", "created_at", "updated_at"):
+        if d.get(k):
+            d[k] = d[k].isoformat()
+    return d
+
+
+@app.get("/api/appointments")
+async def list_appointments(
+    user_id: Optional[str] = Query(None),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    session: SessionInfo = Depends(require_auth),
+):
+    """Termine auflisten. Superadmin sieht alle, sonst nur eigene."""
+    db = await get_db()
+    conditions = []
+    params = []
+    idx = 1
+
+    if session.is_superadmin() and user_id:
+        conditions.append(f"a.user_id = ${idx}::uuid")
+        params.append(user_id)
+        idx += 1
+    elif not session.is_superadmin():
+        conditions.append(f"a.user_id = ${idx}::uuid")
+        params.append(session.user_id)
+        idx += 1
+
+    if start:
+        conditions.append(f"a.start_time >= ${idx}::timestamptz")
+        params.append(start)
+        idx += 1
+    if end:
+        conditions.append(f"a.end_time <= ${idx}::timestamptz")
+        params.append(end)
+        idx += 1
+    if status:
+        conditions.append(f"a.status = ${idx}")
+        params.append(status)
+        idx += 1
+
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
+    rows = await db.fetch(
+        f"""SELECT a.*, u.display_name AS user_display_name
+            FROM public.appointments a
+            JOIN public.users u ON u.id = a.user_id
+            {where}
+            ORDER BY a.start_time ASC
+            LIMIT 500""",
+        *params,
+    )
+    return [_appointment_to_dict(r) for r in rows]
+
+
+@app.post("/api/appointments")
+async def create_appointment(request: Request, session: SessionInfo = Depends(require_auth)):
+    """Neuen Termin erstellen."""
+    body = await request.json()
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTPException(400, "Titel erforderlich")
+
+    start_time = body.get("start_time")
+    end_time = body.get("end_time")
+    if not start_time or not end_time:
+        raise HTTPException(400, "Start- und Endzeit erforderlich")
+
+    target_user_id = body.get("user_id", session.user_id)
+    if target_user_id != session.user_id and not session.is_superadmin():
+        raise HTTPException(403, "Nur Superadmin kann Termine fuer andere erstellen")
+
+    status_val = body.get("status", "scheduled")
+    if status_val not in ("scheduled", "completed", "cancelled", "blocked"):
+        raise HTTPException(400, "Ungueltiger Status")
+
+    db = await get_db()
+    row = await db.fetchrow(
+        """INSERT INTO public.appointments
+           (user_id, tenant_id, title, description, start_time, end_time, status,
+            customer_name, customer_email, customer_phone, customer_company,
+            customer_address, customer_notes)
+           VALUES ($1::uuid, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7,
+                   $8, $9, $10, $11, $12, $13)
+           RETURNING *""",
+        target_user_id,
+        uuid.UUID(body["tenant_id"]) if body.get("tenant_id") else None,
+        title,
+        body.get("description", ""),
+        start_time,
+        end_time,
+        status_val,
+        body.get("customer_name", ""),
+        body.get("customer_email", ""),
+        body.get("customer_phone", ""),
+        body.get("customer_company", ""),
+        body.get("customer_address", ""),
+        body.get("customer_notes", ""),
+    )
+    return _appointment_to_dict(row)
+
+
+@app.put("/api/appointments/{appointment_id}")
+async def update_appointment(appointment_id: str, request: Request, session: SessionInfo = Depends(require_auth)):
+    """Termin aktualisieren."""
+    db = await get_db()
+    existing = await db.fetchrow("SELECT * FROM public.appointments WHERE id=$1::uuid", appointment_id)
+    if not existing:
+        raise HTTPException(404, "Termin nicht gefunden")
+    if str(existing["user_id"]) != session.user_id and not session.is_superadmin():
+        raise HTTPException(403, "Kein Zugriff")
+
+    body = await request.json()
+    await db.execute(
+        """UPDATE public.appointments SET
+           title=$2, description=$3, start_time=$4::timestamptz, end_time=$5::timestamptz,
+           status=$6, customer_name=$7, customer_email=$8, customer_phone=$9,
+           customer_company=$10, customer_address=$11, customer_notes=$12, tenant_id=$13
+           WHERE id=$1::uuid""",
+        appointment_id,
+        body.get("title", existing["title"]),
+        body.get("description", existing["description"]),
+        body.get("start_time", existing["start_time"].isoformat()),
+        body.get("end_time", existing["end_time"].isoformat()),
+        body.get("status", existing["status"]),
+        body.get("customer_name", existing["customer_name"]),
+        body.get("customer_email", existing["customer_email"]),
+        body.get("customer_phone", existing["customer_phone"]),
+        body.get("customer_company", existing["customer_company"]),
+        body.get("customer_address", existing["customer_address"]),
+        body.get("customer_notes", existing["customer_notes"]),
+        uuid.UUID(body["tenant_id"]) if body.get("tenant_id") else existing["tenant_id"],
+    )
+    updated = await db.fetchrow("SELECT * FROM public.appointments WHERE id=$1::uuid", appointment_id)
+    return _appointment_to_dict(updated)
+
+
+@app.delete("/api/appointments/{appointment_id}")
+async def delete_appointment(appointment_id: str, session: SessionInfo = Depends(require_auth)):
+    """Termin loeschen."""
+    db = await get_db()
+    existing = await db.fetchrow("SELECT user_id FROM public.appointments WHERE id=$1::uuid", appointment_id)
+    if not existing:
+        raise HTTPException(404, "Termin nicht gefunden")
+    if str(existing["user_id"]) != session.user_id and not session.is_superadmin():
+        raise HTTPException(403, "Kein Zugriff")
+
+    await db.execute("DELETE FROM public.appointments WHERE id=$1::uuid", appointment_id)
+    return {"deleted": appointment_id}
+
+
+@app.get("/api/appointments/users")
+async def list_appointment_users(session: SessionInfo = Depends(require_superadmin)):
+    """Alle User mit Terminen auflisten (fuer Superadmin-Filter)."""
+    db = await get_db()
+    rows = await db.fetch(
+        """SELECT DISTINCT u.id, u.display_name, u.email
+           FROM public.users u
+           WHERE u.is_active = true
+           ORDER BY u.display_name"""
+    )
+    return [{"id": str(r["id"]), "display_name": r["display_name"], "email": r["email"]} for r in rows]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Statische Dateien
 # ══════════════════════════════════════════════════════════════════════════════
 app.mount("/static", StaticFiles(directory="static"), name="static")
