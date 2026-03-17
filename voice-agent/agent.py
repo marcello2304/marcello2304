@@ -212,21 +212,63 @@ class RagLLMStream(llm.LLMStream):
 # ═════════════════════════════════════════════════════════════════════════════
 # Agent Entrypoint
 # ═════════════════════════════════════════════════════════════════════════════
+async def _fetch_greeting() -> str:
+    """Holt eine Begrüßung mit EPPCOM-Infos aus dem RAG-System."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{N8N_URL}/webhook/rag-chat",
+                json={
+                    "query": "Stelle dich kurz als EPPCOM Sprach-Assistent vor. "
+                             "Beschreibe in 2-3 Sätzen was EPPCOM macht und biete deine Hilfe an.",
+                    "session_id": "voice_greeting",
+                },
+                headers={
+                    "X-Tenant-ID": TENANT_ID,
+                    "X-API-Key": API_KEY,
+                    "Content-Type": "application/json",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("answer", data.get("response", ""))
+    except Exception as e:
+        logger.error(f"Greeting RAG-Fehler: {e}")
+        return ""
+
+
+FALLBACK_GREETING = (
+    "Hallo und willkommen bei EPPCOM! "
+    "Ich bin Ihr digitaler Sprach-Assistent. "
+    "Wie kann ich Ihnen heute helfen?"
+)
+
+
 async def entrypoint(ctx: JobContext):
     logger.info(f"Voice Agent gestartet — Room: {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
     agent = agents.voice.Agent(
-        instructions="Du bist der EPPCOM Sprach-Assistent. Antworte auf Deutsch, kurz und hilfreich.",
+        instructions=(
+            "Du bist der EPPCOM Sprach-Assistent. Antworte auf Deutsch, kurz und hilfreich. "
+            "Sei freundlich und professionell."
+        ),
         stt=WhisperSTT(),
         llm=RagLLM(),
         tts=PiperTTS(),
-        vad=silero.VAD.load(),
-        turn_detection=None,
+        vad=silero.VAD.load(min_silence_duration=3.0),
+        min_endpointing_delay=3.0,
     )
 
     session = agents.AgentSession()
     await session.start(agent=agent, room=ctx.room)
+
+    # Begrüßung: RAG-basiert oder Fallback
+    greeting = await _fetch_greeting()
+    if not greeting or len(greeting) < 10:
+        greeting = FALLBACK_GREETING
+    logger.info(f"Begrüßung: '{greeting[:80]}...'")
+    session.say(greeting)
 
     logger.info("Agent-Session gestartet, warte auf Audio...")
 
