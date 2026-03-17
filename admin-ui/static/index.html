@@ -718,7 +718,7 @@ tailwind.config = {
     <div x-show="page==='tenants'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
         <div></div>
-        <button class="btn btn-primary" @click="showCreateTenant=true; newTenant={name:'',slug:'',email:'',plan:'starter'}">
+        <button class="btn btn-primary" @click="showCreateTenant=true; newTenant={name:'',slug:'',email:'',plan:'starter',create_user:false,user_name:'',user_email:'',user_password:''}">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
           Neuer Kunde
         </button>
@@ -726,46 +726,108 @@ tailwind.config = {
 
       <!-- Create Tenant Modal -->
       <div x-show="showCreateTenant" class="modal-overlay" @click.self="showCreateTenant=false">
-        <div class="modal-box">
+        <div class="modal-box max-w-xl">
           <h3 class="text-lg font-semibold text-slate-800 mb-4">Neuen Kunden anlegen</h3>
           <div class="space-y-4">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Firmendaten</div>
             <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Firmenname</label><input type="text" x-model="newTenant.name" class="input" placeholder="Musterfirma GmbH"></div>
             <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Slug (URL-Name)</label><input type="text" x-model="newTenant.slug" class="input" placeholder="musterfirma" @input="newTenant.slug=$event.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,'')"></div>
-            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">E-Mail</label><input type="email" x-model="newTenant.email" class="input" placeholder="kontakt@firma.de"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Kontakt-E-Mail</label><input type="email" x-model="newTenant.email" class="input" placeholder="kontakt@firma.de"></div>
             <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Plan</label>
               <select x-model="newTenant.plan" class="input"><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select>
             </div>
+
+            <!-- Optional: Initial Admin-User -->
+            <div class="border-t border-slate-100 pt-4 mt-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" x-model="newTenant.create_user" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                <span class="text-sm font-medium text-slate-700">Admin-Nutzer direkt mit anlegen</span>
+              </label>
+            </div>
+            <template x-if="newTenant.create_user">
+              <div class="space-y-3 pl-1 border-l-2 border-brand-200 ml-1">
+                <div class="pl-3"><label class="block text-xs font-medium text-slate-500 mb-1.5">Anzeigename</label><input type="text" x-model="newTenant.user_name" class="input" placeholder="Max Mustermann"></div>
+                <div class="pl-3"><label class="block text-xs font-medium text-slate-500 mb-1.5">E-Mail (Login)</label><input type="email" x-model="newTenant.user_email" class="input" placeholder="max@firma.de" @input="if(!newTenant.email) newTenant.email=$event.target.value"></div>
+                <div class="pl-3"><label class="block text-xs font-medium text-slate-500 mb-1.5">Passwort</label><input type="password" x-model="newTenant.user_password" class="input" placeholder="Mindestens 6 Zeichen"></div>
+              </div>
+            </template>
           </div>
           <div class="flex gap-2 mt-5">
-            <button class="btn btn-primary flex-1" @click="doCreateTenant()">Anlegen</button>
+            <button class="btn btn-primary flex-1" @click="doCreateTenant()">
+              <span x-text="newTenant.create_user ? 'Kunde + Nutzer anlegen' : 'Kunde anlegen'"></span>
+            </button>
             <button class="btn btn-secondary" @click="showCreateTenant=false">Abbrechen</button>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <table class="tbl">
-          <thead>
-            <tr><th>Name</th><th>Slug</th><th>Plan</th><th>User</th><th>Quellen</th><th>Medien</th><th>Status</th><th class="text-right">Aktionen</th></tr>
-          </thead>
-          <tbody>
-            <template x-for="t in tenants" :key="t.id">
-              <tr>
-                <td class="font-medium text-slate-800" x-text="t.name"></td>
-                <td class="font-mono text-xs text-slate-500" x-text="t.slug"></td>
-                <td><span class="badge" :class="t.plan==='enterprise'?'badge-purple':t.plan==='pro'?'badge-info':'badge-neutral'" x-text="t.plan"></span></td>
-                <td class="text-slate-600" x-text="t.user_count||0"></td>
-                <td class="text-slate-600" x-text="t.source_count||0"></td>
-                <td class="text-slate-600" x-text="t.media_count||0"></td>
-                <td><span class="badge" :class="t.status==='active'?'badge-success':'badge-error'" x-text="t.status"></span></td>
-                <td class="text-right space-x-1">
-                  <button class="btn btn-secondary btn-sm" @click="browseTenantContent(t.id)">Inhalte</button>
-                  <button class="btn btn-danger btn-sm" @click="if(confirm('Kunde deaktivieren?')) deleteTenant(t.id)" x-show="t.status==='active'">Deaktiv.</button>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+      <!-- Kunden-Liste mit expandierbaren Nutzer-Zeilen -->
+      <div class="space-y-4">
+        <template x-for="t in tenants" :key="t.id">
+          <div class="card">
+            <!-- Kunden-Header -->
+            <div class="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 transition-colors" @click="toggleTenantExpand(t.id)">
+              <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                     :class="t.plan==='enterprise'?'bg-violet-500':t.plan==='pro'?'bg-brand-500':'bg-slate-400'"
+                     x-text="(t.name||'?')[0].toUpperCase()"></div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-slate-800" x-text="t.name"></span>
+                    <span class="badge" :class="t.plan==='enterprise'?'badge-purple':t.plan==='pro'?'badge-info':'badge-neutral'" x-text="t.plan"></span>
+                    <span class="badge" :class="t.status==='active'?'badge-success':'badge-error'" x-text="t.status"></span>
+                  </div>
+                  <div class="flex items-center gap-4 mt-1 text-xs text-slate-400">
+                    <span class="font-mono" x-text="t.slug"></span>
+                    <span x-text="(t.user_count||0)+' Nutzer'"></span>
+                    <span x-text="(t.source_count||0)+' Dokumente'"></span>
+                    <span x-text="(t.media_count||0)+' Medien'"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="btn btn-secondary btn-sm" @click.stop="browseTenantContent(t.id)">Inhalte</button>
+                <button class="btn btn-danger btn-sm" @click.stop="if(confirm('Kunde deaktivieren?')) deleteTenant(t.id)" x-show="t.status==='active'">Deaktiv.</button>
+                <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" :class="expandedTenant===t.id && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+              </div>
+            </div>
+
+            <!-- Expandierbare Nutzer-Liste -->
+            <div x-show="expandedTenant===t.id" x-transition class="border-t border-slate-100">
+              <div class="px-5 py-3 bg-slate-50/50 flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nutzer in diesem Kunden</span>
+                <button class="btn btn-primary btn-sm" @click.stop="showCreateUser=true; newUser={email:'',password:'',display_name:'',role:'admin',tenant_id:t.id}">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                  Nutzer hinzufügen
+                </button>
+              </div>
+              <div x-show="!tenantUsers[t.id] || tenantUsers[t.id].length===0" class="px-5 py-6 text-center text-sm text-slate-400">
+                Keine Nutzer zugewiesen. Lege jetzt den ersten Nutzer an.
+              </div>
+              <table x-show="tenantUsers[t.id] && tenantUsers[t.id].length>0" class="tbl">
+                <thead>
+                  <tr class="!border-b-0"><th class="pl-5">Name</th><th>E-Mail</th><th>Rolle</th><th>Quellen</th><th>Medien</th><th>Status</th><th class="text-right pr-5">Aktionen</th></tr>
+                </thead>
+                <tbody>
+                  <template x-for="u in tenantUsers[t.id]||[]" :key="u.id">
+                    <tr>
+                      <td class="font-medium text-slate-800 pl-5" x-text="u.display_name"></td>
+                      <td class="text-slate-500 text-xs" x-text="u.email"></td>
+                      <td><span class="badge" :class="u.role==='superadmin'?'badge-purple':u.role==='admin'?'badge-info':'badge-neutral'" x-text="u.role"></span></td>
+                      <td class="text-slate-600" x-text="u.source_count||0"></td>
+                      <td class="text-slate-600" x-text="u.media_count||0"></td>
+                      <td><span class="badge" :class="u.is_active?'badge-success':'badge-error'" x-text="u.is_active?'Aktiv':'Inaktiv'"></span></td>
+                      <td class="text-right space-x-1 pr-5">
+                        <button class="btn btn-secondary btn-sm" @click.stop="changePwUser=u; newPassword=''; showChangePw=true">Passwort</button>
+                        <button class="btn btn-danger btn-sm" @click.stop="if(confirm('User deaktivieren?')) deleteUser(u.id).then(()=>loadTenantUsers(t.id))" x-show="u.is_active && u.email!==session.email">Deaktiv.</button>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -791,7 +853,7 @@ tailwind.config = {
           <div class="space-y-4">
             <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Anzeigename</label><input type="text" x-model="newUser.display_name" class="input" placeholder="Max Mustermann"></div>
             <div><label class="block text-xs font-medium text-slate-500 mb-1.5">E-Mail</label><input type="email" x-model="newUser.email" class="input" placeholder="max@firma.de"></div>
-            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Passwort</label><input type="text" x-model="newUser.password" class="input" placeholder="Mindestens 6 Zeichen"></div>
+            <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Passwort</label><input type="password" x-model="newUser.password" class="input" placeholder="Mindestens 6 Zeichen"></div>
             <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Rolle</label>
               <select x-model="newUser.role" class="input"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super-Admin</option></select>
             </div>
@@ -814,7 +876,7 @@ tailwind.config = {
         <div class="modal-box">
           <h3 class="text-lg font-semibold text-slate-800 mb-4">Passwort ändern</h3>
           <p class="text-sm text-slate-500 mb-3">Für: <strong x-text="changePwUser?.display_name"></strong> (<span x-text="changePwUser?.email"></span>)</p>
-          <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Neues Passwort</label><input type="text" x-model="newPassword" class="input" placeholder="Neues Passwort (min. 6 Zeichen)"></div>
+          <div><label class="block text-xs font-medium text-slate-500 mb-1.5">Neues Passwort</label><input type="password" x-model="newPassword" class="input" placeholder="Neues Passwort (min. 6 Zeichen)"></div>
           <div class="flex gap-2 mt-5">
             <button class="btn btn-primary flex-1" @click="doChangePw()">Speichern</button>
             <button class="btn btn-secondary" @click="showChangePw=false">Abbrechen</button>
@@ -978,7 +1040,9 @@ function app() {
     // Forms
     uploadDoc: { tenant_id:'', name:'', file:null, text:'', tags:'', loading:false, result:'', error:'' },
     uploadMedia: { tenant_id:'', folder:'media', file:null, description:'', loading:false, result:'', error:'' },
-    newTenant: { name:'', slug:'', email:'', plan:'starter' },
+    newTenant: { name:'', slug:'', email:'', plan:'starter', create_user:false, user_name:'', user_email:'', user_password:'' },
+    expandedTenant: null,
+    tenantUsers: {},
     newUser: { email:'', password:'', display_name:'', role:'user', tenant_id:'' },
     changePwUser: null,
     newPassword: '',
@@ -1194,9 +1258,28 @@ function app() {
 
     async doCreateTenant() {
       try {
-        await this.api('POST','/api/tenants', this.newTenant);
+        const tenantData = { name: this.newTenant.name, slug: this.newTenant.slug, email: this.newTenant.email, plan: this.newTenant.plan };
+        const result = await this.api('POST','/api/tenants', tenantData);
+        const tenantId = result.id || result.tenant_id;
+
+        // Optional: Admin-User direkt mit anlegen
+        if (this.newTenant.create_user && this.newTenant.user_email && this.newTenant.user_password) {
+          try {
+            await this.api('POST','/api/users', {
+              email: this.newTenant.user_email,
+              password: this.newTenant.user_password,
+              display_name: this.newTenant.user_name || this.newTenant.user_email,
+              role: 'admin',
+              tenant_id: tenantId
+            });
+            this.showToast('Kunde + Admin-Nutzer angelegt');
+          } catch(ue) {
+            this.showToast('Kunde angelegt, aber Nutzer-Fehler: ' + ue.message, 'error');
+          }
+        } else {
+          this.showToast('Kunde angelegt');
+        }
         this.showCreateTenant = false;
-        this.showToast('Kunde angelegt');
         this.loadTenants();
       } catch(e) { alert(e.message); }
     },
@@ -1205,17 +1288,45 @@ function app() {
       try { await this.api('DELETE',`/api/tenants/${id}`); this.showToast('Deaktiviert'); this.loadTenants(); } catch(e) { alert(e.message); }
     },
 
+    async toggleTenantExpand(id) {
+      if (this.expandedTenant === id) {
+        this.expandedTenant = null;
+      } else {
+        this.expandedTenant = id;
+        await this.loadTenantUsers(id);
+      }
+    },
+
+    async loadTenantUsers(tenantId) {
+      try {
+        const users = await this.api('GET', '/api/users?tenant_id=' + tenantId);
+        this.tenantUsers[tenantId] = users;
+      } catch(e) { this.tenantUsers[tenantId] = []; }
+    },
+
     async doCreateUser() {
+      if (!this.newUser.password || this.newUser.password.length < 6) { alert('Passwort muss mindestens 6 Zeichen haben'); return; }
       try {
         await this.api('POST','/api/users', this.newUser);
         this.showCreateUser = false;
         this.showToast('User angelegt');
         this.loadUsers();
+        this.loadTenants();
+        // Tenant-User-Liste aktualisieren falls expandiert
+        if (this.newUser.tenant_id && this.expandedTenant === this.newUser.tenant_id) {
+          this.loadTenantUsers(this.newUser.tenant_id);
+        }
       } catch(e) { alert(e.message); }
     },
 
     async deleteUser(id) {
-      try { await this.api('DELETE',`/api/users/${id}`); this.showToast('User deaktiviert'); this.loadUsers(); } catch(e) { alert(e.message); }
+      try {
+        await this.api('DELETE',`/api/users/${id}`);
+        this.showToast('User deaktiviert');
+        this.loadUsers();
+        this.loadTenants();
+        if (this.expandedTenant) this.loadTenantUsers(this.expandedTenant);
+      } catch(e) { alert(e.message); }
     },
 
     async doChangePw() {
