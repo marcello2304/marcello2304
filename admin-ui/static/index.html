@@ -162,6 +162,10 @@ tailwind.config = {
         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
         Termine
       </div>
+      <div class="sidebar-link" :class="page==='voice' && 'active'" @click="go('voice')">
+        <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"/></svg>
+        Voice Bot
+      </div>
 
       <!-- Analyse -->
       <template x-if="session.role==='superadmin' || session.role==='admin'">
@@ -822,6 +826,61 @@ tailwind.config = {
 
     </div>
 
+    <!-- ═══ VOICE BOT ═══ -->
+    <div x-show="page==='voice'" class="fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">Voice Bot</h1>
+          <p class="text-sm text-slate-500 mt-1">Sprich mit dem RAG-Assistenten per Mikrofon</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge" :class="voiceConnected ? 'badge-success' : 'badge-neutral'" x-text="voiceConnected ? 'Verbunden' : 'Getrennt'"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body text-center py-12">
+          <!-- Mikrofon-Button -->
+          <div class="mb-6">
+            <button @click="voiceConnected ? stopVoice() : startVoice()"
+                    class="w-24 h-24 rounded-full transition-all duration-300 flex items-center justify-center mx-auto shadow-lg"
+                    :class="voiceConnected ? 'bg-red-500 hover:bg-red-600 shadow-red-200 animate-pulse' : 'bg-brand-600 hover:bg-brand-500 shadow-brand-200'"
+                    :disabled="voiceConnecting">
+              <svg x-show="!voiceConnected" class="w-10 h-10 text-white" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"/>
+              </svg>
+              <svg x-show="voiceConnected" class="w-10 h-10 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z"/>
+              </svg>
+            </button>
+          </div>
+
+          <p class="text-lg font-medium text-slate-700" x-text="voiceStatus"></p>
+          <p class="text-sm text-slate-400 mt-2" x-show="!voiceConnected">Klicke auf das Mikrofon um eine Sprachsitzung zu starten</p>
+
+          <!-- Audio-Container (versteckt, fuer eingehende Audio-Tracks) -->
+          <div id="voice-audio-container" class="hidden"></div>
+
+          <!-- Transkript -->
+          <template x-if="voiceLog.length > 0">
+            <div class="mt-8 text-left max-w-xl mx-auto">
+              <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Verlauf</h3>
+              <div class="space-y-3 max-h-64 overflow-y-auto">
+                <template x-for="(entry, i) in voiceLog" :key="i">
+                  <div class="flex gap-3 p-3 rounded-lg" :class="entry.role === 'user' ? 'bg-brand-50' : 'bg-slate-50'">
+                    <div class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                         :class="entry.role === 'user' ? 'bg-brand-200 text-brand-700' : 'bg-slate-200 text-slate-700'"
+                         x-text="entry.role === 'user' ? 'Du' : 'AI'"></div>
+                    <p class="text-sm text-slate-700" x-text="entry.text"></p>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ CONVERSATIONS ═══ -->
     <div x-show="page==='conversations'" class="fade-in">
       <div class="flex items-center justify-between mb-6">
@@ -1354,6 +1413,13 @@ function app() {
     browserTenantId: '',
     browserContent: null,
 
+    // Voice Bot
+    voiceConnected: false,
+    voiceConnecting: false,
+    voiceStatus: 'Bereit',
+    voiceLog: [],
+    voiceRoom: null,
+
     // Toast
     toast: { show:false, msg:'', type:'success' },
 
@@ -1417,6 +1483,77 @@ function app() {
       if (p==='appointments') this.loadAppointments();
       if (p==='conversations') this.loadConversations();
       if (p==='domains') this.loadDomains();
+    },
+
+    // ── Voice Bot ─────────────────────────────────────────────────────
+    async startVoice() {
+      if (this.voiceConnecting || this.voiceConnected) return;
+      this.voiceConnecting = true;
+      this.voiceStatus = 'Verbinde...';
+      try {
+        // LiveKit SDK dynamisch laden falls nicht vorhanden
+        if (!window.LivekitClient) {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+        }
+
+        // Token vom Backend holen
+        const r = await this.api('POST', '/api/livekit-token', {
+          identity: 'user-' + (this.session.display_name || this.session.email || Date.now()),
+          room: 'eppcom-voice'
+        });
+        if (!r.token) throw new Error('Kein Token erhalten');
+
+        const room = new LivekitClient.Room();
+        this.voiceRoom = room;
+
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+          if (track.kind === LivekitClient.Track.Kind.Audio) {
+            const el = track.attach();
+            el.id = 'voice-track-' + track.sid;
+            document.getElementById('voice-audio-container').appendChild(el);
+          }
+        });
+
+        room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+          track.detach().forEach(el => el.remove());
+        });
+
+        room.on(LivekitClient.RoomEvent.Disconnected, () => {
+          this.voiceConnected = false;
+          this.voiceConnecting = false;
+          this.voiceStatus = 'Verbindung getrennt';
+          this.voiceRoom = null;
+        });
+
+        await room.connect(r.url, r.token);
+        await room.localParticipant.setMicrophoneEnabled(true);
+
+        this.voiceConnected = true;
+        this.voiceConnecting = false;
+        this.voiceStatus = 'Verbunden — Spreche jetzt!';
+      } catch (e) {
+        this.voiceConnecting = false;
+        this.voiceStatus = 'Fehler: ' + (e.message || e);
+        this.showToast(this.voiceStatus, 'error');
+      }
+    },
+
+    async stopVoice() {
+      if (this.voiceRoom) {
+        await this.voiceRoom.disconnect();
+        this.voiceRoom = null;
+      }
+      this.voiceConnected = false;
+      this.voiceStatus = 'Sitzung beendet';
+      // Audio-Elemente aufraumen
+      const container = document.getElementById('voice-audio-container');
+      if (container) container.innerHTML = '';
     },
 
     async loadAll() {
