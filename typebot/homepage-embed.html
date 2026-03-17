@@ -1,22 +1,33 @@
 <!--
   EPPCOM KI-Chatbot — Embed-Code für www.eppcom.de
   ==================================================
-  Eigenes Chat-Widget — ruft direkt die RAG-API auf (kein Typebot nötig).
+  Typebot v2 Bubble-Widget mit RAG-Backend.
 
   RAG-Pipeline:
-    Widget → appdb.eppcom.de/api/public/chat → Ollama → Antwort
+    Typebot Widget → bot.eppcom.de → appdb.eppcom.de/api/public/chat → Ollama → Antwort
 
   Platzierung: Vor </body> auf jeder Seite.
 -->
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     CHAT-WIDGET (empfohlen)
-     Schwebendes Chat-Icon unten rechts, öffnet sich bei Klick.
-     Spricht direkt mit der RAG-API — kein Typebot, kein Iframe.
+     TYPEBOT CHATBOT v2 (Bubble-Widget)
+     Schwebendes Chat-Icon unten rechts — Typebot-Design.
+     RAG-Antworten kommen server-seitig via Webhook.
      ═══════════════════════════════════════════════════════════════════ -->
 
-<script src="https://appdb.eppcom.de/widget/chat-widget.js"
-        data-api-url="https://appdb.eppcom.de/api/public/widget-chat"
-        data-accent="#2563EB"
-        data-welcome="Hallo! Wie kann ich Ihnen helfen? Ich beantworte Fragen zu EPPCOM — schnell, präzise und DSGVO-konform."
-        defer></script>
+<script type="module">
+  import Typebot from "https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js";
+
+  Typebot.initBubble({
+    typebot: "eppcom-chatbot-v2",
+    apiHost: "https://bot.eppcom.de",
+    theme: {
+      button: { backgroundColor: "#2563EB" },
+      chatWindow: { backgroundColor: "#ffffff" },
+    },
+    previewMessage: {
+      message: "Hallo! Kann ich Ihnen helfen?",
+      autoShowDelay: 5000,
+    },
+  });
+</script>
