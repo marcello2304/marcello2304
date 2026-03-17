@@ -1493,22 +1493,28 @@ function app() {
       try {
         // LiveKit SDK dynamisch laden falls nicht vorhanden
         if (!window.LivekitClient) {
+          this.voiceStatus = 'Lade LiveKit SDK...';
           await new Promise((resolve, reject) => {
             const s = document.createElement('script');
-            s.src = 'https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js';
-            s.onload = resolve;
-            s.onerror = reject;
+            s.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
+            s.onload = () => {
+              if (window.LivekitClient) resolve();
+              else reject(new Error('LiveKit SDK geladen aber LivekitClient nicht verfügbar'));
+            };
+            s.onerror = () => reject(new Error('LiveKit SDK konnte nicht geladen werden'));
             document.head.appendChild(s);
           });
         }
 
         // Token vom Backend holen
+        this.voiceStatus = 'Hole Token...';
         const r = await this.api('POST', '/api/livekit-token', {
           identity: 'user-' + (this.session.display_name || this.session.email || Date.now()),
           room: 'eppcom-voice'
         });
         if (!r.token) throw new Error('Kein Token erhalten');
 
+        this.voiceStatus = 'Verbinde mit LiveKit...';
         const room = new LivekitClient.Room();
         this.voiceRoom = room;
 
@@ -1524,10 +1530,10 @@ function app() {
           track.detach().forEach(el => el.remove());
         });
 
-        room.on(LivekitClient.RoomEvent.Disconnected, () => {
+        room.on(LivekitClient.RoomEvent.Disconnected, (reason) => {
           this.voiceConnected = false;
           this.voiceConnecting = false;
-          this.voiceStatus = 'Verbindung getrennt';
+          this.voiceStatus = 'Verbindung getrennt' + (reason ? ': ' + reason : '');
           this.voiceRoom = null;
         });
 
@@ -1539,8 +1545,10 @@ function app() {
         this.voiceStatus = 'Verbunden — Spreche jetzt!';
       } catch (e) {
         this.voiceConnecting = false;
-        this.voiceStatus = 'Fehler: ' + (e.message || e);
+        const msg = e instanceof Error ? e.message : (typeof e === 'string' ? e : JSON.stringify(e));
+        this.voiceStatus = 'Fehler: ' + msg;
         this.showToast(this.voiceStatus, 'error');
+        console.error('Voice Bot Fehler:', e);
       }
     },
 
