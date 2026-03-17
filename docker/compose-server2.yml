@@ -99,21 +99,27 @@ services:
       timeout: 10s
       retries: 3
 
-  # ── LiveKit Agent (Voice Bot Worker) ──────────────────────────────────
+  # ── LiveKit Agent (EPPCOM Voice Bot) ──────────────────────────────────
   livekit-agent:
-    image: livekit/agents-playground:latest
+    build:
+      context: ../voice-agent
+      dockerfile: Dockerfile
+    image: eppcom/voice-agent:latest
     container_name: livekit-agent
     restart: unless-stopped
     environment:
       LIVEKIT_URL: "ws://livekit:7880"
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
-      OLLAMA_BASE_URL: "http://ollama:11434"
-      # STT/TTS Konfiguration (Whisper via Ollama oder extern)
-      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      N8N_URL: ${N8N_URL:-https://workflows.eppcom.de}
+      TENANT_ID: ${TENANT_ID:-}
+      API_KEY: ${RAG_API_KEY:-}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      PIPER_MODEL: /opt/piper-models/de_DE-thorsten-medium.onnx
     networks:
       - ai-net
     depends_on:
-      - livekit
-      - ollama
+      livekit:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy

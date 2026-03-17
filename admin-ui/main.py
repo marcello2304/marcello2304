@@ -2022,6 +2022,50 @@ async def list_appointment_users(session: SessionInfo = Depends(require_superadm
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# LiveKit Token Endpoint (Voice Bot)
+# ══════════════════════════════════════════════════════════════════════════════
+LIVEKIT_KEY    = os.getenv("LIVEKIT_API_KEY", "")
+LIVEKIT_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
+
+@app.post("/api/livekit-token")
+async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_admin)):
+    """LiveKit-Token generieren für Voice-Bot-Zugang."""
+    if not LIVEKIT_KEY or not LIVEKIT_SECRET:
+        raise HTTPException(503, "LiveKit ist nicht konfiguriert (LIVEKIT_API_KEY/SECRET fehlen)")
+
+    import hmac, base64, time as _time
+
+    # Manuelles JWT erstellen (ohne livekit-api Dependency)
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=")
+    now = int(_time.time())
+    identity = body.get("identity", f"user-{session.user_id}")
+    room_name = body.get("room", "eppcom-voice")
+    payload_data = {
+        "iss": LIVEKIT_KEY,
+        "sub": identity,
+        "iat": now,
+        "exp": now + 3600,
+        "nbf": now,
+        "jti": str(uuid.uuid4()),
+        "video": {
+            "roomJoin": True,
+            "room": room_name,
+            "canPublish": True,
+            "canSubscribe": True,
+        },
+        "metadata": json.dumps({"name": identity}),
+    }
+    payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).rstrip(b"=")
+    signing_input = header + b"." + payload
+    signature = base64.urlsafe_b64encode(
+        hmac.new(LIVEKIT_SECRET.encode(), signing_input, hashlib.sha256).digest()
+    ).rstrip(b"=")
+    token = (signing_input + b"." + signature).decode()
+
+    return {"token": token, "url": f"wss://voice.{os.getenv('DOMAIN', 'eppcom.de')}"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Statische Dateien
 # ══════════════════════════════════════════════════════════════════════════════
 app.mount("/static", StaticFiles(directory="static"), name="static")

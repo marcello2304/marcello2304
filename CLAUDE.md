@@ -54,6 +54,18 @@ Führe beim Start **immer automatisch** folgende Schritte aus — frage nicht, o
 | `/backup` | `scripts/backup-postgres.sh` |
 | `/migrate` | SQL-Files in `sql/` (001→005) |
 
+### Voice Bot (Server 2)
+
+| Komponente | Datei |
+|-----------|-------|
+| Voice Agent (Python) | `voice-agent/agent.py` |
+| Voice Agent Dockerfile | `voice-agent/Dockerfile` |
+| Docker Compose Server 2 | `docker/compose-server2.yml` |
+| LiveKit Server Config | `docker/livekit.yaml` |
+| Nginx Reverse Proxy | `docker/nginx-server2.conf` |
+| Deploy Script Server 2 | `scripts/deploy-server2.sh` |
+| ENV Template Server 2 | `coolify/env-templates/server2.env.example` |
+
 ## Kritische Regeln
 
 - PostgreSQL darf **keinen externen Port** binden (kein `0.0.0.0:5432`)
