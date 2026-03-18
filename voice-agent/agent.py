@@ -2,8 +2,8 @@
 Nexo — EPPCOM Voice Bot Agent (livekit-agents v1.4.6)
 - STT: faster-whisper (lokal, DSGVO-konform)
 - LLM: RAG-Pipeline via Admin-UI
-- TTS: piper-tts Kerstin (weiblich, lokal, DSGVO-konform)
-- VAD: silero (2s Stille = Endpunkt)
+- TTS: Cartesia AI Sonic-3 (ultra-natürlich, schnell)
+- VAD: silero (0.8s Stille = Endpunkt)
 
 Deployment: Docker auf Server 2 (46.224.54.65)
 """
@@ -35,11 +35,13 @@ RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
 TENANT_ID = os.getenv("TENANT_ID", "")
 API_KEY = os.getenv("API_KEY", "")
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
-PIPER_MODEL = os.getenv("PIPER_MODEL", "/opt/piper-models/de_DE-ramona-low.onnx")
-PIPER_SAMPLE_RATE = int(os.getenv("PIPER_SAMPLE_RATE", "16000"))
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://localhost:7880")
 LIVEKIT_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
+
+# Cartesia AI TTS (Cloud-basiert, ultra-natürlich)
+CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "")
+CARTESIA_VOICE_ID = os.getenv("CARTESIA_VOICE_ID", "b9de4a89-2257-424b-94c2-db18ba68c81a")
 
 # ── Whisper-Modell einmal laden ──────────────────────────────────────────────
 from faster_whisper import WhisperModel
@@ -93,22 +95,22 @@ class WhisperSTT(stt.STT):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Custom TTS: Piper (Kerstin — weibliche deutsche Stimme)
+# Custom TTS: Cartesia AI Sonic-3 (Ultra-natürlich, 44.1kHz)
 # ═════════════════════════════════════════════════════════════════════════════
-class PiperTTS(tts.TTS):
+class CartesiaTTS(tts.TTS):
     def __init__(self):
         super().__init__(
             capabilities=tts.TTSCapabilities(streaming=False),
-            sample_rate=PIPER_SAMPLE_RATE,
+            sample_rate=16000,  # Cartesia: 16kHz (WebRTC kompatibel)
             num_channels=1,
         )
 
     def synthesize(self, text: str, *, conn_options=None) -> tts.ChunkedStream:
-        return PiperChunkedStream(tts=self, input_text=text, conn_options=conn_options)
+        return CartesiaChunkedStream(tts=self, input_text=text, conn_options=conn_options)
 
 
-class PiperChunkedStream(tts.ChunkedStream):
-    def __init__(self, *, tts: PiperTTS, input_text: str, conn_options=None):
+class CartesiaChunkedStream(tts.ChunkedStream):
+    def __init__(self, *, tts: CartesiaTTS, input_text: str, conn_options=None):
         super().__init__(
             tts=tts,
             input_text=input_text,
@@ -117,27 +119,52 @@ class PiperChunkedStream(tts.ChunkedStream):
 
     async def _run(self, output_emitter: tts.AudioEmitter) -> None:
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "piper",
-                "--model", PIPER_MODEL,
-                "--output_raw",
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
-            )
-            stdout, _ = await proc.communicate(self._input_text.encode("utf-8"))
-            logger.info(f"TTS: {len(stdout)} bytes PCM für '{self._input_text[:50]}...'")
+            if not CARTESIA_API_KEY:
+                logger.error("CARTESIA_API_KEY nicht gesetzt!")
+                return
 
-            if stdout:
-                output_emitter.initialize(
-                    request_id="piper",
-                    sample_rate=PIPER_SAMPLE_RATE,
-                    num_channels=1,
-                    mime_type="audio/pcm",
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    "https://api.cartesia.ai/tts/bytes",
+                    headers={
+                        "Authorization": f"Bearer {CARTESIA_API_KEY}",
+                        "Cartesia-Version": "2025-04-16",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model_id": "sonic-3",
+                        "transcript": self._input_text,
+                        "voice": {
+                            "mode": "id",
+                            "id": CARTESIA_VOICE_ID,
+                        },
+                        "output_format": {
+                            "container": "raw",
+                            "encoding": "pcm_f32le",
+                            "sample_rate": 16000,
+                        },
+                        "language": "de",
+                        "generation_config": {
+                            "volume": 1.0,
+                            "speed": 1.0,
+                            "emotion": "neutral",
+                        },
+                    },
                 )
-                output_emitter.push(stdout)
+                resp.raise_for_status()
+                audio_data = resp.content
+                logger.info(f"Cartesia TTS: {len(audio_data)} bytes PCM für '{self._input_text[:50]}...'")
+
+                if audio_data:
+                    output_emitter.initialize(
+                        request_id="cartesia",
+                        sample_rate=16000,
+                        num_channels=1,
+                        mime_type="audio/pcm",
+                    )
+                    output_emitter.push(audio_data)
         except Exception as e:
-            logger.error(f"TTS Fehler: {e}", exc_info=True)
+            logger.error(f"Cartesia TTS Fehler: {e}", exc_info=True)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -270,7 +297,7 @@ async def entrypoint(ctx: JobContext):
         ),
         stt=WhisperSTT(),
         llm=RagLLM(),
-        tts=PiperTTS(),
+        tts=CartesiaTTS(),
         vad=silero.VAD.load(min_silence_duration=0.8),
         min_endpointing_delay=0.5,
         allow_interruptions=True,

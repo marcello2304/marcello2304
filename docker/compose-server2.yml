@@ -116,8 +116,9 @@ services:
       TENANT_ID: ${TENANT_ID:-}
       API_KEY: ${RAG_API_KEY:-}
       WHISPER_MODEL: ${WHISPER_MODEL:-base}
-      PIPER_MODEL: ${PIPER_MODEL:-/opt/piper-models/de_DE-ramona-low.onnx}
-      PIPER_SAMPLE_RATE: ${PIPER_SAMPLE_RATE:-16000}
+      # Cartesia AI TTS (Cloud-basiert, ultra-natürlich)
+      CARTESIA_API_KEY: ${CARTESIA_API_KEY:-}
+      CARTESIA_VOICE_ID: ${CARTESIA_VOICE_ID:-b9de4a89-2257-424b-94c2-db18ba68c81a}
     networks:
       - ai-net
     depends_on:
