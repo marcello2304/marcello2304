@@ -2,7 +2,7 @@
 Nexo — EPPCOM Voice Bot Agent (livekit-agents v1.4.6)
 - STT: faster-whisper (lokal, DSGVO-konform)
 - LLM: RAG-Pipeline via Admin-UI
-- TTS: piper-tts (lokal, DSGVO-konform)
+- TTS: piper-tts Kerstin (weiblich, lokal, DSGVO-konform)
 - VAD: silero (2s Stille = Endpunkt)
 
 Deployment: Docker auf Server 2 (46.224.54.65)
@@ -35,7 +35,8 @@ RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
 TENANT_ID = os.getenv("TENANT_ID", "")
 API_KEY = os.getenv("API_KEY", "")
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
-PIPER_MODEL = os.getenv("PIPER_MODEL", "/opt/piper-models/de_DE-thorsten-medium.onnx")
+PIPER_MODEL = os.getenv("PIPER_MODEL", "/opt/piper-models/de_DE-kerstin-low.onnx")
+PIPER_SAMPLE_RATE = int(os.getenv("PIPER_SAMPLE_RATE", "16000"))
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://localhost:7880")
 LIVEKIT_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
@@ -92,13 +93,13 @@ class WhisperSTT(stt.STT):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Custom TTS: Piper
+# Custom TTS: Piper (Kerstin — weibliche deutsche Stimme)
 # ═════════════════════════════════════════════════════════════════════════════
 class PiperTTS(tts.TTS):
     def __init__(self):
         super().__init__(
             capabilities=tts.TTSCapabilities(streaming=False),
-            sample_rate=22050,
+            sample_rate=PIPER_SAMPLE_RATE,
             num_channels=1,
         )
 
@@ -130,7 +131,7 @@ class PiperChunkedStream(tts.ChunkedStream):
             if stdout:
                 output_emitter.initialize(
                     request_id="piper",
-                    sample_rate=22050,
+                    sample_rate=PIPER_SAMPLE_RATE,
                     num_channels=1,
                     mime_type="audio/pcm",
                 )
@@ -140,8 +141,13 @@ class PiperChunkedStream(tts.ChunkedStream):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Custom LLM: n8n RAG Webhook
+# Custom LLM: RAG via Admin-UI
 # ═════════════════════════════════════════════════════════════════════════════
+
+# Session-Speicher für Benutzernamen (pro Room)
+_user_names = {}
+
+
 class RagLLM(llm.LLM):
     def __init__(self):
         super().__init__()
@@ -162,17 +168,21 @@ class RagLLMStream(llm.LLMStream):
         super().__init__(llm=llm, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options)
 
     async def _run(self) -> None:
+        # Letzte User-Nachricht extrahieren (v1.4.6 API: text_content property)
         question = ""
         for msg in reversed(self._chat_ctx.items):
             if hasattr(msg, "role") and msg.role == "user":
-                if hasattr(msg, "content"):
+                # text_content gibt den Text direkt zurück
+                if hasattr(msg, "text_content") and msg.text_content:
+                    question = msg.text_content
+                elif hasattr(msg, "content"):
                     content = msg.content
                     if isinstance(content, str):
                         question = content
                     elif isinstance(content, list):
                         for c in content:
-                            if hasattr(c, "text"):
-                                question = c.text
+                            if isinstance(c, str):
+                                question = c
                                 break
                 if question:
                     break
@@ -183,11 +193,36 @@ class RagLLMStream(llm.LLMStream):
 
         logger.info(f"RAG Query: '{question}'")
 
+        # Prüfe ob der User seinen Namen sagt (erste Interaktion)
+        session_id = "voice_session"
+        name_prefix = ""
+
+        # Prüfe ob ein Name gespeichert ist
+        if session_id in _user_names:
+            name_prefix = f"Der Gesprächspartner heißt {_user_names[session_id]}. Sprich ihn mit seinem Namen an. "
+        else:
+            # Erste Antwort — der User hat wahrscheinlich seinen Namen gesagt
+            # Speichere den Text als potentiellen Namen
+            words = question.strip().split()
+            if len(words) <= 4:
+                # Kurze Antwort = wahrscheinlich ein Name
+                name = question.strip().rstrip(".!?,")
+                # Entferne typische Phrasen
+                for prefix in ["ich bin ", "mein name ist ", "ich heiße ", "ich heisse "]:
+                    if name.lower().startswith(prefix):
+                        name = name[len(prefix):].strip()
+                        break
+                if name and len(name) < 30:
+                    _user_names[session_id] = name
+                    name_prefix = f"Der Gesprächspartner hat sich gerade als {name} vorgestellt. Begrüße ihn herzlich mit seinem Namen und frage wie du helfen kannst. "
+                    logger.info(f"Name erkannt: '{name}'")
+
         try:
+            enriched_query = name_prefix + question if name_prefix else question
             async with httpx.AsyncClient(timeout=120) as client:
                 resp = await client.post(
                     f"{RAG_URL}/api/public/chat",
-                    json={"query": question, "session_id": "voice_session"},
+                    json={"query": enriched_query, "session_id": session_id},
                     headers={
                         "X-Tenant-ID": TENANT_ID,
                         "X-API-Key": API_KEY,
@@ -199,7 +234,7 @@ class RagLLMStream(llm.LLMStream):
                 answer = data.get("answer", data.get("response", "Entschuldigung, ich konnte keine Antwort finden."))
         except Exception as e:
             logger.error(f"RAG Fehler: {e}")
-            answer = "Entschuldigung, es gab einen Fehler bei der Verarbeitung."
+            answer = "Entschuldigung, es gab einen Fehler bei der Verarbeitung. Bitte versuchen Sie es erneut."
 
         logger.info(f"RAG Antwort: '{answer[:80]}...'")
 
@@ -215,10 +250,10 @@ class RagLLMStream(llm.LLMStream):
 # Agent Entrypoint
 # ═════════════════════════════════════════════════════════════════════════════
 NEXO_GREETING = (
-    "Hallo! Ich bin Nexo, der KI-Assistent von EPPCOM Solutions, "
+    "Hallo! Ich bin Nexo, die KI-Assistentin von EPPCOM Solutions, "
     "Ihrem Partner für KI-Automatisierung und Workflow-Optimierung. "
     "Alle unsere Lösungen sind DSGVO-konform und laufen auf deutschen Servern. "
-    "Wie kann ich Ihnen heute helfen?"
+    "Wie darf ich Sie ansprechen?"
 )
 
 
@@ -228,10 +263,11 @@ async def entrypoint(ctx: JobContext):
 
     agent = agents.voice.Agent(
         instructions=(
-            "Du bist Nexo, der KI-Sprach-Assistent von EPPCOM Solutions. "
+            "Du bist Nexo, die freundliche KI-Sprach-Assistentin von EPPCOM Solutions. "
             "Antworte auf Deutsch, kurz und hilfreich. "
-            "Sei freundlich und professionell. "
-            "EPPCOM bietet KI-Automatisierung und Workflow-Optimierung für KMU."
+            "Sei freundlich, warmherzig und professionell. "
+            "EPPCOM bietet KI-Automatisierung und Workflow-Optimierung für KMU. "
+            "Wenn der Gesprächspartner sich vorstellt, merke dir seinen Namen und verwende ihn."
         ),
         stt=WhisperSTT(),
         llm=RagLLM(),
@@ -243,7 +279,7 @@ async def entrypoint(ctx: JobContext):
     session = agents.AgentSession()
     await session.start(agent=agent, room=ctx.room)
 
-    # Sofortige Begrüßung — kein RAG-Call nötig, direkt sprechen
+    # Sofortige Begrüßung — fragt nach dem Namen
     logger.info(f"Begrüßung: '{NEXO_GREETING[:80]}...'")
     session.say(NEXO_GREETING)
 
