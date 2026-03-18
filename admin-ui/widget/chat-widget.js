@@ -57,7 +57,7 @@
       "#typebot-win{top:0;left:0;right:0;bottom:0;width:100%;height:100%;max-width:none;max-height:none;border-radius:0;box-shadow:none}" +
       "#typebot-bubble{bottom:16px;right:16px}" +
       "#typebot-preview{bottom:74px;right:16px;max-width:200px}" +
-      ".tb-mode-select{padding:20px 16px!important}" +
+      ".tb-mode-select{padding:12px!important}" +
       ".tb-msgs{padding:12px!important}" +
       ".tb-voice-area{padding:20px 16px!important}" +
     "}",
@@ -118,15 +118,12 @@
     ".tb-send:disabled{opacity:.4;cursor:not-allowed;transform:none}",
     ".tb-foot{text-align:center;padding:6px 0 8px;font-size:10px;color:#b0b3b8;background:#fff;flex-shrink:0}",
 
-    /* ─── Mode Selection ─── */
-    ".tb-mode-select{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px}",
-    ".tb-mode-btn{width:100%;max-width:280px;padding:14px 18px;border-radius:16px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s ease;font-family:inherit;-webkit-appearance:none;min-height:48px}",
-    ".tb-mode-btn:hover{border-color:VAR;background:#fafaff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(102,126,234,.15)}",
-    ".tb-mode-btn:active{transform:scale(.98);box-shadow:none}",
-    ".tb-mode-icon{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,VAR,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}",
-    ".tb-mode-label{text-align:left;min-width:0}",
-    ".tb-mode-title{font-size:15px;font-weight:600;color:#303235}",
-    ".tb-mode-desc{font-size:12px;color:#6b7280;margin-top:2px}",
+    /* ─── Mode Selection (Typebot Button-Input Style) ─── */
+    ".tb-mode-select{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff;-webkit-overflow-scrolling:touch}",
+    ".tb-choice-row{display:flex;flex-wrap:wrap;gap:8px;margin-left:40px;animation:tb-fade .3s ease}",
+    ".tb-choice-btn{padding:10px 18px;border-radius:20px;border:1px solid VAR;background:#fff;color:VAR;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit;transition:all .15s ease;-webkit-appearance:none;white-space:nowrap}",
+    ".tb-choice-btn:hover{background:VAR;color:#fff;transform:translateY(-1px);box-shadow:0 2px 8px rgba(102,126,234,.25)}",
+    ".tb-choice-btn:active{transform:scale(.96);box-shadow:none}",
 
     /* ─── Voice UI ─── */
     ".tb-voice-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}",
@@ -180,18 +177,18 @@
     '</div>' +
     '<div id="tb-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
       '<div id="tb-mode-select" class="tb-mode-select">' +
-        '<div class="tb-msg tb-bot" style="max-width:100%;margin-bottom:8px">' +
+        '<div class="tb-msg tb-bot">' +
           '<div class="tb-bot-av">\uD83E\uDD16</div>' +
           '<div class="tb-bot-bubble" id="tb-welcome-text"></div>' +
         '</div>' +
-        '<button class="tb-mode-btn" id="tb-mode-text">' +
-          '<div class="tb-mode-icon">\u270D\uFE0F</div>' +
-          '<div class="tb-mode-label"><div class="tb-mode-title">Schreiben</div><div class="tb-mode-desc">Tippen Sie Ihre Frage ein</div></div>' +
-        '</button>' +
-        '<button class="tb-mode-btn" id="tb-mode-voice">' +
-          '<div class="tb-mode-icon">\uD83C\uDF99\uFE0F</div>' +
-          '<div class="tb-mode-label"><div class="tb-mode-title">Sprechen</div><div class="tb-mode-desc">Reden Sie direkt mit dem Assistenten</div></div>' +
-        '</button>' +
+        '<div class="tb-msg tb-bot">' +
+          '<div class="tb-bot-av">\uD83E\uDD16</div>' +
+          '<div class="tb-bot-bubble">Wollen Sie mit mir sprechen oder lieber Ihre Tastatur benutzen?</div>' +
+        '</div>' +
+        '<div class="tb-choice-row">' +
+          '<button class="tb-choice-btn" id="tb-mode-voice">\uD83C\uDF99\uFE0F Sprechen</button>' +
+          '<button class="tb-choice-btn" id="tb-mode-text">\u2328\uFE0F Schreiben</button>' +
+        '</div>' +
       '</div>' +
       '<div id="tb-chat-view" style="display:none;flex:1;flex-direction:column;overflow:hidden">' +
         '<div class="tb-msgs" id="tb-msgs"></div>' +
