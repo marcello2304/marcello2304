@@ -11,11 +11,9 @@ rtc:
   # WICHTIG: Beim Deployment die echte Server-2-IP eintragen!
   node_ip: 46.224.54.65
 
-# WICHTIG: Vor Deployment echte Keys generieren!
-# openssl rand -base64 32 → als API Key
-# openssl rand -base64 32 → als API Secret
+# WICHTIG: Muss mit .env LIVEKIT_API_KEY / LIVEKIT_API_SECRET synchron sein!
 keys:
-  CHANGE_ME_API_KEY: CHANGE_ME_API_SECRET
+  8fa8f1b33782e91f85b57f6648712aeb: a161db1f4107b166ac82cf45d7799a73284a5a799c8d0b14dcbfc150c5bce21c
 
 logging:
   json: false
@@ -31,4 +29,4 @@ turn:
 webhook:
   urls:
     - https://n8n.DEINE_DOMAIN.de/webhook/livekit-events
-  api_key: CHANGE_ME_API_KEY
+  api_key: 8fa8f1b33782e91f85b57f6648712aeb
