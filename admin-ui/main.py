@@ -1503,8 +1503,8 @@ async def _rag_pipeline(tenant_id: str, query: str):
     """Führt die RAG-Pipeline aus: Embed → Search → LLM. Gibt (answer, sources_info, chunks_used) zurück."""
     db = await get_db()
 
-    # 1) Embedding
-    async with httpx.AsyncClient(timeout=30) as client:
+    # 1) Embedding (120s Timeout — Modell-Kaltstart kann dauern)
+    async with httpx.AsyncClient(timeout=120) as client:
         embed_resp = await client.post(
             f"{OLLAMA_URL}/api/embed",
             json={"model": EMBED_MODEL, "input": query},
@@ -1539,8 +1539,8 @@ async def _rag_pipeline(tenant_id: str, query: str):
     else:
         user_msg = f"Es wurden keine relevanten Dokumente gefunden. Frage: {query}"
 
-    # 4) LLM
-    async with httpx.AsyncClient(timeout=90) as client:
+    # 4) LLM (120s Timeout — Modell-Kaltstart kann dauern)
+    async with httpx.AsyncClient(timeout=120) as client:
         llm_resp = await client.post(
             f"{OLLAMA_URL}/api/chat",
             json={

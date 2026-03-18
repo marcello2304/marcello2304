@@ -1,14 +1,9 @@
 <!--
   EPPCOM KI-Chatbot + Voice — Embed-Code für www.eppcom.de
   =========================================================
-  Kombiniertes Chat-Widget mit Text- und Sprach-Modus.
-  Öffnet automatisch beim Seitenaufruf.
-
-  RAG-Pipeline (Text):
-    Widget → appdb.eppcom.de/api/public/widget-chat → Ollama → Antwort
-
-  Voice-Pipeline:
-    Widget → LiveKit (voice.eppcom.de) → Whisper STT → RAG → Piper TTS → Antwort
+  Kombiniertes Widget:
+  - "Schreiben" → öffnet den echten Typebot-Chatbot (eppcom-chatbot-v2)
+  - "Sprechen"  → öffnet den LiveKit Voice-Agent
 
   Platzierung: Vor </body> auf jeder Seite.
 
@@ -21,7 +16,8 @@
      ═══════════════════════════════════════════════════════════════════ -->
 
 <script src="https://appdb.eppcom.de/widget/chat-widget.js"
-        data-api-url="https://appdb.eppcom.de/api/public/widget-chat"
+        data-typebot-id="eppcom-chatbot-v2"
+        data-typebot-host="https://bot.eppcom.de"
         data-voice-token-url="https://appdb.eppcom.de/api/public/voice-token"
         data-livekit-url="wss://voice.eppcom.de"
         data-color="#0042DA"
