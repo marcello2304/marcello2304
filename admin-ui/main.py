@@ -2048,10 +2048,12 @@ async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_a
         "nbf": now,
         "jti": str(uuid.uuid4()),
         "video": {
+            "roomCreate": True,
             "roomJoin": True,
             "room": room_name,
             "canPublish": True,
             "canSubscribe": True,
+            "canPublishData": True,
         },
         "metadata": json.dumps({"name": identity}),
     }

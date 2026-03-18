@@ -1518,19 +1518,38 @@ function app() {
         const room = new LivekitClient.Room();
         this.voiceRoom = room;
 
-        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, pub, participant) => {
+          console.log('[Voice] Track subscribed:', track.kind, track.sid, 'von', participant.identity);
           if (track.kind === LivekitClient.Track.Kind.Audio) {
             const el = track.attach();
             el.id = 'voice-track-' + track.sid;
+            el.autoplay = true;
+            el.volume = 1.0;
             document.getElementById('voice-audio-container').appendChild(el);
+            this.voiceStatus = 'Agent spricht...';
+            console.log('[Voice] Audio-Element angehängt:', el.id);
           }
         });
 
         room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+          console.log('[Voice] Track unsubscribed:', track.sid);
           track.detach().forEach(el => el.remove());
         });
 
+        room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+          console.log('[Voice] Teilnehmer verbunden:', participant.identity);
+          this.voiceStatus = 'Agent verbunden — warte auf Begrüßung...';
+        });
+
+        room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, (speakers) => {
+          if (speakers.length > 0) {
+            const names = speakers.map(s => s.identity).join(', ');
+            console.log('[Voice] Aktive Sprecher:', names);
+          }
+        });
+
         room.on(LivekitClient.RoomEvent.Disconnected, (reason) => {
+          console.log('[Voice] Verbindung getrennt:', reason);
           this.voiceConnected = false;
           this.voiceConnecting = false;
           this.voiceStatus = 'Verbindung getrennt' + (reason ? ': ' + reason : '');
@@ -1538,11 +1557,14 @@ function app() {
         });
 
         await room.connect(r.url, r.token);
+        console.log('[Voice] Mit Room verbunden:', room.name);
+
         await room.localParticipant.setMicrophoneEnabled(true);
+        console.log('[Voice] Mikrofon aktiviert');
 
         this.voiceConnected = true;
         this.voiceConnecting = false;
-        this.voiceStatus = 'Verbunden — Spreche jetzt!';
+        this.voiceStatus = 'Verbunden — warte auf Begrüßung...';
       } catch (e) {
         this.voiceConnecting = false;
         let msg = 'Unbekannter Fehler';

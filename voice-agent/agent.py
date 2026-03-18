@@ -1,5 +1,5 @@
 """
-EPPCOM Voice Bot Agent (livekit-agents v1.4.x)
+EPPCOM Voice Bot Agent (livekit-agents v1.4.6)
 - STT: faster-whisper (lokal, DSGVO-konform)
 - LLM: n8n RAG Webhook (kein lokales LLM nötig)
 - TTS: piper-tts (lokal, DSGVO-konform)
@@ -8,16 +8,15 @@ EPPCOM Voice Bot Agent (livekit-agents v1.4.x)
 Deployment: Docker auf Server 2 (46.224.54.65)
 """
 import asyncio
-import io
 import os
 import tempfile
 import wave
 import logging
 
 import httpx
-import numpy as np
 from livekit import rtc, agents
 from livekit.agents import (
+    APIConnectOptions,
     AutoSubscribe,
     JobContext,
     WorkerOptions,
@@ -32,7 +31,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 logger = logging.getLogger("eppcom-voice")
 
 # ── Konfiguration via ENV ────────────────────────────────────────────────────
-N8N_URL = os.getenv("N8N_URL", "https://workflows.eppcom.de")
+RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
 TENANT_ID = os.getenv("TENANT_ID", "")
 API_KEY = os.getenv("API_KEY", "")
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
@@ -58,7 +57,6 @@ class WhisperSTT(stt.STT):
 
     async def _recognize_impl(self, buffer, *, language=None, conn_options=None) -> stt.SpeechEvent:
         def _transcribe(frames) -> str:
-            # AudioBuffer zu raw bytes konvertieren
             if hasattr(frames, 'data'):
                 audio_data = frames.data.tobytes() if hasattr(frames.data, 'tobytes') else bytes(frames.data)
                 sr = frames.sample_rate
@@ -105,15 +103,18 @@ class PiperTTS(tts.TTS):
         )
 
     def synthesize(self, text: str, *, conn_options=None) -> tts.ChunkedStream:
-        return PiperChunkedStream(self, text)
+        return PiperChunkedStream(tts=self, input_text=text, conn_options=conn_options)
 
 
 class PiperChunkedStream(tts.ChunkedStream):
-    def __init__(self, tts_instance: PiperTTS, text: str):
-        super().__init__(tts=tts_instance, input_text=text)
-        self._text = text
+    def __init__(self, *, tts: PiperTTS, input_text: str, conn_options=None):
+        super().__init__(
+            tts=tts,
+            input_text=input_text,
+            conn_options=conn_options or APIConnectOptions(),
+        )
 
-    async def _run(self, output_emitter=None) -> None:
+    async def _run(self, output_emitter: tts.AudioEmitter) -> None:
         try:
             proc = await asyncio.create_subprocess_exec(
                 "piper",
@@ -123,19 +124,17 @@ class PiperChunkedStream(tts.ChunkedStream):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
-            stdout, _ = await proc.communicate(self._text.encode("utf-8"))
-            logger.info(f"TTS: {len(stdout)} bytes PCM für '{self._text[:50]}...'")
+            stdout, _ = await proc.communicate(self._input_text.encode("utf-8"))
+            logger.info(f"TTS: {len(stdout)} bytes PCM für '{self._input_text[:50]}...'")
 
             if stdout:
-                frame = rtc.AudioFrame(
-                    data=stdout,
+                output_emitter.initialize(
+                    request_id="piper",
                     sample_rate=22050,
                     num_channels=1,
-                    samples_per_channel=len(stdout) // 2,
+                    mime_type="audio/pcm",
                 )
-                self._event_ch.send_nowait(
-                    tts.SynthesizedAudio(frame=frame, request_id="piper")
-                )
+                output_emitter.push(stdout)
         except Exception as e:
             logger.error(f"TTS Fehler: {e}", exc_info=True)
 
@@ -145,28 +144,36 @@ class PiperChunkedStream(tts.ChunkedStream):
 # ═════════════════════════════════════════════════════════════════════════════
 class RagLLM(llm.LLM):
     def __init__(self):
-        super().__init__(capabilities=llm.LLMCapabilities(supports_tools=False))
-        self._session_id = "voice_default"
+        super().__init__()
 
     def chat(self, *, chat_ctx: llm.ChatContext, tools=None, conn_options=None,
              parallel_tool_calls=None, tool_choice=None, extra_kwargs=None, **kwargs) -> llm.LLMStream:
-        return RagLLMStream(self, chat_ctx)
+        return RagLLMStream(
+            llm=self,
+            chat_ctx=chat_ctx,
+            tools=tools or [],
+            conn_options=conn_options or APIConnectOptions(),
+        )
 
 
 class RagLLMStream(llm.LLMStream):
-    def __init__(self, llm_instance: RagLLM, chat_ctx: llm.ChatContext):
-        super().__init__(llm=llm_instance, chat_ctx=chat_ctx)
-        self._chat_ctx = chat_ctx
+    def __init__(self, llm: RagLLM, chat_ctx: llm.ChatContext,
+                 tools: list, conn_options: APIConnectOptions):
+        super().__init__(llm=llm, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options)
 
     async def _run(self) -> None:
-        # Letzte User-Nachricht extrahieren
         question = ""
         for msg in reversed(self._chat_ctx.items):
             if hasattr(msg, "role") and msg.role == "user":
-                for c in msg.content:
-                    if hasattr(c, "text"):
-                        question = c.text
-                        break
+                if hasattr(msg, "content"):
+                    content = msg.content
+                    if isinstance(content, str):
+                        question = content
+                    elif isinstance(content, list):
+                        for c in content:
+                            if hasattr(c, "text"):
+                                question = c.text
+                                break
                 if question:
                     break
 
@@ -179,7 +186,7 @@ class RagLLMStream(llm.LLMStream):
         try:
             async with httpx.AsyncClient(timeout=45) as client:
                 resp = await client.post(
-                    f"{N8N_URL}/webhook/rag-chat",
+                    f"{RAG_URL}/api/public/chat",
                     json={"query": question, "session_id": "voice_session"},
                     headers={
                         "X-Tenant-ID": TENANT_ID,
@@ -196,15 +203,10 @@ class RagLLMStream(llm.LLMStream):
 
         logger.info(f"RAG Antwort: '{answer[:80]}...'")
 
-        # Antwort als einzelnen Chunk senden
         self._event_ch.send_nowait(
             llm.ChatChunk(
-                choices=[
-                    llm.Choice(
-                        delta=llm.ChoiceDelta(role="assistant", content=answer),
-                        index=0,
-                    )
-                ]
+                id="rag-response",
+                delta=llm.ChoiceDelta(role="assistant", content=answer),
             )
         )
 
@@ -215,9 +217,9 @@ class RagLLMStream(llm.LLMStream):
 async def _fetch_greeting() -> str:
     """Holt eine Begrüßung mit EPPCOM-Infos aus dem RAG-System."""
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                f"{N8N_URL}/webhook/rag-chat",
+                f"{RAG_URL}/api/public/chat",
                 json={
                     "query": "Stelle dich kurz als EPPCOM Sprach-Assistent vor. "
                              "Beschreibe in 2-3 Sätzen was EPPCOM macht und biete deine Hilfe an.",
@@ -263,9 +265,13 @@ async def entrypoint(ctx: JobContext):
     session = agents.AgentSession()
     await session.start(agent=agent, room=ctx.room)
 
-    # Begrüßung: RAG-basiert oder Fallback
-    greeting = await _fetch_greeting()
-    if not greeting or len(greeting) < 10:
+    # Begrüßung sofort mit Fallback, RAG-Begrüßung im Hintergrund versuchen
+    try:
+        greeting = await asyncio.wait_for(_fetch_greeting(), timeout=15)
+        if not greeting or len(greeting) < 10:
+            greeting = FALLBACK_GREETING
+    except (asyncio.TimeoutError, Exception) as e:
+        logger.warning(f"Begrüßung-Timeout/Fehler: {e}, nutze Fallback")
         greeting = FALLBACK_GREETING
     logger.info(f"Begrüßung: '{greeting[:80]}...'")
     session.say(greeting)

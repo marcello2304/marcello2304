@@ -102,7 +102,7 @@ services:
   # ── LiveKit Agent (EPPCOM Voice Bot) ──────────────────────────────────
   livekit-agent:
     build:
-      context: ../voice-agent
+      context: ./voice-agent
       dockerfile: Dockerfile
     image: eppcom/voice-agent:latest
     container_name: livekit-agent
@@ -112,6 +112,7 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
       N8N_URL: ${N8N_URL:-https://workflows.eppcom.de}
+      RAG_URL: ${RAG_URL:-https://appdb.eppcom.de}
       TENANT_ID: ${TENANT_ID:-}
       API_KEY: ${RAG_API_KEY:-}
       WHISPER_MODEL: ${WHISPER_MODEL:-base}
