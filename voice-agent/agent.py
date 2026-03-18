@@ -35,7 +35,7 @@ RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
 TENANT_ID = os.getenv("TENANT_ID", "")
 API_KEY = os.getenv("API_KEY", "")
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
-PIPER_MODEL = os.getenv("PIPER_MODEL", "/opt/piper-models/de_DE-kerstin-low.onnx")
+PIPER_MODEL = os.getenv("PIPER_MODEL", "/opt/piper-models/de_DE-eva_k-x_low.onnx")
 PIPER_SAMPLE_RATE = int(os.getenv("PIPER_SAMPLE_RATE", "16000"))
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://localhost:7880")
 LIVEKIT_KEY = os.getenv("LIVEKIT_API_KEY", "")
@@ -250,9 +250,7 @@ class RagLLMStream(llm.LLMStream):
 # Agent Entrypoint
 # ═════════════════════════════════════════════════════════════════════════════
 NEXO_GREETING = (
-    "Hallo! Ich bin Nexo, die KI-Assistentin von EPPCOM Solutions, "
-    "Ihrem Partner für KI-Automatisierung und Workflow-Optimierung. "
-    "Alle unsere Lösungen sind DSGVO-konform und laufen auf deutschen Servern. "
+    "Hallo! Ich bin Nexo von EPPCOM Solutions. "
     "Wie darf ich Sie ansprechen?"
 )
 
@@ -272,8 +270,9 @@ async def entrypoint(ctx: JobContext):
         stt=WhisperSTT(),
         llm=RagLLM(),
         tts=PiperTTS(),
-        vad=silero.VAD.load(min_silence_duration=2.0),
-        min_endpointing_delay=2.0,
+        vad=silero.VAD.load(min_silence_duration=0.8),
+        min_endpointing_delay=0.5,
+        allow_interruptions=True,
     )
 
     session = agents.AgentSession()

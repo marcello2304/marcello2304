@@ -13,12 +13,16 @@ RUN wget -q https://github.com/rhasspy/piper/releases/latest/download/piper_linu
     && ln -sf /opt/piper/piper /usr/local/bin/piper \
     && rm piper_linux_x86_64.tar.gz
 
-# Deutsches Stimmmodell (thorsten-medium) herunterladen
+# Deutsche Stimmmodelle herunterladen (eva_k = junge Frauenstimme, ramona = Backup)
 RUN mkdir -p /opt/piper-models \
-    && wget -q -O /opt/piper-models/de_DE-thorsten-medium.onnx \
-       "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/de_DE-thorsten-medium.onnx" \
-    && wget -q -O /opt/piper-models/de_DE-thorsten-medium.onnx.json \
-       "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/de_DE-thorsten-medium.onnx.json"
+    && wget -q -O /opt/piper-models/de_DE-eva_k-x_low.onnx \
+       "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/eva_k/x_low/de_DE-eva_k-x_low.onnx" \
+    && wget -q -O /opt/piper-models/de_DE-eva_k-x_low.onnx.json \
+       "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/eva_k/x_low/de_DE-eva_k-x_low.onnx.json" \
+    && wget -q -O /opt/piper-models/de_DE-ramona-low.onnx \
+       "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/ramona/low/de_DE-ramona-low.onnx" \
+    && wget -q -O /opt/piper-models/de_DE-ramona-low.onnx.json \
+       "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/ramona/low/de_DE-ramona-low.onnx.json"
 
 WORKDIR /app
 
@@ -29,7 +33,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Agent-Code
 COPY agent.py .
 
-ENV PIPER_MODEL=/opt/piper-models/de_DE-thorsten-medium.onnx
+ENV PIPER_MODEL=/opt/piper-models/de_DE-eva_k-x_low.onnx
 ENV WHISPER_MODEL=base
 ENV PYTHONUNBUFFERED=1
 
