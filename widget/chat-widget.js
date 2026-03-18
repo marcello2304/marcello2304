@@ -1,12 +1,12 @@
 /**
- * EPPCOM RAG Chat-Widget (Text + Voice) — Mobile-optimiert
+ * EPPCOM RAG Chat-Widget (Text + Voice) — Typebot-Style, Mobile-optimiert
  *
  * Einbindung auf der Homepage (vor </body>):
  *   <script src="https://appdb.eppcom.de/widget/chat-widget.js"
  *           data-api-url="https://appdb.eppcom.de/api/public/widget-chat"
  *           data-voice-token-url="https://appdb.eppcom.de/api/public/voice-token"
  *           data-livekit-url="wss://voice.eppcom.de"
- *           data-accent="#2563EB"
+ *           data-accent="#667eea"
  *           data-welcome="Hallo! Willkommen bei EPPCOM Solutions."
  *           data-auto-open="true"
  *           defer></script>
@@ -18,7 +18,7 @@
   var API_URL = (script && script.getAttribute("data-api-url")) || "https://appdb.eppcom.de/api/public/widget-chat";
   var VOICE_TOKEN_URL = (script && script.getAttribute("data-voice-token-url")) || "https://appdb.eppcom.de/api/public/voice-token";
   var LIVEKIT_URL = (script && script.getAttribute("data-livekit-url")) || "wss://voice.eppcom.de";
-  var ACCENT = (script && script.getAttribute("data-accent")) || "#2563EB";
+  var ACCENT = (script && script.getAttribute("data-accent")) || "#667eea";
   var WELCOME = (script && script.getAttribute("data-welcome")) || "Hallo! Willkommen bei EPPCOM Solutions \u2014 Ihrem Partner f\u00fcr KI-Automatisierung.\nWie m\u00f6chten Sie kommunizieren?";
   var AUTO_OPEN = (script && script.getAttribute("data-auto-open")) !== "false";
 
@@ -30,112 +30,122 @@
   var voiceConnecting = false;
   var isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent) || window.innerWidth < 640;
 
-  // ── CSS ─────────────────────────────────────────────────────────────────
+  // ── CSS (Typebot-Style) ─────────────────────────────────────────────────
   var css = [
-    /* Reset within widget */
-    "#eppcom-cb,#eppcom-cb *,#eppcom-win,#eppcom-win *,#eppcom-preview{box-sizing:border-box;-webkit-tap-highlight-color:transparent}",
+    /* Reset */
+    "#typebot-bubble,#typebot-bubble *,#typebot-win,#typebot-win *,#typebot-preview{box-sizing:border-box;-webkit-tap-highlight-color:transparent}",
 
-    /* Bubble */
-    "#eppcom-cb{position:fixed;bottom:20px;right:20px;z-index:99999;width:56px;height:56px;border-radius:50%;background:VAR;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;transition:transform .15s ease;-webkit-appearance:none}",
-    "#eppcom-cb:hover{transform:scale(1.08)}",
-    "#eppcom-cb:active{transform:scale(.95)}",
-    "#eppcom-cb svg{width:26px;height:26px;fill:currentColor}",
+    /* ─── Bubble Button (Typebot-identisch) ─── */
+    "#typebot-bubble{position:fixed;bottom:20px;right:20px;z-index:42424242;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,VAR,#764ba2);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 15px rgba(102,126,234,.45);display:flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;-webkit-appearance:none}",
+    "#typebot-bubble:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(102,126,234,.55)}",
+    "#typebot-bubble:active{transform:scale(.95)}",
+    "#typebot-bubble svg{width:24px;height:24px;fill:#fff;transition:transform .2s}",
 
-    /* Preview */
-    "#eppcom-preview{position:fixed;bottom:86px;right:20px;z-index:99998;background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 2px 12px rgba(0,0,0,.12);font:14px/1.5 Inter,system-ui,sans-serif;color:#1e293b;max-width:240px;cursor:pointer;display:none}",
-    "#eppcom-preview.show{display:block}",
-    "#eppcom-preview-close{position:absolute;top:2px;right:6px;background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;line-height:1;padding:4px}",
+    /* ─── Preview Message (Typebot-Style) ─── */
+    "#typebot-preview{position:fixed;bottom:78px;right:20px;z-index:42424241;background:#fff;border-radius:16px;padding:12px 36px 12px 16px;box-shadow:0 2px 15px rgba(0,0,0,.1);font:14px/1.5 'Open Sans',Inter,system-ui,sans-serif;color:#303235;max-width:256px;cursor:pointer;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .3s;pointer-events:none}",
+    "#typebot-preview.show{opacity:1;transform:translateY(0);pointer-events:auto}",
+    "#typebot-preview-close{position:absolute;top:4px;right:8px;background:none;border:none;font-size:18px;cursor:pointer;color:#aaa;line-height:1;padding:4px}",
+    "#typebot-preview-close:hover{color:#666}",
 
-    /* Window — Desktop */
-    "#eppcom-win{position:fixed;bottom:88px;right:20px;z-index:99999;width:380px;height:540px;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.18);display:none;flex-direction:column;overflow:hidden;font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-overflow-scrolling:touch}",
-    "#eppcom-win.open{display:flex}",
+    /* ─── Chat Window (Typebot-Style) ─── */
+    "#typebot-win{position:fixed;bottom:80px;right:20px;z-index:42424242;width:400px;height:600px;background:#fff;border-radius:24px;box-shadow:0 5px 40px rgba(0,0,0,.16);display:none;flex-direction:column;overflow:hidden;font-family:'Open Sans',Inter,system-ui,-apple-system,sans-serif;opacity:0;transform:scale(.95) translateY(20px);transition:opacity .25s ease,transform .25s cubic-bezier(.34,1.56,.64,1)}",
+    "#typebot-win.open{display:flex}",
+    "#typebot-win.visible{opacity:1;transform:scale(1) translateY(0)}",
 
-    /* Window — Mobile: Vollbild */
+    /* Mobile: Vollbild */
     "@media(max-width:640px){" +
-      "#eppcom-win{top:0;left:0;right:0;bottom:0;width:100%;height:100%;max-width:none;max-height:none;border-radius:0;box-shadow:none}" +
-      "#eppcom-cb{bottom:16px;right:16px;width:52px;height:52px}" +
-      "#eppcom-preview{bottom:78px;right:16px;max-width:200px}" +
-      ".ec-mode-select{padding:20px 16px!important}" +
-      ".ec-mode-btn{padding:14px 16px!important}" +
-      ".ec-msgs{padding:12px!important}" +
-      ".ec-voice-area{padding:20px 16px!important}" +
+      "#typebot-win{top:0;left:0;right:0;bottom:0;width:100%;height:100%;max-width:none;max-height:none;border-radius:0;box-shadow:none}" +
+      "#typebot-bubble{bottom:16px;right:16px}" +
+      "#typebot-preview{bottom:74px;right:16px;max-width:200px}" +
+      ".tb-mode-select{padding:20px 16px!important}" +
+      ".tb-msgs{padding:12px!important}" +
+      ".tb-voice-area{padding:20px 16px!important}" +
     "}",
 
-    /* Safe area (Notch) */
-    "@supports(padding-top: env(safe-area-inset-top)){" +
+    /* Safe area (Notch/Dynamic Island) */
+    "@supports(padding-top:env(safe-area-inset-top)){" +
       "@media(max-width:640px){" +
-        ".ec-hdr{padding-top:calc(12px + env(safe-area-inset-top))}" +
-        ".ec-foot{padding-bottom:calc(6px + env(safe-area-inset-bottom))}" +
-        ".ec-input-row{padding-bottom:calc(10px + env(safe-area-inset-bottom))}" +
+        ".tb-hdr{padding-top:calc(14px + env(safe-area-inset-top))}" +
+        ".tb-foot{padding-bottom:calc(6px + env(safe-area-inset-bottom))}" +
+        ".tb-input-row{padding-bottom:calc(8px + env(safe-area-inset-bottom))}" +
       "}" +
     "}",
 
-    /* Header */
-    ".ec-hdr{background:VAR;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0}",
-    ".ec-hdr-av{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}",
-    ".ec-hdr-txt{flex:1;min-width:0}",
-    ".ec-hdr-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    ".ec-hdr-sub{font-size:11px;opacity:.75;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    ".ec-hdr-x,.ec-hdr-back{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:6px 8px;opacity:.7;line-height:1;flex-shrink:0;-webkit-appearance:none}",
-    ".ec-hdr-x:hover,.ec-hdr-back:hover,.ec-hdr-x:active,.ec-hdr-back:active{opacity:1}",
-    ".ec-hdr-back{display:none;font-size:18px}",
-    ".ec-hdr-back.show{display:block}",
+    /* ─── Header (Typebot-Style) ─── */
+    ".tb-hdr{background:linear-gradient(135deg,VAR,#764ba2);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}",
+    ".tb-hdr-av{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}",
+    ".tb-hdr-txt{flex:1;min-width:0}",
+    ".tb-hdr-name{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".tb-hdr-sub{font-size:12px;opacity:.8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".tb-hdr-x,.tb-hdr-back{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:6px 8px;opacity:.7;line-height:1;flex-shrink:0;-webkit-appearance:none;transition:opacity .15s}",
+    ".tb-hdr-x:hover,.tb-hdr-back:hover,.tb-hdr-x:active,.tb-hdr-back:active{opacity:1}",
+    ".tb-hdr-back{display:none;font-size:20px}",
+    ".tb-hdr-back.show{display:block}",
 
-    /* Messages */
-    ".ec-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#fff;-webkit-overflow-scrolling:touch}",
-    ".ec-msg{max-width:85%;font-size:14px;line-height:1.5;word-break:break-word}",
-    ".ec-bot{align-self:flex-start;display:flex;gap:8px;align-items:flex-end}",
-    ".ec-bot-av{width:28px;height:28px;border-radius:50%;background:VAR;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex-shrink:0}",
-    ".ec-bot-bubble{background:#F0F4FF;color:#1E293B;padding:10px 14px;border-radius:6px 12px 12px 6px;white-space:pre-wrap}",
-    ".ec-user{align-self:flex-end}",
-    ".ec-user-bubble{background:VAR;color:#fff;padding:10px 14px;border-radius:12px 6px 6px 12px;white-space:pre-wrap}",
-    ".ec-err{align-self:flex-start;display:flex;gap:8px;align-items:flex-end}",
-    ".ec-err .ec-bot-bubble{background:#fef2f2;color:#991b1b}",
+    /* ─── Messages (Typebot hostBubble/guestBubble) ─── */
+    ".tb-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff;-webkit-overflow-scrolling:touch}",
+    ".tb-msg{max-width:80%;font-size:15px;line-height:1.55;word-break:break-word;animation:tb-fade .3s ease}",
+    "@keyframes tb-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}",
 
-    /* Typing */
-    ".ec-typing{display:flex;gap:5px;padding:10px 14px;background:#F0F4FF;border-radius:6px 12px 12px 6px;align-self:flex-start;margin-left:36px}",
-    ".ec-typing span{width:7px;height:7px;background:#94a3b8;border-radius:50%;animation:ecb .6s infinite alternate}",
-    ".ec-typing span:nth-child(2){animation-delay:.15s}",
-    ".ec-typing span:nth-child(3){animation-delay:.3s}",
-    "@keyframes ecb{to{opacity:.3;transform:translateY(-3px)}}",
+    /* Bot message — Typebot hostBubble */
+    ".tb-bot{align-self:flex-start;display:flex;gap:8px;align-items:flex-end}",
+    ".tb-bot-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,VAR,#764ba2);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0}",
+    ".tb-bot-bubble{background:#F7F8FF;color:#303235;padding:12px 16px;border-radius:6px 20px 20px 6px;white-space:pre-wrap;box-shadow:0 1px 4px rgba(0,0,0,.04)}",
 
-    /* Input */
-    ".ec-input-row{display:flex;border-top:1px solid #e2e8f0;padding:8px 10px;gap:8px;background:#fff;flex-shrink:0}",
-    ".ec-inp{flex:1;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:16px;font-family:inherit;resize:none;outline:none;max-height:80px;background:#fff;color:#1E293B;-webkit-appearance:none}",
-    ".ec-inp::placeholder{color:#9CA3AF}",
-    ".ec-inp:focus{border-color:VAR;box-shadow:0 0 0 1px VAR}",
-    ".ec-send{background:VAR;color:#fff;border:none;border-radius:10px;padding:0 14px;cursor:pointer;font-size:18px;display:flex;align-items:center;transition:opacity .15s;-webkit-appearance:none;min-width:44px;justify-content:center}",
-    ".ec-send:disabled{opacity:.4;cursor:not-allowed}",
-    ".ec-foot{text-align:center;padding:4px 0 6px;font-size:10px;color:#94a3b8;background:#fff;flex-shrink:0}",
+    /* User message — Typebot guestBubble */
+    ".tb-user{align-self:flex-end}",
+    ".tb-user-bubble{background:linear-gradient(135deg,VAR,#764ba2);color:#fff;padding:12px 16px;border-radius:20px 6px 6px 20px;white-space:pre-wrap;box-shadow:0 1px 4px rgba(102,126,234,.2)}",
 
-    /* Mode selection */
-    ".ec-mode-select{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px}",
-    ".ec-mode-btn{width:100%;max-width:280px;padding:16px 20px;border-radius:12px;border:2px solid #e2e8f0;background:#fff;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .15s ease;font-family:inherit;-webkit-appearance:none;min-height:48px}",
-    ".ec-mode-btn:hover,.ec-mode-btn:active{border-color:VAR;background:#f8faff}",
-    ".ec-mode-btn:active{transform:scale(.98)}",
-    ".ec-mode-icon{width:44px;height:44px;border-radius:12px;background:VAR;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}",
-    ".ec-mode-label{text-align:left;min-width:0}",
-    ".ec-mode-title{font-size:15px;font-weight:600;color:#1e293b}",
-    ".ec-mode-desc{font-size:12px;color:#64748b;margin-top:2px}",
+    /* Error */
+    ".tb-err{align-self:flex-start;display:flex;gap:8px;align-items:flex-end}",
+    ".tb-err .tb-bot-bubble{background:#fef2f2;color:#991b1b}",
 
-    /* Voice UI */
-    ".ec-voice-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}",
-    ".ec-voice-btn{width:80px;height:80px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s ease;font-size:32px;-webkit-appearance:none}",
-    ".ec-voice-btn:active{transform:scale(.92)}",
-    ".ec-voice-btn.idle{background:#e2e8f0;color:#64748b}",
-    ".ec-voice-btn.connecting{background:#fbbf24;color:#fff;animation:ec-pulse 1.5s infinite}",
-    ".ec-voice-btn.active{background:#ef4444;color:#fff;animation:ec-pulse 1.5s infinite}",
-    "@keyframes ec-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 14px rgba(239,68,68,0)}}",
-    ".ec-voice-status{font-size:14px;color:#64748b;text-align:center;padding:0 8px}",
-    ".ec-voice-status.connected{color:#059669}",
-    "#ec-voice-audio{display:none}"
+    /* Typing (Typebot-Style dots) */
+    ".tb-typing{display:flex;gap:5px;padding:12px 16px;background:#F7F8FF;border-radius:6px 20px 20px 6px;align-self:flex-start;margin-left:40px;box-shadow:0 1px 4px rgba(0,0,0,.04)}",
+    ".tb-typing span{width:7px;height:7px;background:#b0b3b8;border-radius:50%;animation:tb-dot .6s infinite alternate}",
+    ".tb-typing span:nth-child(2){animation-delay:.15s}",
+    ".tb-typing span:nth-child(3){animation-delay:.3s}",
+    "@keyframes tb-dot{to{opacity:.3;transform:translateY(-3px)}}",
+
+    /* ─── Input (Typebot-Style) ─── */
+    ".tb-input-row{display:flex;border-top:1px solid #f0f0f0;padding:10px 12px;gap:8px;background:#fff;flex-shrink:0}",
+    ".tb-inp{flex:1;border:1px solid #e5e7eb;border-radius:20px;padding:10px 16px;font-size:16px;font-family:inherit;resize:none;outline:none;max-height:80px;background:#fff;color:#303235;-webkit-appearance:none;transition:border-color .15s}",
+    ".tb-inp::placeholder{color:#9CA3AF}",
+    ".tb-inp:focus{border-color:VAR;box-shadow:0 0 0 1px VAR}",
+    ".tb-send{background:linear-gradient(135deg,VAR,#764ba2);color:#fff;border:none;border-radius:50%;width:40px;height:40px;min-width:40px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:opacity .15s,transform .15s;-webkit-appearance:none}",
+    ".tb-send:hover{transform:scale(1.05)}",
+    ".tb-send:active{transform:scale(.95)}",
+    ".tb-send:disabled{opacity:.4;cursor:not-allowed;transform:none}",
+    ".tb-foot{text-align:center;padding:6px 0 8px;font-size:10px;color:#b0b3b8;background:#fff;flex-shrink:0}",
+
+    /* ─── Mode Selection ─── */
+    ".tb-mode-select{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px}",
+    ".tb-mode-btn{width:100%;max-width:280px;padding:14px 18px;border-radius:16px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s ease;font-family:inherit;-webkit-appearance:none;min-height:48px}",
+    ".tb-mode-btn:hover{border-color:VAR;background:#fafaff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(102,126,234,.15)}",
+    ".tb-mode-btn:active{transform:scale(.98);box-shadow:none}",
+    ".tb-mode-icon{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,VAR,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}",
+    ".tb-mode-label{text-align:left;min-width:0}",
+    ".tb-mode-title{font-size:15px;font-weight:600;color:#303235}",
+    ".tb-mode-desc{font-size:12px;color:#6b7280;margin-top:2px}",
+
+    /* ─── Voice UI ─── */
+    ".tb-voice-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}",
+    ".tb-voice-btn{width:80px;height:80px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s ease;font-size:32px;-webkit-appearance:none}",
+    ".tb-voice-btn:active{transform:scale(.92)}",
+    ".tb-voice-btn.idle{background:#f3f4f6;color:#6b7280}",
+    ".tb-voice-btn.connecting{background:#fbbf24;color:#fff;animation:tb-pulse 1.5s infinite}",
+    ".tb-voice-btn.active{background:#ef4444;color:#fff;animation:tb-pulse 1.5s infinite}",
+    "@keyframes tb-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 14px rgba(239,68,68,0)}}",
+    ".tb-voice-status{font-size:14px;color:#6b7280;text-align:center;padding:0 8px}",
+    ".tb-voice-status.connected{color:#059669;font-weight:500}",
+    "#tb-voice-audio{display:none}"
   ].join("\n").replace(/VAR/g, ACCENT);
 
   var styleEl = document.createElement("style");
   styleEl.textContent = css;
   document.head.appendChild(styleEl);
 
-  // Viewport meta (mobile zoom fix for inputs)
+  // Viewport meta (mobile zoom fix)
   if (!document.querySelector('meta[name="viewport"]')) {
     var meta = document.createElement("meta");
     meta.name = "viewport";
@@ -145,73 +155,73 @@
 
   // ── Bubble ──────────────────────────────────────────────────────────────
   var bubble = document.createElement("button");
-  bubble.id = "eppcom-cb";
+  bubble.id = "typebot-bubble";
   bubble.setAttribute("aria-label", "Chat \u00f6ffnen");
-  bubble.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 3C6.5 3 2 6.58 2 11a7.23 7.23 0 002.75 5.5L3 21l4.5-2.5A11.27 11.27 0 0012 19c5.5 0 10-3.58 10-8s-4.5-8-10-8z"/></svg>';
+  bubble.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>';
   bubble.onclick = function () { openChat(); };
   document.body.appendChild(bubble);
 
   // ── Preview ─────────────────────────────────────────────────────────────
   var preview = document.createElement("div");
-  preview.id = "eppcom-preview";
-  preview.innerHTML = 'Hallo! Kann ich Ihnen helfen?<button id="eppcom-preview-close">&times;</button>';
-  preview.onclick = function (e) { if (e.target.id !== "eppcom-preview-close") { openChat(); } else { preview.classList.remove("show"); } };
+  preview.id = "typebot-preview";
+  preview.innerHTML = 'Hallo! Kann ich Ihnen helfen?<button id="typebot-preview-close">&times;</button>';
+  preview.onclick = function (e) { if (e.target.id !== "typebot-preview-close") { openChat(); } else { preview.classList.remove("show"); } };
   document.body.appendChild(preview);
 
   // ── Window ──────────────────────────────────────────────────────────────
   var win = document.createElement("div");
-  win.id = "eppcom-win";
+  win.id = "typebot-win";
   win.innerHTML =
-    '<div class="ec-hdr">' +
-      '<button class="ec-hdr-back" id="ec-back">\u2190</button>' +
-      '<div class="ec-hdr-av">\uD83E\uDD16</div>' +
-      '<div class="ec-hdr-txt"><div class="ec-hdr-name">EPPCOM Assistent</div><div class="ec-hdr-sub" id="ec-hdr-sub">KI-Assistent \u2014 DSGVO-konform</div></div>' +
-      '<button class="ec-hdr-x" id="eppcom-close">\u00D7</button>' +
+    '<div class="tb-hdr">' +
+      '<button class="tb-hdr-back" id="tb-back">\u2190</button>' +
+      '<div class="tb-hdr-av">\uD83E\uDD16</div>' +
+      '<div class="tb-hdr-txt"><div class="tb-hdr-name">EPPCOM Assistent</div><div class="tb-hdr-sub" id="tb-hdr-sub">KI-Assistent \u2014 DSGVO-konform</div></div>' +
+      '<button class="tb-hdr-x" id="tb-close">\u00D7</button>' +
     '</div>' +
-    '<div id="ec-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
-      '<div id="ec-mode-select" class="ec-mode-select">' +
-        '<div class="ec-msg ec-bot" style="max-width:100%;margin-bottom:8px">' +
-          '<div class="ec-bot-av">\uD83E\uDD16</div>' +
-          '<div class="ec-bot-bubble" id="ec-welcome-text"></div>' +
+    '<div id="tb-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +
+      '<div id="tb-mode-select" class="tb-mode-select">' +
+        '<div class="tb-msg tb-bot" style="max-width:100%;margin-bottom:8px">' +
+          '<div class="tb-bot-av">\uD83E\uDD16</div>' +
+          '<div class="tb-bot-bubble" id="tb-welcome-text"></div>' +
         '</div>' +
-        '<button class="ec-mode-btn" id="ec-mode-text">' +
-          '<div class="ec-mode-icon">\u270D\uFE0F</div>' +
-          '<div class="ec-mode-label"><div class="ec-mode-title">Schreiben</div><div class="ec-mode-desc">Tippen Sie Ihre Frage ein</div></div>' +
+        '<button class="tb-mode-btn" id="tb-mode-text">' +
+          '<div class="tb-mode-icon">\u270D\uFE0F</div>' +
+          '<div class="tb-mode-label"><div class="tb-mode-title">Schreiben</div><div class="tb-mode-desc">Tippen Sie Ihre Frage ein</div></div>' +
         '</button>' +
-        '<button class="ec-mode-btn" id="ec-mode-voice">' +
-          '<div class="ec-mode-icon">\uD83C\uDF99\uFE0F</div>' +
-          '<div class="ec-mode-label"><div class="ec-mode-title">Sprechen</div><div class="ec-mode-desc">Reden Sie direkt mit dem Assistenten</div></div>' +
+        '<button class="tb-mode-btn" id="tb-mode-voice">' +
+          '<div class="tb-mode-icon">\uD83C\uDF99\uFE0F</div>' +
+          '<div class="tb-mode-label"><div class="tb-mode-title">Sprechen</div><div class="tb-mode-desc">Reden Sie direkt mit dem Assistenten</div></div>' +
         '</button>' +
       '</div>' +
-      '<div id="ec-chat-view" style="display:none;flex:1;flex-direction:column;overflow:hidden">' +
-        '<div class="ec-msgs" id="ec-msgs"></div>' +
-        '<div class="ec-input-row">' +
-          '<textarea class="ec-inp" id="ec-inp" rows="1" placeholder="Ihre Frage eingeben..." enterkeyhint="send"></textarea>' +
-          '<button class="ec-send" id="ec-send" aria-label="Senden">\u27A4</button>' +
+      '<div id="tb-chat-view" style="display:none;flex:1;flex-direction:column;overflow:hidden">' +
+        '<div class="tb-msgs" id="tb-msgs"></div>' +
+        '<div class="tb-input-row">' +
+          '<textarea class="tb-inp" id="tb-inp" rows="1" placeholder="Ihre Nachricht..." enterkeyhint="send"></textarea>' +
+          '<button class="tb-send" id="tb-send" aria-label="Senden">\u27A4</button>' +
         '</div>' +
       '</div>' +
-      '<div id="ec-voice-view" style="display:none;flex:1;flex-direction:column;overflow:hidden">' +
-        '<div class="ec-voice-area">' +
-          '<button class="ec-voice-btn idle" id="ec-voice-btn" aria-label="Mikrofon">\uD83C\uDF99\uFE0F</button>' +
-          '<div class="ec-voice-status" id="ec-voice-status">Antippen zum Starten</div>' +
+      '<div id="tb-voice-view" style="display:none;flex:1;flex-direction:column;overflow:hidden">' +
+        '<div class="tb-voice-area">' +
+          '<button class="tb-voice-btn idle" id="tb-voice-btn" aria-label="Mikrofon">\uD83C\uDF99\uFE0F</button>' +
+          '<div class="tb-voice-status" id="tb-voice-status">Antippen zum Starten</div>' +
         '</div>' +
-        '<div id="ec-voice-audio"></div>' +
+        '<div id="tb-voice-audio"></div>' +
       '</div>' +
     '</div>' +
-    '<div class="ec-foot">EPPCOM Solutions \u2014 KI-Automatisierung</div>';
+    '<div class="tb-foot">Powered by EPPCOM Solutions</div>';
   document.body.appendChild(win);
 
-  document.getElementById("ec-welcome-text").textContent = WELCOME;
+  document.getElementById("tb-welcome-text").textContent = WELCOME;
 
   // ── Events ──────────────────────────────────────────────────────────────
-  document.getElementById("ec-send").onclick = sendMessage;
-  document.getElementById("eppcom-close").onclick = closeChat;
-  document.getElementById("ec-back").onclick = goBack;
-  document.getElementById("ec-mode-text").onclick = function () { switchMode("text"); };
-  document.getElementById("ec-mode-voice").onclick = function () { switchMode("voice"); };
-  document.getElementById("ec-voice-btn").onclick = toggleVoice;
+  document.getElementById("tb-send").onclick = sendMessage;
+  document.getElementById("tb-close").onclick = closeChat;
+  document.getElementById("tb-back").onclick = goBack;
+  document.getElementById("tb-mode-text").onclick = function () { switchMode("text"); };
+  document.getElementById("tb-mode-voice").onclick = function () { switchMode("voice"); };
+  document.getElementById("tb-voice-btn").onclick = toggleVoice;
 
-  var inp = document.getElementById("ec-inp");
+  var inp = document.getElementById("tb-inp");
   inp.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
@@ -219,13 +229,8 @@
     this.style.height = "auto";
     this.style.height = Math.min(this.scrollHeight, 80) + "px";
   });
-  // Mobile: Scroll to input when keyboard opens
   inp.addEventListener("focus", function () {
-    if (isMobile) {
-      setTimeout(function () {
-        inp.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }, 300);
-    }
+    if (isMobile) setTimeout(function () { inp.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 300);
   });
 
   // Auto-open
@@ -239,16 +244,22 @@
   function openChat() {
     isOpen = true;
     win.classList.add("open");
-    bubble.style.display = "none";
     preview.classList.remove("show");
-    // Mobile: prevent body scroll
+    bubble.style.display = "none";
+    // Trigger animation on next frame
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { win.classList.add("visible"); });
+    });
     if (isMobile) document.body.style.overflow = "hidden";
   }
 
   function closeChat() {
-    isOpen = false;
-    win.classList.remove("open");
-    bubble.style.display = "flex";
+    win.classList.remove("visible");
+    setTimeout(function () {
+      isOpen = false;
+      win.classList.remove("open");
+      bubble.style.display = "flex";
+    }, 250);
     if (voiceRoom) stopVoice();
     if (isMobile) document.body.style.overflow = "";
   }
@@ -256,76 +267,76 @@
   function goBack() {
     if (voiceRoom) stopVoice();
     mode = null;
-    document.getElementById("ec-mode-select").style.display = "flex";
-    document.getElementById("ec-chat-view").style.display = "none";
-    document.getElementById("ec-voice-view").style.display = "none";
-    document.getElementById("ec-back").classList.remove("show");
-    document.getElementById("ec-hdr-sub").textContent = "KI-Assistent \u2014 DSGVO-konform";
+    document.getElementById("tb-mode-select").style.display = "flex";
+    document.getElementById("tb-chat-view").style.display = "none";
+    document.getElementById("tb-voice-view").style.display = "none";
+    document.getElementById("tb-back").classList.remove("show");
+    document.getElementById("tb-hdr-sub").textContent = "KI-Assistent \u2014 DSGVO-konform";
   }
 
   function switchMode(m) {
     mode = m;
-    document.getElementById("ec-mode-select").style.display = "none";
-    document.getElementById("ec-back").classList.add("show");
+    document.getElementById("tb-mode-select").style.display = "none";
+    document.getElementById("tb-back").classList.add("show");
 
     if (m === "text") {
-      document.getElementById("ec-chat-view").style.display = "flex";
-      document.getElementById("ec-voice-view").style.display = "none";
-      document.getElementById("ec-hdr-sub").textContent = "Text-Chat";
-      if (!document.getElementById("ec-msgs").hasChildNodes()) {
+      document.getElementById("tb-chat-view").style.display = "flex";
+      document.getElementById("tb-voice-view").style.display = "none";
+      document.getElementById("tb-hdr-sub").textContent = "Text-Chat";
+      if (!document.getElementById("tb-msgs").hasChildNodes()) {
         addBot("Wie kann ich Ihnen helfen? Stellen Sie mir eine Frage.");
       }
-      if (!isMobile) document.getElementById("ec-inp").focus();
+      if (!isMobile) inp.focus();
     } else {
-      document.getElementById("ec-chat-view").style.display = "none";
-      document.getElementById("ec-voice-view").style.display = "flex";
-      document.getElementById("ec-hdr-sub").textContent = "Sprach-Chat";
+      document.getElementById("tb-chat-view").style.display = "none";
+      document.getElementById("tb-voice-view").style.display = "flex";
+      document.getElementById("tb-hdr-sub").textContent = "Sprach-Chat";
       startVoice();
     }
   }
 
   // ── Text Chat ───────────────────────────────────────────────────────────
   function addBot(text) {
-    var msgs = document.getElementById("ec-msgs");
+    var msgs = document.getElementById("tb-msgs");
     var w = document.createElement("div");
-    w.className = "ec-msg ec-bot";
-    w.innerHTML = '<div class="ec-bot-av">\uD83E\uDD16</div><div class="ec-bot-bubble"></div>';
-    w.querySelector(".ec-bot-bubble").textContent = text;
+    w.className = "tb-msg tb-bot";
+    w.innerHTML = '<div class="tb-bot-av">\uD83E\uDD16</div><div class="tb-bot-bubble"></div>';
+    w.querySelector(".tb-bot-bubble").textContent = text;
     msgs.appendChild(w);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
   function addUser(text) {
-    var msgs = document.getElementById("ec-msgs");
+    var msgs = document.getElementById("tb-msgs");
     var w = document.createElement("div");
-    w.className = "ec-msg ec-user";
-    w.innerHTML = '<div class="ec-user-bubble"></div>';
-    w.querySelector(".ec-user-bubble").textContent = text;
+    w.className = "tb-msg tb-user";
+    w.innerHTML = '<div class="tb-user-bubble"></div>';
+    w.querySelector(".tb-user-bubble").textContent = text;
     msgs.appendChild(w);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
   function addError(text) {
-    var msgs = document.getElementById("ec-msgs");
+    var msgs = document.getElementById("tb-msgs");
     var w = document.createElement("div");
-    w.className = "ec-msg ec-err";
-    w.innerHTML = '<div class="ec-bot-av">\u26A0\uFE0F</div><div class="ec-bot-bubble"></div>';
-    w.querySelector(".ec-bot-bubble").textContent = text;
+    w.className = "tb-msg tb-err";
+    w.innerHTML = '<div class="tb-bot-av">\u26A0\uFE0F</div><div class="tb-bot-bubble"></div>';
+    w.querySelector(".tb-bot-bubble").textContent = text;
     msgs.appendChild(w);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
   function showTyping() {
-    var msgs = document.getElementById("ec-msgs");
+    var msgs = document.getElementById("tb-msgs");
     var d = document.createElement("div");
-    d.className = "ec-typing"; d.id = "ec-typing";
+    d.className = "tb-typing"; d.id = "tb-typing";
     d.innerHTML = "<span></span><span></span><span></span>";
     msgs.appendChild(d);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
   function removeTyping() {
-    var el = document.getElementById("ec-typing");
+    var el = document.getElementById("tb-typing");
     if (el) el.remove();
   }
 
@@ -336,7 +347,7 @@
     addUser(text);
     inp.value = "";
     inp.style.height = "auto";
-    document.getElementById("ec-send").disabled = true;
+    document.getElementById("tb-send").disabled = true;
     isLoading = true;
     showTyping();
 
@@ -358,18 +369,18 @@
       addError("Es gab einen Fehler. Bitte versuchen Sie es erneut.");
     })
     .finally(function () {
-      document.getElementById("ec-send").disabled = false;
+      document.getElementById("tb-send").disabled = false;
       isLoading = false;
     });
   }
 
   // ── Voice ───────────────────────────────────────────────────────────────
   function setVoiceState(state, statusText) {
-    var btn = document.getElementById("ec-voice-btn");
-    var st = document.getElementById("ec-voice-status");
-    btn.className = "ec-voice-btn " + state;
+    var btn = document.getElementById("tb-voice-btn");
+    var st = document.getElementById("tb-voice-status");
+    btn.className = "tb-voice-btn " + state;
     st.textContent = statusText;
-    st.className = "ec-voice-status" + (state === "active" ? " connected" : "");
+    st.className = "tb-voice-status" + (state === "active" ? " connected" : "");
   }
 
   function toggleVoice() { voiceRoom ? stopVoice() : startVoice(); }
@@ -381,7 +392,6 @@
 
     loadLiveKitSDK()
     .then(function () {
-      setVoiceState("connecting", "Hole Token...");
       return fetch(VOICE_TOKEN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -394,7 +404,7 @@
     })
     .then(function (data) {
       if (!data.token) throw new Error("Kein Token erhalten");
-      setVoiceState("connecting", "Verbinde mit Sprachserver...");
+      setVoiceState("connecting", "Verbinde...");
 
       var room = new LivekitClient.Room();
       voiceRoom = room;
@@ -405,7 +415,7 @@
           el.autoplay = true;
           el.volume = 1.0;
           el.setAttribute("playsinline", "");
-          document.getElementById("ec-voice-audio").appendChild(el);
+          document.getElementById("tb-voice-audio").appendChild(el);
         }
       });
 
@@ -442,7 +452,7 @@
     if (voiceRoom) { voiceRoom.disconnect(); voiceRoom = null; }
     voiceConnecting = false;
     setVoiceState("idle", "Beendet. Antippen zum Neustart.");
-    var ac = document.getElementById("ec-voice-audio");
+    var ac = document.getElementById("tb-voice-audio");
     if (ac) ac.innerHTML = "";
   }
 
