@@ -1665,6 +1665,52 @@ async def widget_chat(request: Request):
     }
 
 
+@app.post("/api/public/voice-token")
+async def public_voice_token(request: Request):
+    """Öffentlicher Voice-Token-Endpoint für Widget — Auth via Domain-Whitelist."""
+    origin = request.headers.get("origin", "") or request.headers.get("referer", "")
+    tenant_id = await _resolve_tenant_by_domain(origin)
+    if not tenant_id:
+        raise HTTPException(403, "Domain nicht autorisiert")
+
+    if not LIVEKIT_KEY or not LIVEKIT_SECRET:
+        raise HTTPException(503, "LiveKit ist nicht konfiguriert")
+
+    import hmac, base64, time as _time
+
+    body = await request.json()
+    identity = body.get("identity", f"widget-user-{uuid.uuid4().hex[:8]}")
+    room_name = body.get("room", "eppcom-voice")
+
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=")
+    now = int(_time.time())
+    payload_data = {
+        "iss": LIVEKIT_KEY,
+        "sub": identity,
+        "iat": now,
+        "exp": now + 3600,
+        "nbf": now,
+        "jti": str(uuid.uuid4()),
+        "video": {
+            "roomCreate": True,
+            "roomJoin": True,
+            "room": room_name,
+            "canPublish": True,
+            "canSubscribe": True,
+            "canPublishData": True,
+        },
+        "metadata": json.dumps({"name": identity}),
+    }
+    payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).rstrip(b"=")
+    signing_input = header + b"." + payload
+    signature = base64.urlsafe_b64encode(
+        hmac.new(LIVEKIT_SECRET.encode(), signing_input, hashlib.sha256).digest()
+    ).rstrip(b"=")
+    token = (signing_input + b"." + signature).decode()
+
+    return {"token": token, "url": f"wss://voice.{os.getenv('DOMAIN', 'eppcom.de')}"}
+
+
 @app.post("/api/public/chat")
 async def public_chat(request: Request):
     """Öffentlicher Endpoint für Typebot — Auth via X-API-Key + X-Tenant-ID Header."""
