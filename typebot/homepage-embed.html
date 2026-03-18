@@ -1,33 +1,30 @@
 <!--
-  EPPCOM KI-Chatbot — Embed-Code für www.eppcom.de
-  ==================================================
-  Typebot v2 Bubble-Widget mit RAG-Backend.
+  EPPCOM KI-Chatbot + Voice — Embed-Code für www.eppcom.de
+  =========================================================
+  Kombiniertes Chat-Widget mit Text- und Sprach-Modus.
+  Öffnet automatisch beim Seitenaufruf.
 
-  RAG-Pipeline:
-    Typebot Widget → bot.eppcom.de → appdb.eppcom.de/api/public/chat → Ollama → Antwort
+  RAG-Pipeline (Text):
+    Widget → appdb.eppcom.de/api/public/widget-chat → Ollama → Antwort
+
+  Voice-Pipeline:
+    Widget → LiveKit (voice.eppcom.de) → Whisper STT → RAG → Piper TTS → Antwort
 
   Platzierung: Vor </body> auf jeder Seite.
+
+  Voraussetzung: Domain www.eppcom.de muss in der Admin UI
+  unter "Domains" als Whitelist-Eintrag hinterlegt sein.
 -->
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     TYPEBOT CHATBOT v2 (Bubble-Widget)
-     Schwebendes Chat-Icon unten rechts — Typebot-Design.
-     RAG-Antworten kommen server-seitig via Webhook.
+     EPPCOM CHAT + VOICE WIDGET
      ═══════════════════════════════════════════════════════════════════ -->
 
-<script type="module">
-  import Typebot from "https://cdn.jsdelivr.net/npm/@typebot.io/js@0.3/dist/web.js";
-
-  Typebot.initBubble({
-    typebot: "eppcom-chatbot-v2",
-    apiHost: "https://bot.eppcom.de",
-    theme: {
-      button: { backgroundColor: "#2563EB" },
-      chatWindow: { backgroundColor: "#ffffff" },
-    },
-    previewMessage: {
-      message: "Hallo! Kann ich Ihnen helfen?",
-      autoShowDelay: 5000,
-    },
-  });
-</script>
+<script src="https://appdb.eppcom.de/widget/chat-widget.js"
+        data-api-url="https://appdb.eppcom.de/api/public/widget-chat"
+        data-voice-token-url="https://appdb.eppcom.de/api/public/voice-token"
+        data-livekit-url="wss://voice.eppcom.de"
+        data-accent="#2563EB"
+        data-welcome="Hallo! Willkommen bei EPPCOM Solutions — Ihrem Partner für KI-Automatisierung. Wie möchten Sie kommunizieren?"
+        data-auto-open="true"
+        defer></script>
