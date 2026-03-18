@@ -360,7 +360,7 @@ async def generate_embeddings_batch(texts: List[str], batch_size: int = 10) -> L
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
         async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(f"{OLLAMA_URL}/api/embed", json={"model": EMBED_MODEL, "input": batch})
+            resp = await client.post(f"{OLLAMA_URL}/api/embed", json={"model": EMBED_MODEL, "input": batch, "keep_alive": "30m"})
             if resp.status_code != 200:
                 raise ValueError(f"Ollama Batch-Embed Fehler: {resp.status_code}")
             data = resp.json()
@@ -1420,10 +1420,11 @@ async def admin_tenant_content(tenant_id: str, session: SessionInfo = Depends(re
 # ══════════════════════════════════════════════════════════════════════════════
 CHAT_MODEL = os.getenv("CHAT_MODEL", "qwen3-nothink")
 
-SYSTEM_PROMPT = """Du bist ein freundlicher und hilfreicher KI-Assistent.
-Du beantwortest Fragen ausschließlich basierend auf dem bereitgestellten Kontext.
+SYSTEM_PROMPT = """Du bist Nexo, der KI-Assistent von EPPCOM Solutions.
+Du beantwortest Fragen basierend auf dem bereitgestellten Kontext.
 Wenn der Kontext keine Antwort enthält, sage ehrlich, dass du dazu keine Informationen hast.
-Antworte auf Deutsch, präzise und verständlich. Verwende keine Markdown-Überschriften."""
+Antworte auf Deutsch, präzise, kurz und verständlich. Keine Markdown-Überschriften.
+Halte Antworten kompakt — maximal 3-4 Sätze wenn möglich."""
 
 
 @app.post("/api/rag-chat")
@@ -1507,7 +1508,7 @@ async def _rag_pipeline(tenant_id: str, query: str):
     async with httpx.AsyncClient(timeout=120) as client:
         embed_resp = await client.post(
             f"{OLLAMA_URL}/api/embed",
-            json={"model": EMBED_MODEL, "input": query},
+            json={"model": EMBED_MODEL, "input": query, "keep_alive": "30m"},
         )
         embed_data = embed_resp.json()
         embedding = embed_data.get("embeddings", [[]])[0] or embed_data.get("embedding", [])
@@ -1533,7 +1534,7 @@ async def _rag_pipeline(tenant_id: str, query: str):
     # 3) Kontext
     sources_info = []
     if chunks:
-        context = "\n\n---\n\n".join(ch["content"] for ch in chunks)[:6000]
+        context = "\n\n---\n\n".join(ch["content"] for ch in chunks)[:3000]
         sources_info = [{"source": ch["source_name"], "similarity": round(float(ch["similarity"]), 3)} for ch in chunks]
         user_msg = f"Kontext:\n{context}\n\nFrage: {query}"
     else:
@@ -1550,6 +1551,7 @@ async def _rag_pipeline(tenant_id: str, query: str):
                     {"role": "user", "content": user_msg},
                 ],
                 "stream": False,
+                "keep_alive": "30m",
             },
         )
         llm_data = llm_resp.json()

@@ -40,7 +40,7 @@
       'apiHost: "' + TYPEBOT_HOST + '",' +
       'theme: {' +
         'button: { backgroundColor: "' + COLOR + '", iconColor: "#FFFFFF", size: "medium" },' +
-        'previewMessage: { message: "\uD83D\uDCAC Fragen Sie unseren KI-Assistenten!", autoShowDelay: 3000 },' +
+        'previewMessage: { message: "\uD83D\uDCAC Hallo! Ich bin Nexo \u2014 wie kann ich helfen?", autoShowDelay: 3000 },' +
         'chatWindow: { backgroundColor: "#FFFFFF" }' +
       '}' +
     '});' +
@@ -100,7 +100,7 @@
   voiceOverlay.id = "eppcom-voice-overlay";
   voiceOverlay.innerHTML =
     '<button class="ev-close" id="ev-close">\u00D7</button>' +
-    '<h3>EPPCOM Sprach-Assistent</h3>' +
+    '<h3>Nexo Sprach-Assistent</h3>' +
     '<button class="ev-mic-btn idle" id="ev-mic-btn">\uD83C\uDF99\uFE0F</button>' +
     '<div class="ev-status" id="ev-status">Antippen zum Starten</div>' +
     '<div id="ev-audio"></div>';

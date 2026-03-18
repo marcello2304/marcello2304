@@ -1,9 +1,9 @@
 """
-EPPCOM Voice Bot Agent (livekit-agents v1.4.6)
+Nexo — EPPCOM Voice Bot Agent (livekit-agents v1.4.6)
 - STT: faster-whisper (lokal, DSGVO-konform)
-- LLM: n8n RAG Webhook (kein lokales LLM nötig)
+- LLM: RAG-Pipeline via Admin-UI
 - TTS: piper-tts (lokal, DSGVO-konform)
-- VAD: silero
+- VAD: silero (2s Stille = Endpunkt)
 
 Deployment: Docker auf Server 2 (46.224.54.65)
 """
@@ -28,7 +28,7 @@ from livekit.agents import (
 from livekit.plugins import silero
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-logger = logging.getLogger("eppcom-voice")
+logger = logging.getLogger("nexo-voice")
 
 # ── Konfiguration via ENV ────────────────────────────────────────────────────
 RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
@@ -184,7 +184,7 @@ class RagLLMStream(llm.LLMStream):
         logger.info(f"RAG Query: '{question}'")
 
         try:
-            async with httpx.AsyncClient(timeout=45) as client:
+            async with httpx.AsyncClient(timeout=120) as client:
                 resp = await client.post(
                     f"{RAG_URL}/api/public/chat",
                     json={"query": question, "session_id": "voice_session"},
@@ -214,69 +214,40 @@ class RagLLMStream(llm.LLMStream):
 # ═════════════════════════════════════════════════════════════════════════════
 # Agent Entrypoint
 # ═════════════════════════════════════════════════════════════════════════════
-async def _fetch_greeting() -> str:
-    """Holt eine Begrüßung mit EPPCOM-Infos aus dem RAG-System."""
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{RAG_URL}/api/public/chat",
-                json={
-                    "query": "Stelle dich kurz als EPPCOM Sprach-Assistent vor. "
-                             "Beschreibe in 2-3 Sätzen was EPPCOM macht und biete deine Hilfe an.",
-                    "session_id": "voice_greeting",
-                },
-                headers={
-                    "X-Tenant-ID": TENANT_ID,
-                    "X-API-Key": API_KEY,
-                    "Content-Type": "application/json",
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data.get("answer", data.get("response", ""))
-    except Exception as e:
-        logger.error(f"Greeting RAG-Fehler: {e}")
-        return ""
-
-
-FALLBACK_GREETING = (
-    "Hallo und willkommen bei EPPCOM! "
-    "Ich bin Ihr digitaler Sprach-Assistent. "
+NEXO_GREETING = (
+    "Hallo! Ich bin Nexo, der KI-Assistent von EPPCOM Solutions, "
+    "Ihrem Partner für KI-Automatisierung und Workflow-Optimierung. "
+    "Alle unsere Lösungen sind DSGVO-konform und laufen auf deutschen Servern. "
     "Wie kann ich Ihnen heute helfen?"
 )
 
 
 async def entrypoint(ctx: JobContext):
-    logger.info(f"Voice Agent gestartet — Room: {ctx.room.name}")
+    logger.info(f"Nexo Voice Agent gestartet — Room: {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
     agent = agents.voice.Agent(
         instructions=(
-            "Du bist der EPPCOM Sprach-Assistent. Antworte auf Deutsch, kurz und hilfreich. "
-            "Sei freundlich und professionell."
+            "Du bist Nexo, der KI-Sprach-Assistent von EPPCOM Solutions. "
+            "Antworte auf Deutsch, kurz und hilfreich. "
+            "Sei freundlich und professionell. "
+            "EPPCOM bietet KI-Automatisierung und Workflow-Optimierung für KMU."
         ),
         stt=WhisperSTT(),
         llm=RagLLM(),
         tts=PiperTTS(),
-        vad=silero.VAD.load(min_silence_duration=3.0),
-        min_endpointing_delay=3.0,
+        vad=silero.VAD.load(min_silence_duration=2.0),
+        min_endpointing_delay=2.0,
     )
 
     session = agents.AgentSession()
     await session.start(agent=agent, room=ctx.room)
 
-    # Begrüßung sofort mit Fallback, RAG-Begrüßung im Hintergrund versuchen
-    try:
-        greeting = await asyncio.wait_for(_fetch_greeting(), timeout=15)
-        if not greeting or len(greeting) < 10:
-            greeting = FALLBACK_GREETING
-    except (asyncio.TimeoutError, Exception) as e:
-        logger.warning(f"Begrüßung-Timeout/Fehler: {e}, nutze Fallback")
-        greeting = FALLBACK_GREETING
-    logger.info(f"Begrüßung: '{greeting[:80]}...'")
-    session.say(greeting)
+    # Sofortige Begrüßung — kein RAG-Call nötig, direkt sprechen
+    logger.info(f"Begrüßung: '{NEXO_GREETING[:80]}...'")
+    session.say(NEXO_GREETING)
 
-    logger.info("Agent-Session gestartet, warte auf Audio...")
+    logger.info("Nexo-Session gestartet, warte auf Audio...")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 {
     "publicId": "eppcom-chatbot-v2",
-    "name": "EPPCOM Chatbot v2 (RAG)",
+    "name": "Nexo — EPPCOM KI-Assistent",
     "groups": [
         {
             "id": "grp-welcome",
@@ -15,14 +15,21 @@
                                 "type": "p",
                                 "children": [
                                     {
-                                        "text": "Hallo! Willkommen bei "
+                                        "text": "Hallo! Ich bin "
+                                    },
+                                    {
+                                        "bold": true,
+                                        "text": "Nexo"
+                                    },
+                                    {
+                                        "text": ", der KI-Assistent von "
                                     },
                                     {
                                         "bold": true,
                                         "text": "EPPCOM Solutions"
                                     },
                                     {
-                                        "text": " - Ihrem Partner f\u00fcr KI-Automatisierung."
+                                        "text": " \u2014 Ihrem Partner f\u00fcr KI-Automatisierung."
                                     }
                                 ]
                             }
@@ -38,7 +45,7 @@
                                 "type": "p",
                                 "children": [
                                     {
-                                        "text": "Ich bin Ihr digitaler Assistent und helfe Ihnen gerne weiter. Wie darf ich Sie ansprechen?"
+                                        "text": "Ich helfe Ihnen gerne weiter! Sie k\u00f6nnen hier schreiben oder auf das \uD83C\uDF99\uFE0F Mikrofon-Symbol klicken, um direkt mit mir zu sprechen. Wie darf ich Sie ansprechen?"
                                     }
                                 ]
                             }
