@@ -33,7 +33,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Agent-Code
 COPY agent.py .
 
-ENV PIPER_MODEL=/opt/piper-models/de_DE-eva_k-x_low.onnx
+ENV PIPER_MODEL=/opt/piper-models/de_DE-ramona-low.onnx
 ENV WHISPER_MODEL=base
 ENV PYTHONUNBUFFERED=1
 

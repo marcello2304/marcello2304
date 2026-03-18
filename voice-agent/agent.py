@@ -35,7 +35,7 @@ RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
 TENANT_ID = os.getenv("TENANT_ID", "")
 API_KEY = os.getenv("API_KEY", "")
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
-PIPER_MODEL = os.getenv("PIPER_MODEL", "/opt/piper-models/de_DE-eva_k-x_low.onnx")
+PIPER_MODEL = os.getenv("PIPER_MODEL", "/opt/piper-models/de_DE-ramona-low.onnx")
 PIPER_SAMPLE_RATE = int(os.getenv("PIPER_SAMPLE_RATE", "16000"))
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://localhost:7880")
 LIVEKIT_KEY = os.getenv("LIVEKIT_API_KEY", "")
@@ -191,7 +191,7 @@ class RagLLMStream(llm.LLMStream):
             logger.warning("Keine User-Nachricht gefunden")
             return
 
-        logger.info(f"RAG Query: '{question}'")
+        logger.info(f"RAG Query: '{question[:100]}...'")  # Kurzes Logging für Speed
 
         # Prüfe ob der User seinen Namen sagt (erste Interaktion)
         session_id = "voice_session"
@@ -219,7 +219,8 @@ class RagLLMStream(llm.LLMStream):
 
         try:
             enriched_query = name_prefix + question if name_prefix else question
-            async with httpx.AsyncClient(timeout=120) as client:
+            # Timeout 30s für Ollama (keep_alive=30m sorgt dafür dass Modell warm bleibt)
+            async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
                     f"{RAG_URL}/api/public/chat",
                     json={"query": enriched_query, "session_id": session_id},
