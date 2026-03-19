@@ -35,7 +35,7 @@ logger = logging.getLogger("nexo-voice")
 RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
 TENANT_ID = os.getenv("TENANT_ID", "")
 API_KEY = os.getenv("API_KEY", "")
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "base")
+WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "tiny")
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://localhost:7880")
 LIVEKIT_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
@@ -124,9 +124,17 @@ class CartesiaChunkedStream(tts.ChunkedStream):
                 logger.error("CARTESIA_API_KEY nicht gesetzt!")
                 return
 
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    "https://api.cartesia.ai/tts/bytes",
+            output_emitter.initialize(
+                request_id="cartesia-stream",
+                sample_rate=44100,
+                num_channels=1,
+                mime_type="audio/pcm",
+            )
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                async with client.stream(
+                    "POST",
+                    "https://api.cartesia.ai/tts/sse",
                     headers={
                         "Cartesia-Version": "2025-04-16",
                         "X-API-Key": CARTESIA_API_KEY,
@@ -140,29 +148,20 @@ class CartesiaChunkedStream(tts.ChunkedStream):
                             "id": CARTESIA_VOICE_ID,
                         },
                         "output_format": {
-                            "container": "wav",
+                            "container": "raw",
                             "encoding": "pcm_f32le",
                             "sample_rate": 44100,
                         },
-                        "speed": "normal",
-                        "generation_config": {
-                            "speed": 1.0,
-                            "volume": 1.0,
-                        },
+                        "stream": True,
                     },
-                )
-                resp.raise_for_status()
-                audio_data = resp.content
-                logger.info(f"Cartesia TTS: {len(audio_data)} bytes WAV für '{self._input_text[:50]}...'")
-
-                if audio_data:
-                    output_emitter.initialize(
-                        request_id="cartesia",
-                        sample_rate=44100,
-                        num_channels=1,
-                        mime_type="audio/wav",
-                    )
-                    output_emitter.push(audio_data)
+                ) as resp:
+                    resp.raise_for_status()
+                    chunk_count = 0
+                    async for chunk in resp.aiter_bytes(chunk_size=4096):
+                        if chunk:
+                            chunk_count += 1
+                            output_emitter.push(chunk)
+                    logger.info(f"Cartesia TTS: {chunk_count} chunks streamed für '{self._input_text[:50]}...'")
         except Exception as e:
             logger.error(f"Cartesia TTS Fehler: {e}", exc_info=True)
 
