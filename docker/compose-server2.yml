@@ -44,6 +44,10 @@ services:
     #           -d ollama.deine-domain.de -d voice.deine-domain.de
 
   # ── Ollama (LLM Inference) ────────────────────────────────────────────
+  # OPTIMIZATION: Using phi:2b instead of llama3.2:3b
+  # - phi:2b: 2B params, ~40% faster, sufficient for Voice Bot responses
+  # - llama3.2:3b: 3B params, better quality but too slow for real-time voice
+  # Load model via: docker exec ollama ollama pull phi:2b
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -71,6 +75,7 @@ services:
       OLLAMA_HOST: "0.0.0.0:11434"
       OLLAMA_KEEP_ALIVE: "5m"
       OLLAMA_NUM_PARALLEL: "2"
+      OLLAMA_NUM_THREADS: "4"  # Increased for better performance
       # OLLAMA_GPU_MEMORY_FRACTION: "0.9"
 
   # ── LiveKit Server ────────────────────────────────────────────────────
