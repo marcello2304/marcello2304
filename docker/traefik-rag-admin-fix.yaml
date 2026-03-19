@@ -1,0 +1,31 @@
+http:
+  routers:
+    rag-admin-http:
+      entryPoints:
+        - http
+      service: rag-admin
+      rule: "Host(`appdb.eppcom.de`)"
+      middlewares:
+        - redirect-to-https
+      priority: 100
+
+    rag-admin-https:
+      entryPoints:
+        - https
+      service: rag-admin
+      rule: "Host(`appdb.eppcom.de`)"
+      tls:
+        certResolver: letsencrypt
+      priority: 100
+
+  services:
+    rag-admin:
+      loadBalancer:
+        servers:
+          - url: "http://rag-admin:8080"
+
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true

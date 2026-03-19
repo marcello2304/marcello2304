@@ -96,9 +96,12 @@ tailwind.config = {
 <div x-show="!authenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900">
   <div class="w-full max-w-sm fade-in">
     <div class="text-center mb-8">
-      <div class="w-14 h-14 bg-brand-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto shadow-lg shadow-brand-600/30">E</div>
-      <h1 class="text-2xl font-bold text-white mt-4">EPPCOM RAG Platform</h1>
-      <p class="text-slate-400 text-sm mt-1">Melden Sie sich an, um fortzufahren</p>
+      <!-- EPPCOM Logo WebP (clickable) -->
+      <a href="https://www.eppcom.de" target="_blank" rel="noopener noreferrer" class="inline-block hover:opacity-80 transition-opacity cursor-pointer">
+        <img src="https://nbg1.your-objectstorage.com/typebot-assets/eppcom-logo.webp" alt="EPPCOM Logo" class="w-full max-w-xs mx-auto mb-4" loading="lazy" style="height: auto;">
+      </a>
+      <h1 class="text-2xl font-bold text-white mt-2">Enterprise Knowledge Platform</h1>
+      <p class="text-slate-400 text-sm mt-2">Document Intelligence & AI Hub</p>
     </div>
     <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
       <div x-show="loginError" class="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-300 text-sm" x-text="loginError"></div>
@@ -122,7 +125,63 @@ tailwind.config = {
         </button>
       </div>
     </div>
-    <p class="text-center text-slate-600 text-xs mt-6">EPPCOM Solutions &mdash; KI-Automatisierung</p>
+    <p class="text-center text-xs mt-6">
+      <button @click="showImpressum=true" class="text-slate-600 hover:text-slate-400 transition-colors cursor-pointer underline">
+        EPPCOM Solutions &mdash; KI-Automatisierung
+      </button>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════ IMPRESSUM MODAL ═══════════════ -->
+<div x-show="showImpressum" class="modal-overlay" @click="showImpressum=false">
+  <div class="modal-box" @click.stop>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-2xl font-bold text-slate-900">Impressum</h2>
+      <button @click="showImpressum=false" class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+    </div>
+
+    <div class="space-y-4 text-sm text-slate-700">
+      <div>
+        <h3 class="font-semibold text-slate-900 mb-2">EPPCOM Solutions</h3>
+        <p><strong>Vertreter:</strong> Marcel Eppler</p>
+        <p><strong>Adresse:</strong> Ulrichstraße 3, 72764 Reutlingen, Deutschland</p>
+        <p><strong>Telefon:</strong> <a href="tel:+491575364191" class="text-brand-600 hover:text-brand-700">+49 157 53640191</a></p>
+        <p><strong>E-Mail:</strong> <a href="mailto:kontakt@eppcom.de" class="text-brand-600 hover:text-brand-700">kontakt@eppcom.de</a></p>
+        <p><strong>USt-IdNr:</strong> DE244015293</p>
+      </div>
+
+      <hr class="border-slate-200">
+
+      <div>
+        <h3 class="font-semibold text-slate-900 mb-2">Geschäftszeiten</h3>
+        <p>Montag bis Freitag, 9:00 – 17:00 Uhr</p>
+      </div>
+
+      <hr class="border-slate-200">
+
+      <div>
+        <h3 class="font-semibold text-slate-900 mb-2">Datenschutz & Compliance</h3>
+        <p class="mb-2">Das Unternehmen verarbeitet personenbezogene Daten einschließlich Kontaktinformationen und ROI-Analysedaten in Einklang mit der DSGVO.</p>
+        <ul class="list-disc list-inside space-y-1">
+          <li><strong>Rechtsgrundlagen:</strong> DSGVO-Konformität mit rechtmäßigen Rechtsgrundlagen (Art. 6 DSGVO)</li>
+          <li><strong>Datentypen:</strong> Server-Logs, Kontaktformulare, optionale ROI-Daten und essenzielle Cookies</li>
+          <li><strong>Speicherdauer:</strong> Kontaktanfragen gemäß gesetzlicher Anforderungen</li>
+          <li><strong>Sicherheit:</strong> TLS-Verschlüsselung, Zugriffsbeschränkungen und organisatorische Schutzmaßnahmen</li>
+        </ul>
+      </div>
+
+      <hr class="border-slate-200">
+
+      <div>
+        <h3 class="font-semibold text-slate-900 mb-2">Betroffenenrechte</h3>
+        <p>Nutzer haben Rechte einschließlich Auskunft, Berichtigung, Löschung, Datenportabilität und Beschwerderecht bei Aufsichtsbehörden.</p>
+      </div>
+    </div>
+
+    <button @click="showImpressum=false" class="w-full mt-6 bg-brand-600 hover:bg-brand-500 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+      Schließen
+    </button>
   </div>
 </div>
 
