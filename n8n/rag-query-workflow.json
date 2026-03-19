@@ -125,7 +125,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"{{ $('Validate Query').first().json.model }}\",\n  \"stream\": false,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.user_message) }} }\n  ],\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_ctx\": 4096\n  }\n}",
+        "jsonBody": "={\n  \"model\": \"{{ $('Validate Query').first().json.model }}\",\n  \"stream\": true,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.user_message) }} }\n  ],\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_ctx\": 4096\n  }\n}",
         "options": {
           "timeout": 60000
         }
