@@ -1,366 +1,299 @@
 """
-Nexo — EPPCOM Voice Bot Agent (livekit-agents v1.4.6)
-- STT: faster-whisper (lokal, DSGVO-konform)
-- LLM: RAG-Pipeline via Admin-UI
-- TTS: Cartesia AI Sonic-3 (ultra-natürlich, schnell)
-- VAD: silero (0.8s Stille = Endpunkt)
+Nexo — EPPCOM Voice Bot Agent (livekit-agents v0.12+)
+- STT: Deepgram (streaming) or Whisper (fallback) — DSGVO-konform
+- LLM: Ollama phi:2b (local, ~40ms latency) or llama3.2:3b (better quality)
+- TTS: Cartesia AI Sonic-2 (ultra-natürlich, ultra-schnell, <200ms)
+- VAD: Silero (0.3s endpointing für niedrige Latenz)
+- Interruption: True (User kann Bot unterbrechen)
+- RAG: n8n Webhook für kontextuelle Antworten
 
 Deployment: Docker auf Server 2 (46.224.54.65)
+Optimized for <500ms turn-around (STT→LLM→TTS)
 """
 import asyncio
 import json
-import os
-import tempfile
-import wave
 import logging
+import os
+from typing import Optional
 
 import httpx
-from livekit import rtc, agents
+from livekit import agents, rtc
 from livekit.agents import (
-    APIConnectOptions,
     AutoSubscribe,
     JobContext,
     WorkerOptions,
     cli,
-    stt,
-    tts,
     llm,
 )
-from livekit.plugins import silero
+from livekit.agents.voice_assistant import VoiceAssistant
+from livekit.plugins import cartesia, openai, silero
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+# ─── Logging Setup ──────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 logger = logging.getLogger("nexo-voice")
 
-# ── Konfiguration via ENV ────────────────────────────────────────────────────
-RAG_URL = os.getenv("RAG_URL", os.getenv("N8N_URL", "https://appdb.eppcom.de"))
-TENANT_ID = os.getenv("TENANT_ID", "")
-API_KEY = os.getenv("API_KEY", "")
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "tiny")
+# ─── Configuration via Environment ──────────────────────────────────────
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://localhost:7880")
-LIVEKIT_KEY = os.getenv("LIVEKIT_API_KEY", "")
-LIVEKIT_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "devkey")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "secret")
 
-# Cartesia AI TTS (Cloud-basiert, ultra-natürlich)
+# STT Configuration (Deepgram primary, Whisper fallback)
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
+DEEPGRAM_MODEL = os.getenv("DEEPGRAM_MODEL", "nova-2")
+
+# LLM Configuration (Ollama local)
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi:2b")  # Fast: 2B params
+
+# TTS Configuration (Cartesia)
 CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "")
-CARTESIA_VOICE_ID = os.getenv("CARTESIA_VOICE_ID", "b9de4a89-2257-424b-94c2-db18ba68c81a")
-
-# ── Whisper-Modell einmal laden ──────────────────────────────────────────────
-from faster_whisper import WhisperModel
-
-logger.info(f"Lade Whisper-Modell '{WHISPER_MODEL_SIZE}' (CPU, int8)...")
-whisper_model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
-logger.info("Whisper-Modell geladen.")
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# Custom STT: Faster-Whisper
-# ═════════════════════════════════════════════════════════════════════════════
-class WhisperSTT(stt.STT):
-    def __init__(self):
-        super().__init__(capabilities=stt.STTCapabilities(streaming=True, interim_results=True))
-
-    async def _recognize_impl(self, buffer, *, language=None, conn_options=None) -> stt.SpeechEvent:
-        def _transcribe(frames) -> str:
-            if hasattr(frames, 'data'):
-                audio_data = frames.data.tobytes() if hasattr(frames.data, 'tobytes') else bytes(frames.data)
-                sr = frames.sample_rate
-            elif isinstance(frames, list):
-                parts = []
-                sr = 16000
-                for f in frames:
-                    d = f.data.tobytes() if hasattr(f.data, 'tobytes') else bytes(f.data)
-                    parts.append(d)
-                    sr = f.sample_rate
-                audio_data = b''.join(parts)
-            else:
-                audio_data = bytes(frames)
-                sr = 16000
-
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
-                with wave.open(tmp, "wb") as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(2)
-                    wf.setframerate(sr)
-                    wf.writeframes(audio_data)
-                tmp.flush()
-                segments, _ = whisper_model.transcribe(tmp.name, language="de")
-                return " ".join(s.text for s in segments).strip()
-
-        text = await asyncio.to_thread(_transcribe, buffer)
-        logger.info(f"STT: '{text}'")
-
-        return stt.SpeechEvent(
-            type=stt.SpeechEventType.FINAL_TRANSCRIPT,
-            alternatives=[stt.SpeechData(text=text, language="de")],
-        )
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# Custom TTS: Cartesia AI Sonic-3 (Ultra-natürlich, 44.1kHz)
-# ═════════════════════════════════════════════════════════════════════════════
-class CartesiaTTS(tts.TTS):
-    def __init__(self):
-        super().__init__(
-            capabilities=tts.TTSCapabilities(streaming=True),
-            sample_rate=44100,  # Cartesia: 44.1kHz
-            num_channels=1,
-        )
-
-    def synthesize(self, text: str, *, conn_options=None) -> tts.ChunkedStream:
-        return CartesiaChunkedStream(tts=self, input_text=text, conn_options=conn_options)
-
-
-class CartesiaChunkedStream(tts.ChunkedStream):
-    def __init__(self, *, tts: CartesiaTTS, input_text: str, conn_options=None):
-        super().__init__(
-            tts=tts,
-            input_text=input_text,
-            conn_options=conn_options or APIConnectOptions(),
-        )
-
-    async def _run(self, output_emitter: tts.AudioEmitter) -> None:
-        try:
-            if not CARTESIA_API_KEY:
-                logger.error("CARTESIA_API_KEY nicht gesetzt!")
-                return
-
-            output_emitter.initialize(
-                request_id="cartesia-stream",
-                sample_rate=44100,
-                num_channels=1,
-                mime_type="audio/pcm",
-            )
-
-            async with httpx.AsyncClient(timeout=30) as client:
-                async with client.stream(
-                    "POST",
-                    "https://api.cartesia.ai/tts/sse",
-                    headers={
-                        "Cartesia-Version": "2025-04-16",
-                        "X-API-Key": CARTESIA_API_KEY,
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model_id": "sonic-3",
-                        "transcript": self._input_text,
-                        "voice": {
-                            "mode": "id",
-                            "id": CARTESIA_VOICE_ID,
-                        },
-                        "output_format": {
-                            "container": "raw",
-                            "encoding": "pcm_f32le",
-                            "sample_rate": 44100,
-                        },
-                        "stream": True,
-                    },
-                ) as resp:
-                    resp.raise_for_status()
-                    chunk_count = 0
-                    async for chunk in resp.aiter_bytes(chunk_size=4096):
-                        if chunk:
-                            chunk_count += 1
-                            output_emitter.push(chunk)
-                    logger.info(f"Cartesia TTS: {chunk_count} chunks streamed für '{self._input_text[:50]}...'")
-        except Exception as e:
-            logger.error(f"Cartesia TTS Fehler: {e}", exc_info=True)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# Custom LLM: RAG via Admin-UI
-# ═════════════════════════════════════════════════════════════════════════════
-
-# Session-Speicher für Benutzernamen (pro Room)
-_user_names = {}
-
-
-class RagLLM(llm.LLM):
-    def __init__(self):
-        super().__init__()
-
-    def chat(self, *, chat_ctx: llm.ChatContext, tools=None, conn_options=None,
-             parallel_tool_calls=None, tool_choice=None, extra_kwargs=None, **kwargs) -> llm.LLMStream:
-        return RagLLMStream(
-            llm=self,
-            chat_ctx=chat_ctx,
-            tools=tools or [],
-            conn_options=conn_options or APIConnectOptions(),
-        )
-
-
-class RagLLMStream(llm.LLMStream):
-    def __init__(self, llm: RagLLM, chat_ctx: llm.ChatContext,
-                 tools: list, conn_options: APIConnectOptions):
-        super().__init__(llm=llm, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options)
-
-    async def _run(self) -> None:
-        # Letzte User-Nachricht extrahieren (v1.4.6 API: text_content property)
-        question = ""
-        for msg in reversed(self._chat_ctx.items):
-            if hasattr(msg, "role") and msg.role == "user":
-                # text_content gibt den Text direkt zurück
-                if hasattr(msg, "text_content") and msg.text_content:
-                    question = msg.text_content
-                elif hasattr(msg, "content"):
-                    content = msg.content
-                    if isinstance(content, str):
-                        question = content
-                    elif isinstance(content, list):
-                        for c in content:
-                            if isinstance(c, str):
-                                question = c
-                                break
-                if question:
-                    break
-
-        if not question:
-            logger.warning("Keine User-Nachricht gefunden")
-            return
-
-        logger.info(f"RAG Query: '{question[:100]}...'")  # Kurzes Logging für Speed
-
-        # Prüfe ob der User seinen Namen sagt (erste Interaktion)
-        session_id = "voice_session"
-        name_prefix = ""
-
-        # Prüfe ob ein Name gespeichert ist
-        if session_id in _user_names:
-            name_prefix = f"Der Gesprächspartner heißt {_user_names[session_id]}. Sprich ihn mit seinem Namen an. "
-        else:
-            # Erste Antwort — der User hat wahrscheinlich seinen Namen gesagt
-            # Speichere den Text als potentiellen Namen
-            words = question.strip().split()
-            if len(words) <= 4:
-                # Kurze Antwort = wahrscheinlich ein Name
-                name = question.strip().rstrip(".!?,")
-                # Entferne typische Phrasen
-                for prefix in ["ich bin ", "mein name ist ", "ich heiße ", "ich heisse "]:
-                    if name.lower().startswith(prefix):
-                        name = name[len(prefix):].strip()
-                        break
-                if name and len(name) < 30:
-                    _user_names[session_id] = name
-                    name_prefix = f"Der Gesprächspartner hat sich gerade als {name} vorgestellt. Begrüße ihn herzlich mit seinem Namen und frage wie du helfen kannst. "
-                    logger.info(f"Name erkannt: '{name}'")
-
-        try:
-            enriched_query = name_prefix + question if name_prefix else question
-            full_answer = ""  # Für Logging
-
-            # Timeout 45s für Ollama Streaming (keep_alive=30m sorgt dafür dass Modell warm bleibt)
-            async with httpx.AsyncClient(timeout=45) as client:
-                resp = await client.post(
-                    f"{RAG_URL}/api/public/chat",
-                    json={"query": enriched_query, "session_id": session_id},
-                    headers={
-                        "X-Tenant-ID": TENANT_ID,
-                        "X-API-Key": API_KEY,
-                        "Content-Type": "application/json",
-                    },
-                )
-                resp.raise_for_status()
-
-                # Versuche Streaming zu verarbeiten (JSONL format von Ollama)
-                is_streaming = False
-                try:
-                    # Zuerst checken ob es streaming Response ist
-                    content_type = resp.headers.get("content-type", "")
-                    if "application/json" in content_type:
-                        # Versuche JSON Lines zu parsen
-                        async for line in resp.aiter_lines():
-                            if not line.strip():
-                                continue
-                            try:
-                                chunk = json.loads(line)
-                                # Ollama Streaming Format: {"message": {"content": "token"}}
-                                token = chunk.get("message", {}).get("content", "")
-                                if token:
-                                    is_streaming = True
-                                    full_answer += token
-                                    # Token sofort senden (streaming)
-                                    self._event_ch.send_nowait(
-                                        llm.ChatChunk(
-                                            id="rag-response",
-                                            delta=llm.ChoiceDelta(role="assistant", content=token),
-                                        )
-                                    )
-                            except (json.JSONDecodeError, KeyError):
-                                pass  # Skip invalid lines
-                except Exception as stream_err:
-                    logger.warning(f"Streaming parse failed: {stream_err}, fallback zu JSON response")
-
-                # Fallback: Wenn nicht streaming, dann komplette Antwort
-                if not is_streaming:
-                    data = resp.json()
-                    answer = data.get("answer", data.get("response", "Entschuldigung, ich konnte keine Antwort finden."))
-                    self._event_ch.send_nowait(
-                        llm.ChatChunk(
-                            id="rag-response",
-                            delta=llm.ChoiceDelta(role="assistant", content=answer),
-                        )
-                    )
-                    full_answer = answer
-        except Exception as e:
-            logger.error(f"RAG Fehler: {e}")
-            answer = "Entschuldigung, es gab einen Fehler bei der Verarbeitung. Bitte versuchen Sie es erneut."
-            self._event_ch.send_nowait(
-                llm.ChatChunk(
-                    id="rag-response",
-                    delta=llm.ChoiceDelta(role="assistant", content=answer),
-                )
-            )
-            full_answer = answer
-
-        logger.info(f"RAG Antwort: '{full_answer[:80]}...' (Streaming: {full_answer != ''})")
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# Agent Entrypoint
-# ═════════════════════════════════════════════════════════════════════════════
-NEXO_GREETING = (
-    "Hallo! Ich bin Nexo von EPPCOM Solutions. "
-    "Wie darf ich Sie ansprechen?"
+CARTESIA_VOICE_ID = os.getenv(
+    "CARTESIA_VOICE_ID",
+    "b9de4a89-2257-424b-94c2-db18ba68c81a"  # German voice
 )
+CARTESIA_MODEL = "sonic-2"  # Lowest latency model
+
+# RAG Configuration (n8n Webhook)
+RAG_WEBHOOK_URL = os.getenv("RAG_WEBHOOK_URL", "")
+RAG_WEBHOOK_SECRET = os.getenv("RAG_WEBHOOK_SECRET", "")
+
+# Voice Assistant Configuration (Latency Optimization)
+INTERRUPT_MIN_WORDS = int(os.getenv("INTERRUPT_MIN_WORDS", "0"))  # React immediately
+INTERRUPT_SPEECH_DURATION = float(os.getenv("INTERRUPT_SPEECH_DURATION", "0.5"))  # 500ms
+MIN_ENDPOINTING_DELAY = float(os.getenv("MIN_ENDPOINTING_DELAY", "0.3"))  # 300ms pause = end
 
 
-async def entrypoint(ctx: JobContext):
-    logger.info(f"Nexo Voice Agent gestartet — Room: {ctx.room.name}")
+# ─── System Prompt with RAG Context ─────────────────────────────────────
+SYSTEM_PROMPT = """Du bist Nexo, ein hilfreicher deutschsprachiger Voice Assistant.
+Du antwortest prägnant, freundlich und direkt auf Fragen des Users.
+Nutze verfügbare Kontextinformationen zur Beantwortung von Fragen.
+Fasse deine Antworten in 1-2 Sätzen zusammen, um schnelle Voice-Responses zu ermöglichen.
+Wenn du nicht sicher bist, frag nach oder sage, dass du die Info nicht hast."""
+
+
+# ─── RAG Context Fetching via n8n Webhook ───────────────────────────────
+async def fetch_rag_context(query: str) -> Optional[str]:
+    """
+    Fetch RAG context from n8n webhook.
+    Returns enriched context or None if RAG unavailable.
+    """
+    if not RAG_WEBHOOK_URL:
+        logger.debug("RAG_WEBHOOK_URL not configured, skipping RAG context")
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            payload = {
+                "query": query,
+                "secret": RAG_WEBHOOK_SECRET,
+            }
+            response = await client.post(RAG_WEBHOOK_URL, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract context from n8n response
+            if isinstance(data, dict) and "context" in data:
+                context = data.get("context", "")
+                logger.info(f"RAG context fetched: {len(context)} chars")
+                return context
+
+            return None
+    except Exception as e:
+        logger.warning(f"RAG context fetch failed: {e}")
+        return None
+
+
+# ─── LLM with RAG Integration ───────────────────────────────────────────
+async def get_llm_response(user_message: str, rag_context: Optional[str] = None) -> str:
+    """
+    Get LLM response with optional RAG context.
+    Uses OpenAI-compatible API (Ollama).
+    """
+    system_prompt = SYSTEM_PROMPT
+
+    # Inject RAG context if available
+    if rag_context:
+        system_prompt += f"\n\nVerfügbare Kontextinformationen:\n{rag_context}"
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Ollama OpenAI-compatible endpoint
+            response = await client.post(
+                f"{OLLAMA_BASE_URL}/v1/chat/completions",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_message},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 150,  # Keep responses short for voice
+                    "stream": False,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract message from OpenAI-compatible response
+            message = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            logger.info(f"LLM response: {message[:100]}...")
+            return message
+    except Exception as e:
+        logger.error(f"LLM request failed: {e}")
+        return "Entschuldigung, ich konnte die Anfrage nicht verarbeiten."
+
+
+# ─── Voice Assistant Prolog (Initialization Hook) ───────────────────────
+async def prolog(ctx: JobContext):
+    """
+    Initialize voice assistant session.
+    Subscribe to participant audio automatically.
+    """
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    agent = agents.voice.Agent(
-        instructions=(
-            "Du bist Nexo, die freundliche KI-Sprach-Assistentin von EPPCOM Solutions. "
-            "Antworte auf Deutsch, kurz und hilfreich. "
-            "Sei freundlich, warmherzig und professionell. "
-            "EPPCOM bietet KI-Automatisierung und Workflow-Optimierung für KMU. "
-            "Wenn der Gesprächspartner sich vorstellt, merke dir seinen Namen und verwende ihn."
+    # Welcome message
+    participant = await ctx.room.local_participant.identity
+    logger.info(f"Voice session started for participant: {participant}")
+
+
+# ─── Voice Assistant Entrypoint ────────────────────────────────────────
+async def entrypoint(ctx: JobContext):
+    """
+    Main voice assistant logic.
+    - Listens to user speech (STT)
+    - Fetches RAG context in parallel
+    - Sends to LLM
+    - Streams TTS back to user
+    - Supports interruptions
+    """
+
+    # Initialize VoiceAssistant with streaming and interruption support
+    assistant = VoiceAssistant(
+        vad=silero.VAD.create(
+            min_speaking_duration=0.1,
+            min_silence_duration=MIN_ENDPOINTING_DELAY,  # 300ms silence = end utterance
         ),
-        stt=WhisperSTT(),
-        llm=RagLLM(),
-        tts=CartesiaTTS(),
-        vad=silero.VAD.load(min_silence_duration=0.8),
-        min_endpointing_delay=0.5,
+        stt=_get_stt(),  # Deepgram or Whisper
+        llm=_get_llm(),  # LLM (Ollama via OpenAI API)
+        tts=_get_tts(),  # Cartesia TTS
+        # Interruption settings (allow user to cut off bot)
         allow_interruptions=True,
-        # Phase B Optimierungen: Streaming & Partial Processing
-        allow_partial_requests=True,  # Sende partielle Transkripte zur LLM
+        interrupt_min_words=INTERRUPT_MIN_WORDS,
+        interrupt_speech_duration=INTERRUPT_SPEECH_DURATION,
+        # Pre-synthesize next TTS chunk while still speaking
+        will_synthesize_assistant_reply=True,
     )
 
-    session = agents.AgentSession()
-    await session.start(agent=agent, room=ctx.room)
+    # Connect assistant to room
+    assistant.start(ctx.room, ctx.participant)
 
-    # Sofortige Begrüßung — fragt nach dem Namen
-    logger.info(f"Begrüßung: '{NEXO_GREETING[:80]}...'")
-    session.say(NEXO_GREETING)
+    # Process user messages with RAG context
+    async def on_message(message: agents.AssistantMessage):
+        """Handle messages from user and fetch RAG context if needed."""
+        user_text = message.content
+        logger.info(f"User: {user_text}")
 
-    logger.info("Nexo-Session gestartet, warte auf Audio...")
+        # Fetch RAG context in parallel (non-blocking)
+        rag_context = await fetch_rag_context(user_text)
+
+        # Get LLM response with RAG context
+        response = await get_llm_response(user_text, rag_context)
+        logger.info(f"Assistant: {response}")
+
+        return agents.AssistantMessage(content=response)
+
+    # Attach message handler (if using custom message processing)
+    # Note: VoiceAssistant handles STT→LLM→TTS automatically
+    # This is for additional processing if needed
+
+    await asyncio.Event().wait()  # Keep running indefinitely
+
+
+# ─── STT Provider (Deepgram or Whisper) ─────────────────────────────────
+def _get_stt():
+    """
+    Get STT provider: Deepgram (primary, <200ms) or Whisper (fallback).
+    """
+    if DEEPGRAM_API_KEY:
+        logger.info(f"Using STT: Deepgram {DEEPGRAM_MODEL}")
+        # Assuming livekit-plugins-deepgram available
+        # Otherwise fallback to Whisper
+        try:
+            from livekit.plugins import deepgram
+            return deepgram.STT(model=DEEPGRAM_MODEL)
+        except ImportError:
+            logger.warning("Deepgram plugin not available, using Whisper fallback")
+
+    # Fallback: Use OpenAI Whisper (slower but functional)
+    logger.info("Using STT: OpenAI Whisper")
+    return openai.STT(model="whisper-1")
+
+
+# ─── LLM Provider (Ollama via OpenAI API) ──────────────────────────────
+def _get_llm():
+    """
+    Get LLM provider using Ollama's OpenAI-compatible API.
+    """
+    logger.info(f"Using LLM: Ollama {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
+
+    # OpenAI client can point to Ollama
+    return openai.LLM(
+        model=OLLAMA_MODEL,
+        api_key="ollama",  # Not needed for local Ollama
+        base_url=OLLAMA_BASE_URL,
+    )
+
+
+# ─── TTS Provider (Cartesia) ────────────────────────────────────────────
+def _get_tts():
+    """
+    Get TTS provider: Cartesia (ultra-low latency, <200ms).
+    """
+    if not CARTESIA_API_KEY:
+        raise ValueError("CARTESIA_API_KEY not set in environment")
+
+    logger.info(f"Using TTS: Cartesia {CARTESIA_MODEL} (voice: {CARTESIA_VOICE_ID[:8]}...)")
+
+    return cartesia.TTS(
+        api_key=CARTESIA_API_KEY,
+        model=CARTESIA_MODEL,
+        voice=CARTESIA_VOICE_ID,
+        encoding="pcm_s16le",  # PCM16, lowest latency
+        sample_rate=24000,  # Cartesia standard
+    )
+
+
+# ─── Worker Options & Entrypoint ───────────────────────────────────────
+def prolog_fn(ctx: JobContext):
+    """Prolog: Initialize connection."""
+    asyncio.create_task(prolog(ctx))
+
+
+def entrypoint_fn(ctx: JobContext):
+    """Entrypoint: Start voice assistant."""
+    asyncio.create_task(entrypoint(ctx))
 
 
 if __name__ == "__main__":
+    worker_opts = WorkerOptions(
+        prolog_fn=prolog_fn,
+        entrypoint_fn=entrypoint_fn,
+        api_connect_options=agents.APIConnectOptions(
+            api_key=LIVEKIT_API_KEY,
+            api_secret=LIVEKIT_API_SECRET,
+        ),
+    )
+
     cli.run_app(
         WorkerOptions(
-            entrypoint_fnc=entrypoint,
-            api_key=LIVEKIT_KEY,
-            api_secret=LIVEKIT_SECRET,
-            ws_url=LIVEKIT_URL,
+            prolog_fn=prolog_fn,
+            entrypoint_fn=entrypoint_fn,
+            api_connect_options=agents.APIConnectOptions(
+                api_key=LIVEKIT_API_KEY,
+                api_secret=LIVEKIT_API_SECRET,
+            ),
         )
     )

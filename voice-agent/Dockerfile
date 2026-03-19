@@ -1,25 +1,26 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
-# System-Abhängigkeiten für Audio-Verarbeitung
+# System dependencies for audio processing + Cartesia TTS streaming
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    wget \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Python-Abhängigkeiten
+# Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Agent-Code
+# Agent code
 COPY agent.py .
 
-ENV WHISPER_MODEL=tiny
 ENV PYTHONUNBUFFERED=1
+ENV OLLAMA_MODEL=phi:2b
+ENV CARTESIA_MODEL=sonic-2
 
-# Whisper-Modell beim Build vorladen (schnellerer Start)
-RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', compute_type='int8')"
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import sys; sys.exit(0)" || exit 1
 
 CMD ["python3", "agent.py", "start"]

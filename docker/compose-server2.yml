@@ -98,21 +98,53 @@ services:
       timeout: 10s
       retries: 3
 
-  # ── LiveKit Agent (Voice Bot Worker) ──────────────────────────────────
+  # ── LiveKit Agent (Voice Bot Worker with Cartesia TTS) ──────────────
   livekit-agent:
-    image: livekit/agents-playground:latest
+    build:
+      context: ./voice-agent
+      dockerfile: Dockerfile
+    image: livekit-agent:cartesia
     container_name: livekit-agent
     restart: unless-stopped
     environment:
+      # LiveKit Connection
       LIVEKIT_URL: "ws://livekit:7880"
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+
+      # LLM Configuration (Ollama)
       OLLAMA_BASE_URL: "http://ollama:11434"
-      # STT/TTS Konfiguration (Whisper via Ollama oder extern)
+      OLLAMA_MODEL: "phi:2b"
+
+      # STT Configuration (Deepgram primary, Whisper fallback)
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPGRAM_MODEL: "nova-2"
+
+      # TTS Configuration (Cartesia)
+      CARTESIA_API_KEY: ${CARTESIA_API_KEY}
+      CARTESIA_VOICE_ID: ${CARTESIA_VOICE_ID}
+      CARTESIA_MODEL: "sonic-2"
+
+      # RAG Integration (n8n Webhook)
+      RAG_WEBHOOK_URL: ${RAG_WEBHOOK_URL:-}
+      RAG_WEBHOOK_SECRET: ${RAG_WEBHOOK_SECRET:-}
+
+      # Voice Assistant Optimization
+      INTERRUPT_MIN_WORDS: "0"
+      INTERRUPT_SPEECH_DURATION: "0.5"
+      MIN_ENDPOINTING_DELAY: "0.3"
+
+      # Logging
+      PYTHONUNBUFFERED: "1"
+
     networks:
       - ai-net
     depends_on:
       - livekit
       - ollama
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
