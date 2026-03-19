@@ -1,5 +1,5 @@
 """
-Nexo — EPPCOM Voice Bot Agent (livekit-agents v0.12+)
+Nexo — EPPCOM Voice Bot Agent (livekit-agents v1.4+)
 - STT: Deepgram (streaming) or Whisper (fallback) — DSGVO-konform
 - LLM: Ollama phi:2b (local, ~40ms latency) or llama3.2:3b (better quality)
 - TTS: Cartesia AI Sonic-2 (ultra-natürlich, ultra-schnell, <200ms)
@@ -18,14 +18,7 @@ from typing import Optional
 
 import httpx
 from livekit import agents, rtc
-from livekit.agents import (
-    AutoSubscribe,
-    JobContext,
-    WorkerOptions,
-    cli,
-    llm,
-)
-from livekit.agents.voice_assistant import VoiceAssistant
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, llm
 from livekit.plugins import cartesia, openai, silero
 
 # ─── Logging Setup ──────────────────────────────────────────────────────
@@ -60,10 +53,9 @@ CARTESIA_MODEL = "sonic-2"  # Lowest latency model
 RAG_WEBHOOK_URL = os.getenv("RAG_WEBHOOK_URL", "")
 RAG_WEBHOOK_SECRET = os.getenv("RAG_WEBHOOK_SECRET", "")
 
-# Voice Assistant Configuration (Latency Optimization)
-INTERRUPT_MIN_WORDS = int(os.getenv("INTERRUPT_MIN_WORDS", "0"))  # React immediately
-INTERRUPT_SPEECH_DURATION = float(os.getenv("INTERRUPT_SPEECH_DURATION", "0.5"))  # 500ms
-MIN_ENDPOINTING_DELAY = float(os.getenv("MIN_ENDPOINTING_DELAY", "0.3"))  # 300ms pause = end
+# Voice Agent Configuration (Latency Optimization)
+VAD_THRESHOLD = float(os.getenv("VAD_THRESHOLD", "0.5"))
+VAD_SILENCE_DURATION_MS = int(os.getenv("VAD_SILENCE_DURATION_MS", "300"))
 
 
 # ─── System Prompt with RAG Context ─────────────────────────────────────
@@ -146,72 +138,6 @@ async def get_llm_response(user_message: str, rag_context: Optional[str] = None)
         return "Entschuldigung, ich konnte die Anfrage nicht verarbeiten."
 
 
-# ─── Voice Assistant Prolog (Initialization Hook) ───────────────────────
-async def prolog(ctx: JobContext):
-    """
-    Initialize voice assistant session.
-    Subscribe to participant audio automatically.
-    """
-    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-
-    # Welcome message
-    participant = await ctx.room.local_participant.identity
-    logger.info(f"Voice session started for participant: {participant}")
-
-
-# ─── Voice Assistant Entrypoint ────────────────────────────────────────
-async def entrypoint(ctx: JobContext):
-    """
-    Main voice assistant logic.
-    - Listens to user speech (STT)
-    - Fetches RAG context in parallel
-    - Sends to LLM
-    - Streams TTS back to user
-    - Supports interruptions
-    """
-
-    # Initialize VoiceAssistant with streaming and interruption support
-    assistant = VoiceAssistant(
-        vad=silero.VAD.create(
-            min_speaking_duration=0.1,
-            min_silence_duration=MIN_ENDPOINTING_DELAY,  # 300ms silence = end utterance
-        ),
-        stt=_get_stt(),  # Deepgram or Whisper
-        llm=_get_llm(),  # LLM (Ollama via OpenAI API)
-        tts=_get_tts(),  # Cartesia TTS
-        # Interruption settings (allow user to cut off bot)
-        allow_interruptions=True,
-        interrupt_min_words=INTERRUPT_MIN_WORDS,
-        interrupt_speech_duration=INTERRUPT_SPEECH_DURATION,
-        # Pre-synthesize next TTS chunk while still speaking
-        will_synthesize_assistant_reply=True,
-    )
-
-    # Connect assistant to room
-    assistant.start(ctx.room, ctx.participant)
-
-    # Process user messages with RAG context
-    async def on_message(message: agents.AssistantMessage):
-        """Handle messages from user and fetch RAG context if needed."""
-        user_text = message.content
-        logger.info(f"User: {user_text}")
-
-        # Fetch RAG context in parallel (non-blocking)
-        rag_context = await fetch_rag_context(user_text)
-
-        # Get LLM response with RAG context
-        response = await get_llm_response(user_text, rag_context)
-        logger.info(f"Assistant: {response}")
-
-        return agents.AssistantMessage(content=response)
-
-    # Attach message handler (if using custom message processing)
-    # Note: VoiceAssistant handles STT→LLM→TTS automatically
-    # This is for additional processing if needed
-
-    await asyncio.Event().wait()  # Keep running indefinitely
-
-
 # ─── STT Provider (Deepgram or Whisper) ─────────────────────────────────
 def _get_stt():
     """
@@ -219,15 +145,13 @@ def _get_stt():
     """
     if DEEPGRAM_API_KEY:
         logger.info(f"Using STT: Deepgram {DEEPGRAM_MODEL}")
-        # Assuming livekit-plugins-deepgram available
-        # Otherwise fallback to Whisper
         try:
             from livekit.plugins import deepgram
             return deepgram.STT(model=DEEPGRAM_MODEL)
         except ImportError:
             logger.warning("Deepgram plugin not available, using Whisper fallback")
 
-    # Fallback: Use OpenAI Whisper (slower but functional)
+    # Fallback: Use OpenAI Whisper
     logger.info("Using STT: OpenAI Whisper")
     return openai.STT(model="whisper-1")
 
@@ -239,7 +163,6 @@ def _get_llm():
     """
     logger.info(f"Using LLM: Ollama {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
 
-    # OpenAI client can point to Ollama
     return openai.LLM(
         model=OLLAMA_MODEL,
         api_key="ollama",  # Not needed for local Ollama
@@ -266,34 +189,51 @@ def _get_tts():
     )
 
 
-# ─── Worker Options & Entrypoint ───────────────────────────────────────
-def prolog_fn(ctx: JobContext):
-    """Prolog: Initialize connection."""
-    asyncio.create_task(prolog(ctx))
+# ─── Nexo Agent Class ───────────────────────────────────────────────────
+class NexoAgent(Agent):
+    """
+    Nexo voice agent with RAG support.
+    v1.4 API: Uses AgentSession for lifecycle management.
+    """
+
+    def __init__(self):
+        super().__init__(instructions=SYSTEM_PROMPT)
 
 
-def entrypoint_fn(ctx: JobContext):
-    """Entrypoint: Start voice assistant."""
-    asyncio.create_task(entrypoint(ctx))
+# ─── Agent Entrypoint (v1.4 API) ────────────────────────────────────────
+async def entrypoint(ctx: JobContext):
+    """
+    Main agent entrypoint for livekit-agents v1.4.
+    - Connects to LiveKit room
+    - Creates AgentSession with STT/LLM/TTS/VAD
+    - Starts agent and waits for interactions
+    """
 
+    await ctx.connect()
+    logger.info(f"Connected to room: {ctx.room.name}")
 
-if __name__ == "__main__":
-    worker_opts = WorkerOptions(
-        prolog_fn=prolog_fn,
-        entrypoint_fn=entrypoint_fn,
-        api_connect_options=agents.APIConnectOptions(
-            api_key=LIVEKIT_API_KEY,
-            api_secret=LIVEKIT_API_SECRET,
+    # Create agent session with optimized latency settings
+    session = AgentSession(
+        stt=_get_stt(),
+        llm=_get_llm(),
+        tts=_get_tts(),
+        vad=silero.VAD.load(),
+        # Latency optimization for <500ms turnaround
+        turn_detection=silero.VAD.load(
+            min_speaking_duration=0.1,
+            min_silence_duration=VAD_SILENCE_DURATION_MS / 1000.0,
         ),
     )
 
-    cli.run_app(
-        WorkerOptions(
-            prolog_fn=prolog_fn,
-            entrypoint_fn=entrypoint_fn,
-            api_connect_options=agents.APIConnectOptions(
-                api_key=LIVEKIT_API_KEY,
-                api_secret=LIVEKIT_API_SECRET,
-            ),
-        )
-    )
+    # Start agent with NexoAgent configuration
+    await session.start(room=ctx.room, agent=NexoAgent())
+    logger.info("Agent started and listening")
+
+    # Keep session alive and handle interactions
+    await asyncio.Event().wait()
+
+
+# ─── Worker Options & CLI ───────────────────────────────────────────────
+if __name__ == "__main__":
+    worker_opts = WorkerOptions(entrypoint_fnc=entrypoint)
+    cli.run_app(worker_opts)
