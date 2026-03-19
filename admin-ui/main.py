@@ -2116,6 +2116,245 @@ async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_a
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# API Key Management (Admin-UI)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/api-keys")
+async def list_api_keys(session: SessionInfo = Depends(require_superadmin)):
+    """Liste aller API Keys (nur SuperAdmin)."""
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT id, name, key_preview, tenant_id, is_active, created_at, last_used_at
+            FROM public.api_keys
+            ORDER BY created_at DESC
+        """)
+        return [dict(r) for r in rows]
+
+
+@app.post("/api/api-keys", status_code=201)
+async def create_api_key(body: dict, session: SessionInfo = Depends(require_superadmin)):
+    """Neuen API Key erstellen."""
+    name = body.get("name", "").strip()
+    tenant_id = body.get("tenant_id")
+    expires_at = body.get("expires_at")
+
+    if not name:
+        raise HTTPException(400, "Name erforderlich")
+
+    # Key generieren: sk-{32 Zeichen zufällig}
+    key = "sk-" + secrets.token_urlsafe(32)[:32]
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    key_preview = key[-8:]  # Letzte 8 Zeichen
+
+    async with db_pool.acquire() as conn:
+        key_id = await conn.fetchval("""
+            INSERT INTO public.api_keys (name, key_hash, key_preview, tenant_id, created_by, expires_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id
+        """, name, key_hash, key_preview, tenant_id, session.user_id, expires_at)
+
+    return {"id": key_id, "key": key, "key_preview": key_preview}
+
+
+@app.delete("/api/api-keys/{key_id}")
+async def revoke_api_key(key_id: str, session: SessionInfo = Depends(require_superadmin)):
+    """API Key widerrufen."""
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE public.api_keys SET is_active = false WHERE id = $1
+        """, key_id)
+
+    return {"status": "revoked"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Audit Log (Admin-UI)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/audit-log")
+async def list_audit_log(
+    limit: int = Query(50, le=500),
+    offset: int = Query(0, ge=0),
+    action: str = Query(None),
+    user_id: str = Query(None),
+    from_date: str = Query(None),
+    to_date: str = Query(None),
+    session: SessionInfo = Depends(require_superadmin)
+):
+    """Audit Log mit Filtering."""
+    where_clauses = []
+    params = []
+    param_count = 1
+
+    if action:
+        where_clauses.append(f"action = ${param_count}")
+        params.append(action)
+        param_count += 1
+
+    if user_id:
+        where_clauses.append(f"user_id = ${param_count}")
+        params.append(user_id)
+        param_count += 1
+
+    if from_date:
+        where_clauses.append(f"DATE(created_at) >= ${param_count}")
+        params.append(from_date)
+        param_count += 1
+
+    if to_date:
+        where_clauses.append(f"DATE(created_at) <= ${param_count}")
+        params.append(to_date)
+        param_count += 1
+
+    where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(f"""
+            SELECT * FROM public.audit_log
+            {where_clause}
+            ORDER BY created_at DESC
+            LIMIT ${param_count} OFFSET ${param_count + 1}
+        """, *params, limit, offset)
+
+        return [dict(r) for r in rows]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Platform Settings (Admin-UI)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/settings")
+async def get_settings(session: SessionInfo = Depends(require_superadmin)):
+    """Alle Platform-Einstellungen abrufen."""
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT key, value FROM public.platform_settings")
+        result = {r['key']: r['value'] for r in rows}
+
+    return result
+
+
+@app.put("/api/settings")
+async def update_settings(body: dict, session: SessionInfo = Depends(require_superadmin)):
+    """Platform-Einstellungen aktualisieren."""
+    async with db_pool.acquire() as conn:
+        for key, value in body.items():
+            await conn.execute("""
+                INSERT INTO public.platform_settings (key, value, updated_by)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (key) DO UPDATE SET value = $2, updated_by = $3, updated_at = NOW()
+            """, key, json.dumps(value) if not isinstance(value, str) else value, session.user_id)
+
+    return {"status": "updated"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Analytics (Admin-UI)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/analytics/conversations-per-day")
+async def analytics_conversations_per_day(
+    days: int = Query(30, ge=1, le=365),
+    session: SessionInfo = Depends(require_superadmin)
+):
+    """Conversations pro Tag für die letzten N Tage."""
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT
+                DATE(created_at) as date,
+                COUNT(*) as count
+            FROM public.audit_log
+            WHERE action LIKE '%conversation%' AND created_at >= NOW() - INTERVAL '1 day' * $1
+            GROUP BY DATE(created_at)
+            ORDER BY date
+        """, days)
+
+        return [{"date": str(r['date']), "count": r['count']} for r in rows]
+
+
+@app.get("/api/analytics/documents-per-week")
+async def analytics_documents_per_week(
+    weeks: int = Query(8, ge=1, le=52),
+    session: SessionInfo = Depends(require_superadmin)
+):
+    """Dokumente pro Woche für die letzten N Wochen."""
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT
+                DATE_TRUNC('week', created_at) as week,
+                COUNT(*) as count
+            FROM public.audit_log
+            WHERE resource_type = 'document' AND action = 'document.create'
+              AND created_at >= NOW() - INTERVAL '1 week' * $1
+            GROUP BY DATE_TRUNC('week', created_at)
+            ORDER BY week
+        """, weeks)
+
+        return [{"week": str(r['week']), "count": r['count']} for r in rows]
+
+
+@app.get("/api/analytics/tenant-usage")
+async def analytics_tenant_usage(session: SessionInfo = Depends(require_superadmin)):
+    """Nutzungsstatistiken pro Tenant."""
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT
+                t.id,
+                t.name,
+                t.plan,
+                COALESCE((SELECT COUNT(*) FROM public.audit_log
+                          WHERE resource_type = 'tenant' AND resource_id = t.id::text), 0) as activity_count,
+                COALESCE((SELECT COUNT(*) FROM public.api_keys WHERE tenant_id = t.id), 0) as api_keys_count,
+                t.max_docs,
+                t.max_chunks
+            FROM public.tenants t
+            WHERE t.status != 'deleted'
+            ORDER BY t.created_at DESC
+        """)
+
+        return [dict(r) for r in rows]
+
+
+@app.get("/api/analytics/summary")
+async def analytics_summary(session: SessionInfo = Depends(require_superadmin)):
+    """Dashboard Summary Statistics."""
+    async with db_pool.acquire() as conn:
+        users_count = await conn.fetchval("SELECT COUNT(*) FROM public.users WHERE is_active = true")
+        tenants_count = await conn.fetchval("SELECT COUNT(*) FROM public.tenants WHERE status = 'active'")
+        documents_count = await conn.fetchval("SELECT COUNT(*) FROM public.audit_log WHERE action = 'document.create'")
+        api_calls_today = await conn.fetchval(
+            "SELECT COUNT(*) FROM public.audit_log WHERE DATE(created_at) = CURRENT_DATE"
+        )
+
+    return {
+        "users": users_count or 0,
+        "tenants": tenants_count or 0,
+        "documents": documents_count or 0,
+        "api_calls_today": api_calls_today or 0
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Audit Logging Helper
+# ══════════════════════════════════════════════════════════════════════════════
+
+async def log_audit(
+    user_id: str,
+    user_email: str,
+    action: str,
+    resource_type: str = None,
+    resource_id: str = None,
+    details: dict = None,
+    ip_address: str = None
+):
+    """Hilfsfunktion zum Schreiben von Audit Log Einträgen."""
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO public.audit_log (user_id, user_email, action, resource_type, resource_id, details, ip_address)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        """, user_id, user_email, action, resource_type, resource_id, json.dumps(details or {}), ip_address)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Statische Dateien
 # ══════════════════════════════════════════════════════════════════════════════
 app.mount("/static", StaticFiles(directory="static"), name="static")
