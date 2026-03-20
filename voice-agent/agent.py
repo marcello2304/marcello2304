@@ -20,6 +20,8 @@ import httpx
 from livekit import agents, rtc
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, llm
 from livekit.plugins import cartesia, openai, silero
+import re
+from typing import AsyncGenerator
 
 # ─── Logging Setup ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -29,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger("nexo-voice")
 
 # ─── Configuration via Environment ──────────────────────────────────────
-LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://localhost:7880")
+LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://livekit:7880")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "devkey")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "secret")
 
@@ -57,6 +59,10 @@ RAG_WEBHOOK_SECRET = os.getenv("RAG_WEBHOOK_SECRET", "")
 VAD_THRESHOLD = float(os.getenv("VAD_THRESHOLD", "0.5"))
 VAD_SILENCE_DURATION_MS = int(os.getenv("VAD_SILENCE_DURATION_MS", "300"))
 
+# ─── Streaming Configuration ──────────────────────────────────────────────
+VOICEBOT_STREAMING_ENABLED = os.getenv("VOICEBOT_STREAMING_ENABLED", "true").lower() == "true"
+SENTENCE_PATTERN = r'(?<=[.!?])\s+(?=[A-Z])'  # Regex for sentence boundaries
+MAX_SENTENCE_LENGTH = 250  # Cartesia TTS limit (~200-300 tokens)
 
 # ─── System Prompt with RAG Context ─────────────────────────────────────
 SYSTEM_PROMPT = """Du bist Nexo, ein hilfreicher deutschsprachiger Voice Assistant.
@@ -235,5 +241,10 @@ async def entrypoint(ctx: JobContext):
 
 # ─── Worker Options & CLI ───────────────────────────────────────────────
 if __name__ == "__main__":
-    worker_opts = WorkerOptions(entrypoint_fnc=entrypoint)
+    worker_opts = WorkerOptions(
+        entrypoint_fnc=entrypoint,
+        api_key=LIVEKIT_API_KEY,
+        api_secret=LIVEKIT_API_SECRET,
+        ws_url=LIVEKIT_URL,
+    )
     cli.run_app(worker_opts)
