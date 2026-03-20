@@ -206,6 +206,73 @@ class NexoAgent(Agent):
         super().__init__(instructions=SYSTEM_PROMPT)
 
 
+# ─── Nexo Streaming Agent Class ──────────────────────────────────────────
+class NexoStreamingAgent(Agent):
+    """Voice agent with sentence-level streaming buffering (Option B)."""
+
+    def __init__(self, instructions: str = ""):
+        """Initialize streaming agent with system instructions."""
+        super().__init__(instructions=instructions)
+
+    async def llm_node(
+        self,
+        chat_ctx,
+        tools=None,
+        **kwargs
+    ) -> AsyncGenerator[agents.ChatChunk, None]:
+        """
+        Override LLM node to enable sentence-buffering streaming.
+
+        - Streams LLM response as ChatChunk objects via self.llm.chat()
+        - Buffers tokens until sentence boundary (. ! ? followed by space + capital)
+        - Yields complete sentences respecting TTS input length limits
+        - Handles German abbreviations (Dr., etc., z.B.) via regex
+
+        Args:
+            chat_ctx: Chat context with messages and RAG context
+            tools: Available tools/functions (passed through)
+
+        Yields:
+            ChatChunk: Complete sentences ready for TTS
+        """
+        # Use built-in LLM streaming API (livekit-agents v1.4+)
+        async with self.llm.chat(chat_ctx=chat_ctx, tools=tools) as stream:
+            buffer = ""
+
+            async for chunk in stream:
+                # chunk is ChatChunk with .text, .tool_calls, .usage
+                if chunk.text:
+                    buffer += chunk.text
+
+                    # Check for sentence boundaries
+                    while re.search(SENTENCE_PATTERN, buffer):
+                        # Split on sentence boundary (regex)
+                        sentences = re.split(SENTENCE_PATTERN, buffer, maxsplit=1)
+                        sentence = sentences[0].strip()
+                        buffer = sentences[1] if len(sentences) > 1 else ""
+
+                        # Handle oversized sentences (TTS input limit)
+                        if len(sentence) > MAX_SENTENCE_LENGTH:
+                            sentence = sentence[:MAX_SENTENCE_LENGTH-3] + "..."
+
+                        if sentence:
+                            # Yield complete sentence as ChatChunk
+                            logger.debug(f"Yielding sentence: {sentence[:50]}...")
+                            yield agents.ChatChunk(text=sentence)
+
+                else:
+                    # Non-text chunks (tool calls, usage) pass through
+                    yield chunk
+
+            # Yield remaining text at end (if not empty)
+            if buffer.strip():
+                final_text = buffer.strip()
+                if len(final_text) > MAX_SENTENCE_LENGTH:
+                    final_text = final_text[:MAX_SENTENCE_LENGTH-3] + "..."
+                logger.debug(f"Yielding final chunk: {final_text[:50]}...")
+                yield agents.ChatChunk(text=final_text)
+
+
 # ─── Agent Entrypoint (v1.4 API) ────────────────────────────────────────
 async def entrypoint(ctx: JobContext):
     """
