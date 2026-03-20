@@ -39,7 +39,7 @@ DEEPGRAM_MODEL = os.getenv("DEEPGRAM_MODEL", "nova-2")
 
 # LLM Configuration (Ollama local)
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi:2b")  # Fast: 2B params
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi:latest")  # Fast: 3B params (~2s inference)
 
 # TTS Configuration (Cartesia)
 CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "")

@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY agent.py .
 
 ENV PYTHONUNBUFFERED=1
-ENV OLLAMA_MODEL=phi:2b
+ENV OLLAMA_MODEL=phi:latest
 ENV CARTESIA_MODEL=sonic-2
 
 CMD ["python3", "agent.py", "start"]
