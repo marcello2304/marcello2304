@@ -14,14 +14,19 @@ import asyncio
 import json
 import logging
 import os
-from typing import Optional
+import re
+from typing import AsyncGenerator, Optional
 
 import httpx
 from livekit import agents, rtc
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, llm
 from livekit.plugins import cartesia, openai, silero
-import re
-from typing import AsyncGenerator
+
+from constants import (
+    SENTENCE_PATTERN,
+    MAX_SENTENCE_LENGTH,
+    TRUNCATION_SUFFIX,
+)
 
 # ─── Logging Setup ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -61,8 +66,6 @@ VAD_SILENCE_DURATION_MS = int(os.getenv("VAD_SILENCE_DURATION_MS", "300"))
 
 # ─── Streaming Configuration ──────────────────────────────────────────────
 VOICEBOT_STREAMING_ENABLED = os.getenv("VOICEBOT_STREAMING_ENABLED", "true").lower() == "true"
-SENTENCE_PATTERN = r'(?<=[.!?])\s+(?=[A-Z])'  # Regex for sentence boundaries
-MAX_SENTENCE_LENGTH = 250  # Cartesia TTS limit (~200-300 tokens)
 
 # ─── System Prompt with RAG Context ─────────────────────────────────────
 SYSTEM_PROMPT = """Du bist Nexo, ein hilfreicher deutschsprachiger Voice Assistant.
@@ -216,21 +219,24 @@ class NexoStreamingAgent(Agent):
 
     async def llm_node(
         self,
-        chat_ctx,
-        tools=None,
+        chat_ctx: "agents.ChatContext",
+        tools: Optional[list] = None,
         **kwargs
     ) -> AsyncGenerator[agents.ChatChunk, None]:
         """
         Override LLM node to enable sentence-buffering streaming.
 
         - Streams LLM response as ChatChunk objects via self.llm.chat()
-        - Buffers tokens until sentence boundary (. ! ? followed by space + capital)
+        - Buffers tokens until sentence boundary
+          (. ! ? followed by space + capital)
         - Yields complete sentences respecting TTS input length limits
-        - Handles German abbreviations (Dr., etc., z.B.) via regex
+        - Buffers until sentence boundary (respects most German abbreviations)
 
         Args:
             chat_ctx: Chat context with messages and RAG context
             tools: Available tools/functions (passed through)
+            **kwargs: Additional arguments
+                (accepted for Agent interface compatibility)
 
         Yields:
             ChatChunk: Complete sentences ready for TTS
@@ -247,17 +253,27 @@ class NexoStreamingAgent(Agent):
                     # Check for sentence boundaries
                     while re.search(SENTENCE_PATTERN, buffer):
                         # Split on sentence boundary (regex)
-                        sentences = re.split(SENTENCE_PATTERN, buffer, maxsplit=1)
+                        sentences = re.split(
+                            SENTENCE_PATTERN, buffer, maxsplit=1
+                        )
                         sentence = sentences[0].strip()
                         buffer = sentences[1] if len(sentences) > 1 else ""
 
                         # Handle oversized sentences (TTS input limit)
                         if len(sentence) > MAX_SENTENCE_LENGTH:
-                            sentence = sentence[:MAX_SENTENCE_LENGTH-3] + "..."
+                            max_len = (
+                                MAX_SENTENCE_LENGTH -
+                                len(TRUNCATION_SUFFIX)
+                            )
+                            sentence = (
+                                sentence[:max_len] + TRUNCATION_SUFFIX
+                            )
 
                         if sentence:
                             # Yield complete sentence as ChatChunk
-                            logger.debug(f"Yielding sentence: {sentence[:50]}...")
+                            logger.debug(
+                                f"Yielding sentence: {sentence[:50]}..."
+                            )
                             yield agents.ChatChunk(text=sentence)
 
                 else:
@@ -268,7 +284,13 @@ class NexoStreamingAgent(Agent):
             if buffer.strip():
                 final_text = buffer.strip()
                 if len(final_text) > MAX_SENTENCE_LENGTH:
-                    final_text = final_text[:MAX_SENTENCE_LENGTH-3] + "..."
+                    max_len = (
+                        MAX_SENTENCE_LENGTH -
+                        len(TRUNCATION_SUFFIX)
+                    )
+                    final_text = (
+                        final_text[:max_len] + TRUNCATION_SUFFIX
+                    )
                 logger.debug(f"Yielding final chunk: {final_text[:50]}...")
                 yield agents.ChatChunk(text=final_text)
 
