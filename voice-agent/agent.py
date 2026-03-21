@@ -11,6 +11,7 @@ Deployment: Docker auf Server 2 (46.224.54.65)
 Optimized for <500ms turn-around (STT→LLM→TTS)
 """
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -79,18 +80,28 @@ Fasse deine Antworten in 1-2 Sätzen zusammen, um schnelle Voice-Responses zu er
 Wenn du nicht sicher bist, frag nach oder sage, dass du die Info nicht hast."""
 
 
+# ─── RAG Context Caching ───────────────────────────────────────────────
+_rag_cache: dict[str, str] = {}  # Cache: query_hash → context
+
 # ─── RAG Context Fetching via n8n Webhook ───────────────────────────────
 async def fetch_rag_context(query: str) -> Optional[str]:
     """
-    Fetch RAG context from n8n webhook.
+    Fetch RAG context from n8n webhook with simple hash-based cache.
     Returns enriched context or None if RAG unavailable.
+    Reduces duplicate requests for repeated queries.
     """
     if not RAG_WEBHOOK_URL:
         logger.debug("RAG_WEBHOOK_URL not configured, skipping RAG context")
         return None
 
+    # Check cache first (hash query to avoid large keys)
+    query_hash = hashlib.md5(query.encode()).hexdigest()
+    if query_hash in _rag_cache:
+        logger.debug(f"RAG context cache hit for query hash {query_hash}")
+        return _rag_cache[query_hash]
+
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
+        async with httpx.AsyncClient(timeout=1.0) as client:  # Reduced: 2.0s → 1.0s
             payload = {
                 "query": query,
                 "secret": RAG_WEBHOOK_SECRET,
@@ -102,53 +113,17 @@ async def fetch_rag_context(query: str) -> Optional[str]:
             # Extract context from n8n response
             if isinstance(data, dict) and "context" in data:
                 context = data.get("context", "")
-                logger.info(f"RAG context fetched: {len(context)} chars")
+                _rag_cache[query_hash] = context  # Cache the result
+                logger.info(f"RAG context fetched and cached: {len(context)} chars")
                 return context
 
             return None
+    except asyncio.TimeoutError:
+        logger.warning(f"RAG context fetch timeout (1.0s) - proceeding without context")
+        return None
     except Exception as e:
         logger.warning(f"RAG context fetch failed: {e}")
         return None
-
-
-# ─── LLM with RAG Integration ───────────────────────────────────────────
-async def get_llm_response(user_message: str, rag_context: Optional[str] = None) -> str:
-    """
-    Get LLM response with optional RAG context.
-    Uses OpenAI-compatible API (Ollama).
-    """
-    system_prompt = SYSTEM_PROMPT
-
-    # Inject RAG context if available
-    if rag_context:
-        system_prompt += f"\n\nVerfügbare Kontextinformationen:\n{rag_context}"
-
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:  # Reduced from 5s → 3s
-            # Ollama OpenAI-compatible endpoint
-            response = await client.post(
-                f"{OLLAMA_BASE_URL}/v1/chat/completions",
-                json={
-                    "model": OLLAMA_MODEL,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message},
-                    ],
-                    "temperature": 0.5,  # Lower temp for faster, more consistent output
-                    "max_tokens": 100,  # Shorter responses for voice (was 150)
-                    "stream": False,
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
-
-            # Extract message from OpenAI-compatible response
-            message = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            logger.info(f"LLM response: {message[:100]}...")
-            return message
-    except Exception as e:
-        logger.error(f"LLM request failed: {e}")
-        return "Entschuldigung, ich konnte die Anfrage nicht verarbeiten."
 
 
 # ─── STT Provider (Deepgram Streaming) ──────────────────────────────────
