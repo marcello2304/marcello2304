@@ -320,8 +320,16 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-    # Start agent with NexoAgent configuration
-    await session.start(room=ctx.room, agent=NexoAgent())
+    # Select agent class based on streaming configuration
+    if VOICEBOT_STREAMING_ENABLED:
+        agent_class = NexoStreamingAgent
+        logger.info("Using NexoStreamingAgent (streaming enabled)")
+    else:
+        agent_class = NexoAgent
+        logger.info("Using NexoAgent (streaming disabled)")
+
+    # Start agent with selected class
+    await session.start(room=ctx.room, agent=agent_class(instructions=SYSTEM_PROMPT))
     logger.info("Agent started and listening")
 
     # Keep session alive and handle interactions
