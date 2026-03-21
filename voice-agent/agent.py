@@ -54,11 +54,12 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")  # auto, cuda, cpu
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi:latest")  # Fast: 3B params (~2s inference)
 
-# TTS Configuration (Cartesia)
+# TTS Configuration (Cartesia > OpenAI)
 CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "")
+# Use "bella" (female, warm, natural German voice) instead of dark voice
 CARTESIA_VOICE_ID = os.getenv(
     "CARTESIA_VOICE_ID",
-    "b9de4a89-2257-424b-94c2-db18ba68c81a"  # German voice
+    "248be419-c900-4dc9-85ea-f724adac5d84"  # Bella: warm, natural German voice
 )
 CARTESIA_MODEL = "sonic-2"  # Lowest latency model
 
@@ -192,49 +193,53 @@ def _get_llm():
     """
     logger.info(f"Using LLM: Ollama {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
 
-    return openai.LLM(
-        model=OLLAMA_MODEL,
-        api_key="ollama",  # Not needed for local Ollama
-        base_url=OLLAMA_BASE_URL,
-    )
+    try:
+        llm = openai.LLM(
+            model=OLLAMA_MODEL,
+            api_key="ollama",  # Not needed for local Ollama
+            base_url=OLLAMA_BASE_URL,
+        )
+        logger.info("✓ Ollama LLM initialized successfully")
+        return llm
+    except Exception as e:
+        logger.error(f"Failed to initialize Ollama LLM: {e}")
+        logger.warning("Proceeding anyway (will fail at runtime if Ollama unavailable)")
+        return openai.LLM(
+            model=OLLAMA_MODEL,
+            api_key="ollama",
+            base_url=OLLAMA_BASE_URL,
+        )
 
 
-# ─── TTS Provider (Cartesia Ultra-Low Latency) ─────────────────────────
+# ─── TTS Provider (Cartesia Primary > OpenAI Fallback) ──────────────────
 def _get_tts():
     """
-    Get TTS provider: Cartesia Sonic-3 (ultra-low latency, <100ms).
+    Get TTS provider with natural-sounding voices.
 
-    For Task C (<2s): Cartesia provides:
-    - <100ms latency (fastest in industry)
-    - Streaming audio (no batching)
-    - German voice with natural prosody
-    - PCM16 output for TLS streaming
+    Primary (if API key set):
+    - Cartesia Sonic-2: <100ms latency, German voice (Bella: warm, natural)
+
+    Fallback:
+    - OpenAI TTS: ~300-500ms latency, high-quality neural voice
     """
     if CARTESIA_API_KEY:
         logger.info(
             f"✓ Using TTS: Cartesia {CARTESIA_MODEL} "
-            f"(voice: {CARTESIA_VOICE_ID[:8]}..., latency: <100ms)"
+            f"(Bella voice, latency: <100ms, ultra-natural)"
         )
         try:
             return cartesia.TTS(
                 api_key=CARTESIA_API_KEY,
-                model=CARTESIA_MODEL,  # sonic-3: ultra-low latency
-                voice=CARTESIA_VOICE_ID,
+                model=CARTESIA_MODEL,  # sonic-2: ultra-low latency
+                voice=CARTESIA_VOICE_ID,  # Bella: warm German voice
                 encoding="pcm_s16le",  # Lowest latency
                 sample_rate=24000,  # Cartesia optimized
-                # Streaming: tokens streamed as available (not batched)
             )
         except Exception as e:
-            logger.error(f"Cartesia TTS initialization failed: {e}")
-            logger.warning("Falling back to OpenAI TTS")
-    else:
-        logger.warning(
-            "⚠️  CARTESIA_API_KEY not set. "
-            "Using OpenAI TTS fallback (higher latency, ~500ms). "
-            "For <2s target: Set CARTESIA_API_KEY!"
-        )
+            logger.error(f"Cartesia TTS failed: {e}, falling back to OpenAI")
 
-    # Fallback: OpenAI TTS (slower, ~500ms)
+    # Fallback: OpenAI TTS (always available, better quality)
+    logger.info("✓ Using TTS: OpenAI TTS-1 (nova voice, ~300ms latency, high quality)")
     return openai.TTS(model="tts-1", voice="nova")
 
 
@@ -268,6 +273,7 @@ class NexoStreamingAgent(Agent):
         - Token-streaming (yielding partial responses)
         - RAG context injection
         - Sentence-level buffering
+        - Robust error handling with detailed logging
 
         Args:
             chat_ctx: Chat context with messages
@@ -277,80 +283,106 @@ class NexoStreamingAgent(Agent):
         Yields:
             ChatChunk: Complete sentences ready for TTS
         """
-        # ─── Fetch RAG Context (async, non-blocking) ───────────────────────────
-        rag_context = None
-        if chat_ctx.messages:
-            user_message = chat_ctx.messages[-1].content if chat_ctx.messages else ""
-            if isinstance(user_message, str) and user_message.strip():
-                rag_context = await fetch_rag_context(user_message)
-                if rag_context:
-                    logger.info(f"RAG context injected: {len(rag_context)} chars")
+        try:
+            # ─── Fetch RAG Context (async, non-blocking) ───────────────────────────
+            rag_context = None
+            try:
+                if chat_ctx.messages:
+                    user_message = chat_ctx.messages[-1].content if chat_ctx.messages else ""
+                    if isinstance(user_message, str) and user_message.strip():
+                        logger.debug(f"Fetching RAG context for: {user_message[:100]}...")
+                        rag_context = await fetch_rag_context(user_message)
+                        if rag_context:
+                            logger.info(f"✓ RAG context injected: {len(rag_context)} chars")
+            except Exception as e:
+                logger.warning(f"RAG context fetch failed (proceeding without): {e}")
+                rag_context = None
 
-        # ─── Inject RAG into system prompt if available ───────────────────────
-        enhanced_instructions = self.instructions
-        if rag_context:
-            enhanced_instructions += f"\n\nVerfügbare Kontextinformationen:\n{rag_context}"
+            # ─── Inject RAG into system prompt if available ───────────────────────
+            enhanced_instructions = self.instructions
+            if rag_context:
+                enhanced_instructions += f"\n\nVerfügbare Kontextinformationen:\n{rag_context}"
 
-        # ─── Create new chat context with enhanced system prompt ──────────────
-        modified_ctx = agents.ChatContext(
-            messages=[
-                agents.ChatMessage(role="system", content=enhanced_instructions),
-                *chat_ctx.messages
-            ]
-        )
+            # ─── Create new chat context with enhanced system prompt ──────────────
+            modified_ctx = agents.ChatContext(
+                messages=[
+                    agents.ChatMessage(role="system", content=enhanced_instructions),
+                    *chat_ctx.messages
+                ]
+            )
 
-        # Use built-in LLM streaming API (livekit-agents v1.4+)
-        async with self.llm.chat(chat_ctx=modified_ctx, tools=tools) as stream:
-            buffer = ""
+            # Use built-in LLM streaming API (livekit-agents v1.4+)
+            logger.debug("Starting LLM streaming...")
+            async with self.llm.chat(chat_ctx=modified_ctx, tools=tools) as stream:
+                buffer = ""
+                sentence_count = 0
 
-            async for chunk in stream:
-                # chunk is ChatChunk with .text, .tool_calls, .usage
-                if chunk.text:
-                    buffer += chunk.text
+                async for chunk in stream:
+                    try:
+                        # chunk is ChatChunk with .text, .tool_calls, .usage
+                        if chunk.text:
+                            buffer += chunk.text
+                            logger.debug(f"LLM token received: {chunk.text[:50]}...")
 
-                    # Check for sentence boundaries
-                    while re.search(SENTENCE_PATTERN, buffer):
-                        # Split on sentence boundary (regex)
-                        sentences = re.split(
-                            SENTENCE_PATTERN, buffer, maxsplit=1
+                            # Check for sentence boundaries
+                            while re.search(SENTENCE_PATTERN, buffer):
+                                # Split on sentence boundary (regex)
+                                sentences = re.split(
+                                    SENTENCE_PATTERN, buffer, maxsplit=1
+                                )
+                                sentence = sentences[0].strip()
+                                buffer = sentences[1] if len(sentences) > 1 else ""
+
+                                # Handle oversized sentences (TTS input limit)
+                                if len(sentence) > MAX_SENTENCE_LENGTH:
+                                    max_len = (
+                                        MAX_SENTENCE_LENGTH -
+                                        len(TRUNCATION_SUFFIX)
+                                    )
+                                    sentence = (
+                                        sentence[:max_len] + TRUNCATION_SUFFIX
+                                    )
+
+                                if sentence:
+                                    # Yield complete sentence as ChatChunk
+                                    sentence_count += 1
+                                    logger.info(
+                                        f"Sentence #{sentence_count}: {sentence[:60]}..."
+                                    )
+                                    yield agents.ChatChunk(text=sentence)
+
+                        else:
+                            # Non-text chunks (tool calls, usage) pass through
+                            if chunk.tool_calls:
+                                logger.debug(f"Tool calls: {chunk.tool_calls}")
+                            yield chunk
+
+                    except Exception as e:
+                        logger.error(f"Error processing chunk: {e}", exc_info=True)
+                        raise
+
+                # Yield remaining text at end (if not empty)
+                if buffer.strip():
+                    final_text = buffer.strip()
+                    if len(final_text) > MAX_SENTENCE_LENGTH:
+                        max_len = (
+                            MAX_SENTENCE_LENGTH -
+                            len(TRUNCATION_SUFFIX)
                         )
-                        sentence = sentences[0].strip()
-                        buffer = sentences[1] if len(sentences) > 1 else ""
+                        final_text = (
+                            final_text[:max_len] + TRUNCATION_SUFFIX
+                        )
+                    sentence_count += 1
+                    logger.info(f"Final sentence #{sentence_count}: {final_text[:60]}...")
+                    yield agents.ChatChunk(text=final_text)
 
-                        # Handle oversized sentences (TTS input limit)
-                        if len(sentence) > MAX_SENTENCE_LENGTH:
-                            max_len = (
-                                MAX_SENTENCE_LENGTH -
-                                len(TRUNCATION_SUFFIX)
-                            )
-                            sentence = (
-                                sentence[:max_len] + TRUNCATION_SUFFIX
-                            )
+                if sentence_count == 0:
+                    logger.warning("⚠️  No sentences yielded from LLM!")
 
-                        if sentence:
-                            # Yield complete sentence as ChatChunk
-                            logger.debug(
-                                f"Yielding sentence: {sentence[:50]}..."
-                            )
-                            yield agents.ChatChunk(text=sentence)
-
-                else:
-                    # Non-text chunks (tool calls, usage) pass through
-                    yield chunk
-
-            # Yield remaining text at end (if not empty)
-            if buffer.strip():
-                final_text = buffer.strip()
-                if len(final_text) > MAX_SENTENCE_LENGTH:
-                    max_len = (
-                        MAX_SENTENCE_LENGTH -
-                        len(TRUNCATION_SUFFIX)
-                    )
-                    final_text = (
-                        final_text[:max_len] + TRUNCATION_SUFFIX
-                    )
-                logger.debug(f"Yielding final chunk: {final_text[:50]}...")
-                yield agents.ChatChunk(text=final_text)
+        except Exception as e:
+            logger.error(f"CRITICAL ERROR in llm_node: {e}", exc_info=True)
+            # Yield error message for user
+            yield agents.ChatChunk(text="Entschuldigung, es gab einen Fehler bei der Verarbeitung. Bitte versuche es später erneut.")
 
 
 # ─── Agent Entrypoint (v1.4 API) ────────────────────────────────────────
