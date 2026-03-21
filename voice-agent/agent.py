@@ -205,8 +205,8 @@ class NexoAgent(Agent):
     v1.4 API: Uses AgentSession for lifecycle management.
     """
 
-    def __init__(self):
-        super().__init__(instructions=SYSTEM_PROMPT)
+    def __init__(self, instructions: str = SYSTEM_PROMPT):
+        super().__init__(instructions=instructions)
 
 
 # ─── Nexo Streaming Agent Class ──────────────────────────────────────────
