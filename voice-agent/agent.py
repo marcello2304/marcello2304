@@ -348,17 +348,6 @@ async def entrypoint(ctx: JobContext):
         llm=_get_llm(),
         tts=_get_tts(),
         vad=silero.VAD.load(),
-        # Task C: Ultra-low latency configuration (<2s end-to-end)
-        # VAD tuned for aggressive turn-taking:
-        # - STT Deepgram: ~200ms
-        # - LLM phi:2b streaming: ~400ms
-        # - TTS Cartesia: ~100ms
-        # - VAD: ~100ms
-        # = ~1s total (with overhead)
-        turn_detection=silero.VAD.load(
-            min_speaking_duration=0.03,  # Ultra-aggressive: 30ms
-            min_silence_duration=VAD_SILENCE_DURATION_MS / 1000.0,  # 100ms
-        ),
     )
 
     # Select agent class based on streaming configuration
