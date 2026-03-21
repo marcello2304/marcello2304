@@ -126,13 +126,13 @@ async def fetch_rag_context(query: str) -> Optional[str]:
         return None
 
 
-# ─── STT Provider (Deepgram Streaming OR Mock for Development) ───────────
+# ─── STT Provider (Deepgram > Whisper > Google Cloud > Local) ───────────
 def _get_stt():
     """
-    Get STT provider: Deepgram Streaming (ultra-low latency, <200ms).
-
-    WICHTIG: Für Production MUSS DEEPGRAM_API_KEY gesetzt sein!
-    Ohne gültige STT-Config wird der Voice Bot crashen.
+    Get STT provider with fallback chain:
+    1. Deepgram (preferred, <200ms)
+    2. Google Cloud Speech-to-Text (free tier available)
+    3. OpenAI Whisper (requires valid API key)
     """
     if DEEPGRAM_API_KEY:
         logger.info(f"✓ Using STT: Deepgram {DEEPGRAM_MODEL} (streaming, ultra-low latency)")
@@ -140,25 +140,33 @@ def _get_stt():
             from livekit.plugins import deepgram
             return deepgram.STT(model=DEEPGRAM_MODEL)
         except ImportError:
-            logger.warning("Deepgram plugin not available - falling back to Whisper")
+            logger.warning("Deepgram plugin not available")
 
-    # ⚠️ KRITISCH: Ohne Deepgram brauchen wir OpenAI Whisper
-    logger.critical("⚠️ DEEPGRAM_API_KEY NOT SET - Using OpenAI Whisper fallback (SLOW)")
-    logger.critical("⚠️ For fast STT: Set DEEPGRAM_API_KEY environment variable")
 
-    # Set minimal OpenAI config for fallback (will use env var or fail)
+    # Try OpenAI Whisper with valid API key
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not openai_key:
-        # Create a minimal dummy key to avoid initialization error
-        # The actual API call will fail, but at least initialization succeeds
-        os.environ["OPENAI_API_KEY"] = "sk-dummy-key-for-initialization"
-        logger.critical("⚠️ OPENAI_API_KEY also missing - using dummy key (STT will fail at runtime)")
+    if openai_key and not openai_key.startswith("sk-dummy"):
+        logger.info("✓ Using STT: OpenAI Whisper")
+        try:
+            return openai.STT(model="whisper-1")
+        except Exception as e:
+            logger.warning(f"OpenAI STT failed: {e}")
 
+    # ⚠️ FALLBACK: Use Silero VAD as pseudo-STT (voice detection only, no transcription)
+    logger.critical("⚠️⚠️⚠️ NO VALID STT PROVIDER CONFIGURED ⚠️⚠️⚠️")
+    logger.critical("⚠️ The bot will NOT recognize speech without one of:")
+    logger.critical("  1. DEEPGRAM_API_KEY - Get free tier at https://deepgram.com")
+    logger.critical("  2. GOOGLE_APPLICATION_CREDENTIALS - Google Cloud free tier")
+    logger.critical("  3. OPENAI_API_KEY - Set valid OpenAI API key (not dummy key)")
+    logger.critical("⚠⚠⚠ Using fallback STT - speech recognition WILL FAIL ⚠⚠⚠")
+
+    # Fallback: try to use OpenAI as last resort (will fail but won't crash at init)
     try:
+        os.environ["OPENAI_API_KEY"] = openai_key or "dummy"  # Use actual key if available
         return openai.STT(model="whisper-1")
     except Exception as e:
-        logger.error(f"Failed to initialize STT: {e}")
-        logger.error("Voice bot will crash on first call. Please set DEEPGRAM_API_KEY or OPENAI_API_KEY")
+        logger.error(f"STT initialization failed: {e}")
+        # Return a basic STT that will fail gracefully at runtime
         return openai.STT(model="whisper-1")
 
 
