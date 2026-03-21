@@ -54,14 +54,16 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")  # auto, cuda, cpu
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi:latest")  # Fast: 3B params (~2s inference)
 
-# TTS Configuration (Cartesia > OpenAI)
+# TTS Configuration (Cartesia Primary - Ultra-Low Latency)
 CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "")
-# Use "bella" (female, warm, natural German voice) instead of dark voice
-CARTESIA_VOICE_ID = os.getenv(
-    "CARTESIA_VOICE_ID",
-    "248be419-c900-4dc9-85ea-f724adac5d84"  # Bella: warm, natural German voice
-)
+# Voice ID - use "default" or valid UUID for natural German voice
+# If empty, Cartesia uses default German voice
+CARTESIA_VOICE_ID = os.getenv("CARTESIA_VOICE_ID", "default")
 CARTESIA_MODEL = "sonic-2"  # Lowest latency model
+
+# OpenAI TTS as fallback (requires API key)
+OPENAI_API_KEY_EXPLICIT = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_TTS_ENABLED = bool(OPENAI_API_KEY_EXPLICIT and not OPENAI_API_KEY_EXPLICIT.startswith("sk-dummy"))
 
 # RAG Configuration (n8n Webhook)
 RAG_WEBHOOK_URL = os.getenv("RAG_WEBHOOK_URL", "")
@@ -214,33 +216,71 @@ def _get_llm():
 # ─── TTS Provider (Cartesia Primary > OpenAI Fallback) ──────────────────
 def _get_tts():
     """
-    Get TTS provider with natural-sounding voices.
+    Get TTS provider with natural German voices.
 
-    Primary (if API key set):
-    - Cartesia Sonic-2: <100ms latency, German voice (Bella: warm, natural)
+    Primary:
+    - Cartesia Sonic-2: Ultra-low latency <100ms, German voice
+      Uses default German voice (warm, natural) if no voice ID specified
 
     Fallback:
-    - OpenAI TTS: ~300-500ms latency, high-quality neural voice
+    - OpenAI TTS-1: High-quality neural voice ~300ms (if API key available)
     """
+    # ─── Primary: Cartesia Sonic-2 (Ultra-Low Latency) ────────────────
     if CARTESIA_API_KEY:
         logger.info(
             f"✓ Using TTS: Cartesia {CARTESIA_MODEL} "
-            f"(Bella voice, latency: <100ms, ultra-natural)"
+            f"(German voice, ultra-low latency <100ms)"
         )
         try:
-            return cartesia.TTS(
-                api_key=CARTESIA_API_KEY,
-                model=CARTESIA_MODEL,  # sonic-2: ultra-low latency
-                voice=CARTESIA_VOICE_ID,  # Bella: warm German voice
-                encoding="pcm_s16le",  # Lowest latency
-                sample_rate=24000,  # Cartesia optimized
-            )
-        except Exception as e:
-            logger.error(f"Cartesia TTS failed: {e}, falling back to OpenAI")
+            # Build Cartesia TTS kwargs - only add voice if not "default"
+            cartesia_kwargs = {
+                "api_key": CARTESIA_API_KEY,
+                "model": CARTESIA_MODEL,
+                "encoding": "pcm_s16le",
+                "sample_rate": 24000,
+            }
 
-    # Fallback: OpenAI TTS (always available, better quality)
-    logger.info("✓ Using TTS: OpenAI TTS-1 (nova voice, ~300ms latency, high quality)")
-    return openai.TTS(model="tts-1", voice="nova")
+            # Only set voice if not default
+            if CARTESIA_VOICE_ID and CARTESIA_VOICE_ID.lower() != "default":
+                cartesia_kwargs["voice"] = CARTESIA_VOICE_ID
+
+            return cartesia.TTS(**cartesia_kwargs)
+
+        except Exception as e:
+            logger.error(f"Cartesia TTS failed: {e}")
+            logger.warning("Falling back to OpenAI TTS")
+
+    # ─── Fallback: OpenAI TTS (if API key available) ────────────────
+    if OPENAI_TTS_ENABLED:
+        logger.info(
+            "✓ Using TTS: OpenAI TTS-1 (nova voice, "
+            "high-quality neural, natural German prosody)"
+        )
+        try:
+            return openai.TTS(model="tts-1", voice="nova")
+        except Exception as e:
+            logger.error(f"OpenAI TTS failed: {e}")
+
+    # ─── Last resort: Cartesia without custom voice ──────────────────
+    logger.warning("⚠️  Using Cartesia with default voice (no API key or config)")
+    if CARTESIA_API_KEY:
+        return cartesia.TTS(
+            api_key=CARTESIA_API_KEY,
+            model="sonic-2",
+            encoding="pcm_s16le",
+            sample_rate=24000,
+        )
+
+    # ─── CRITICAL: No TTS provider available ────────────────────────
+    logger.critical("⚠️⚠️⚠️ NO TTS PROVIDER CONFIGURED ⚠️⚠️⚠️")
+    logger.critical("Set one of:")
+    logger.critical("  1. CARTESIA_API_KEY (recommended, ultra-low latency)")
+    logger.critical("  2. OPENAI_API_KEY (fallback, high quality)")
+    # Return dummy that will fail at runtime
+    try:
+        return openai.TTS(model="tts-1", voice="nova")
+    except:
+        return cartesia.TTS(api_key="dummy", model="sonic-2")
 
 
 # ─── Nexo Agent Class ───────────────────────────────────────────────────
