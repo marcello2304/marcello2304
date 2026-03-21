@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Agent code
 COPY agent.py .
 COPY constants.py .
+COPY local_whisper_stt.py .
 
 ENV PYTHONUNBUFFERED=1
 ENV OLLAMA_MODEL=phi:latest

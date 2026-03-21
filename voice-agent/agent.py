@@ -41,9 +41,14 @@ LIVEKIT_URL = os.getenv("LIVEKIT_URL", "ws://livekit:7880")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "devkey")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "secret")
 
-# STT Configuration (Deepgram primary, Whisper fallback)
+# STT Configuration
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 DEEPGRAM_MODEL = os.getenv("DEEPGRAM_MODEL", "nova-2")
+
+# Local Whisper Configuration (self-hosted, zero-cost)
+USE_LOCAL_WHISPER = os.getenv("USE_LOCAL_WHISPER", "true").lower() == "true"
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")  # tiny, small, base, medium, large
+WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")  # auto, cuda, cpu
 
 # LLM Configuration (Ollama local)
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
@@ -126,47 +131,57 @@ async def fetch_rag_context(query: str) -> Optional[str]:
         return None
 
 
-# ─── STT Provider (Deepgram > Whisper > Google Cloud > Local) ───────────
+# ─── STT Provider (Local Whisper > Deepgram > OpenAI Whisper) ──────────
 def _get_stt():
     """
-    Get STT provider with fallback chain:
-    1. Deepgram (preferred, <200ms)
-    2. Google Cloud Speech-to-Text (free tier available)
+    Get STT provider with fallback chain (preferred: local to avoid API costs):
+    1. Local Whisper-small (free, zero-cost, self-hosted)
+    2. Deepgram (preferred cloud option, <200ms)
     3. OpenAI Whisper (requires valid API key)
     """
+    # ─── Try Local Whisper First (FREE, ZERO-COST) ──────────────────────
+    if USE_LOCAL_WHISPER:
+        logger.info(f"✓ Using STT: Local Whisper-{WHISPER_MODEL} (self-hosted, zero cost)")
+        try:
+            from local_whisper_stt import LocalWhisperSTT
+            return LocalWhisperSTT(model_size=WHISPER_MODEL, device=WHISPER_DEVICE)
+        except ImportError:
+            logger.warning("Local Whisper module not available, checking fallbacks...")
+        except Exception as e:
+            logger.warning(f"Local Whisper initialization failed: {e}, checking fallbacks...")
+
+    # ─── Fallback: Deepgram (Cloud, requires API key) ───────────────────
     if DEEPGRAM_API_KEY:
-        logger.info(f"✓ Using STT: Deepgram {DEEPGRAM_MODEL} (streaming, ultra-low latency)")
+        logger.info(f"✓ Using STT: Deepgram {DEEPGRAM_MODEL} (cloud, ~200ms latency)")
         try:
             from livekit.plugins import deepgram
             return deepgram.STT(model=DEEPGRAM_MODEL)
         except ImportError:
             logger.warning("Deepgram plugin not available")
 
-
-    # Try OpenAI Whisper with valid API key
+    # ─── Fallback: OpenAI Whisper (Cloud, requires valid API key) ────────
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
     if openai_key and not openai_key.startswith("sk-dummy"):
-        logger.info("✓ Using STT: OpenAI Whisper")
+        logger.info("✓ Using STT: OpenAI Whisper (cloud, ~500ms latency)")
         try:
             return openai.STT(model="whisper-1")
         except Exception as e:
             logger.warning(f"OpenAI STT failed: {e}")
 
-    # ⚠️ FALLBACK: Use Silero VAD as pseudo-STT (voice detection only, no transcription)
+    # ⚠️ CRITICAL: No valid STT provider configured
     logger.critical("⚠️⚠️⚠️ NO VALID STT PROVIDER CONFIGURED ⚠️⚠️⚠️")
     logger.critical("⚠️ The bot will NOT recognize speech without one of:")
-    logger.critical("  1. DEEPGRAM_API_KEY - Get free tier at https://deepgram.com")
-    logger.critical("  2. GOOGLE_APPLICATION_CREDENTIALS - Google Cloud free tier")
+    logger.critical("  1. USE_LOCAL_WHISPER=true (default, free, self-hosted)")
+    logger.critical("  2. DEEPGRAM_API_KEY - Get free tier at https://deepgram.com")
     logger.critical("  3. OPENAI_API_KEY - Set valid OpenAI API key (not dummy key)")
     logger.critical("⚠⚠⚠ Using fallback STT - speech recognition WILL FAIL ⚠⚠⚠")
 
     # Fallback: try to use OpenAI as last resort (will fail but won't crash at init)
     try:
-        os.environ["OPENAI_API_KEY"] = openai_key or "dummy"  # Use actual key if available
+        os.environ["OPENAI_API_KEY"] = openai_key or "dummy"
         return openai.STT(model="whisper-1")
     except Exception as e:
         logger.error(f"STT initialization failed: {e}")
-        # Return a basic STT that will fail gracefully at runtime
         return openai.STT(model="whisper-1")
 
 
