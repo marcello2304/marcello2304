@@ -126,32 +126,40 @@ async def fetch_rag_context(query: str) -> Optional[str]:
         return None
 
 
-# ─── STT Provider (Deepgram Streaming) ──────────────────────────────────
+# ─── STT Provider (Deepgram Streaming OR Mock for Development) ───────────
 def _get_stt():
     """
     Get STT provider: Deepgram Streaming (ultra-low latency, <200ms).
 
-    For Task C (<2s): Deepgram Streaming provides:
-    - Interim results (partial transcripts)
-    - Nova-2 model (<200ms latency)
-    - German language support
+    WICHTIG: Für Production MUSS DEEPGRAM_API_KEY gesetzt sein!
+    Ohne gültige STT-Config wird der Voice Bot crashen.
     """
     if DEEPGRAM_API_KEY:
-        logger.info(f"Using STT: Deepgram {DEEPGRAM_MODEL} (streaming, ultra-low latency)")
+        logger.info(f"✓ Using STT: Deepgram {DEEPGRAM_MODEL} (streaming, ultra-low latency)")
         try:
             from livekit.plugins import deepgram
-            # Deepgram Streaming STT für <200ms latency
-            # interim_results: Partial transcripts für User Feedback
-            return deepgram.STT(
-                model=DEEPGRAM_MODEL,
-                # Deepgram automatisch streaming wenn verfügbar
-            )
+            return deepgram.STT(model=DEEPGRAM_MODEL)
         except ImportError:
-            logger.warning("Deepgram plugin not available")
+            logger.warning("Deepgram plugin not available - falling back to Whisper")
 
-    # Fallback: Use OpenAI Whisper (batch, nicht ideal für Voice)
-    logger.warning("Using Whisper fallback (nicht für production Voice Bot empfohlen)")
-    return openai.STT(model="whisper-1")
+    # ⚠️ KRITISCH: Ohne Deepgram brauchen wir OpenAI Whisper
+    logger.critical("⚠️ DEEPGRAM_API_KEY NOT SET - Using OpenAI Whisper fallback (SLOW)")
+    logger.critical("⚠️ For fast STT: Set DEEPGRAM_API_KEY environment variable")
+
+    # Set minimal OpenAI config for fallback (will use env var or fail)
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not openai_key:
+        # Create a minimal dummy key to avoid initialization error
+        # The actual API call will fail, but at least initialization succeeds
+        os.environ["OPENAI_API_KEY"] = "sk-dummy-key-for-initialization"
+        logger.critical("⚠️ OPENAI_API_KEY also missing - using dummy key (STT will fail at runtime)")
+
+    try:
+        return openai.STT(model="whisper-1")
+    except Exception as e:
+        logger.error(f"Failed to initialize STT: {e}")
+        logger.error("Voice bot will crash on first call. Please set DEEPGRAM_API_KEY or OPENAI_API_KEY")
+        return openai.STT(model="whisper-1")
 
 
 # ─── LLM Provider (Ollama via OpenAI API) ──────────────────────────────
@@ -231,7 +239,7 @@ class NexoStreamingAgent(Agent):
         chat_ctx: "agents.ChatContext",
         tools: Optional[list] = None,
         **kwargs
-    ) -> AsyncGenerator[agents.ChatChunk, None]:
+    ) -> AsyncGenerator:
         """
         Override LLM node to enable:
         - Token-streaming (yielding partial responses)
