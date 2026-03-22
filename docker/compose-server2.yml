@@ -1,8 +1,6 @@
 # docker-compose.yml für Server 2 (LLM + Voice)
 # Server 2: Ollama + LiveKit
 
-version: '3.8'
-
 networks:
   ai-net:
     name: ai-net
@@ -128,32 +126,7 @@ services:
     environment:
       # LiveKit Connection
       LIVEKIT_URL: "ws://livekit:7880"
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
-      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
-
-      # LLM Configuration (Ollama)
-      OLLAMA_BASE_URL: "http://ollama:11434"
-      OLLAMA_MODEL: "phi:2b"
-
-      # STT Configuration (Deepgram primary, Whisper fallback)
-      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
-      DEEPGRAM_MODEL: "nova-2"
-
-      # TTS Configuration (Cartesia)
-      CARTESIA_API_KEY: ${CARTESIA_API_KEY}
-      CARTESIA_VOICE_ID: ${CARTESIA_VOICE_ID}
-      CARTESIA_MODEL: "sonic-2"
-
-      # RAG Integration (n8n Webhook)
-      RAG_WEBHOOK_URL: ${RAG_WEBHOOK_URL:-}
-      RAG_WEBHOOK_SECRET: ${RAG_WEBHOOK_SECRET:-}
-
-      # Voice Assistant Optimization
-      INTERRUPT_MIN_WORDS: "0"
-      INTERRUPT_SPEECH_DURATION: "0.5"
-      MIN_ENDPOINTING_DELAY: "0.3"
-
-      # Logging
+      # Rest loaded from env_file
       PYTHONUNBUFFERED: "1"
 
     networks:

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LiveKit Connection Test (Simple)</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #00ff00; }
+        .box { background: #2d2d2d; padding: 20px; margin: 10px 0; border: 1px solid #444; }
+        input { width: 100%; padding: 8px; margin: 5px 0; background: #333; color: #0f0; border: 1px solid #555; }
+        button { padding: 10px 20px; background: #0f0; color: #000; border: none; cursor: pointer; margin: 10px 0; }
+        .error { color: #ff4444; }
+        .success { color: #44ff44; }
+    </style>
+</head>
+<body>
+    <h1>LiveKit v2.x Connection Diagnostic</h1>
+
+    <div class="box">
+        <h2>Step 1: Library Check</h2>
+        <div id="libcheck"></div>
+    </div>
+
+    <div class="box">
+        <h2>Step 2: Configuration</h2>
+        <input type="text" id="url" value="ws://46.224.54.65:7880" placeholder="LiveKit WS URL">
+        <input type="text" id="room" value="test-room" placeholder="Room Name">
+        <input type="text" id="user" value="Tester" placeholder="User Name">
+        <button onclick="fetchToken()">Get Token</button>
+        <div id="tokenresult"></div>
+    </div>
+
+    <div class="box">
+        <h2>Step 3: Connect</h2>
+        <button onclick="doConnect()">Connect to Room</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let room = null;
+        let token = null;
+
+        function log(msg, type = 'info') {
+            const el = document.getElementById(type === 'token' ? 'tokenresult' : 'result');
+            const span = document.createElement('div');
+            span.style.color = type === 'error' ? '#ff4444' : '#44ff44';
+            span.textContent = msg;
+            el.appendChild(span);
+            console.log(msg);
+        }
+
+        // Check library on load
+        window.addEventListener('load', () => {
+            const lib = document.getElementById('libcheck');
+
+            if (typeof window.LivekitClient === 'undefined') {
+                lib.innerHTML = '<span class="error">❌ window.LivekitClient is UNDEFINED</span>';
+                return;
+            }
+
+            lib.innerHTML += '<span class="success">✓ window.LivekitClient exists</span><br>';
+            lib.innerHTML += `<span class="success">✓ Type: ${typeof window.LivekitClient}</span><br>`;
+
+            if (window.LivekitClient.Room) {
+                lib.innerHTML += '<span class="success">✓ Room class available</span><br>';
+            } else {
+                lib.innerHTML += '<span class="error">✗ Room class NOT found</span><br>';
+            }
+
+            if (window.LivekitClient.RoomEvent) {
+                lib.innerHTML += '<span class="success">✓ RoomEvent enum available</span><br>';
+            }
+
+            const keys = Object.keys(window.LivekitClient).slice(0, 10);
+            lib.innerHTML += `<span class="success">✓ Available keys: ${keys.join(', ')}</span>`;
+        });
+
+        async function fetchToken() {
+            try {
+                const room = document.getElementById('room').value;
+                const user = document.getElementById('user').value;
+
+                const res = await fetch(`/api/token?room=${room}&user=${user}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const data = await res.json();
+                token = data.token;
+
+                log(`✓ Token fetched: ${token.substring(0, 20)}...`, 'token');
+            } catch (e) {
+                log(`✗ Token fetch failed: ${e.message}`, 'token');
+            }
+        }
+
+        async function doConnect() {
+            try {
+                const url = document.getElementById('url').value;
+                const user = document.getElementById('user').value;
+                const result = document.getElementById('result');
+                result.innerHTML = '';
+
+                log('Checking library...');
+                if (!window.LivekitClient || !window.LivekitClient.Room) {
+                    throw new Error('LiveKit library not loaded');
+                }
+
+                if (!token) {
+                    throw new Error('No token. Click "Get Token" first.');
+                }
+
+                log('Creating Room instance...');
+                room = new window.LivekitClient.Room({
+                    audio: true,
+                    video: false,
+                    autoSubscribe: true,
+                });
+
+                log('Connecting to: ' + url);
+                await room.connect(url, token);
+
+                log('✓ Connected successfully!');
+                log(`✓ Room name: ${room.name}`);
+                log(`✓ Local participant: ${room.localParticipant.name}`);
+
+                room.on(window.LivekitClient.RoomEvent.ParticipantConnected, (p) => {
+                    log(`✓ Remote participant: ${p.name}`);
+                });
+
+                room.on(window.LivekitClient.RoomEvent.Disconnected, () => {
+                    log('Connection closed');
+                });
+
+            } catch (e) {
+                log(`✗ Connection failed: ${e.message}`);
+                console.error('Full error:', e);
+            }
+        }
+    </script>
+</body>
+</html>
