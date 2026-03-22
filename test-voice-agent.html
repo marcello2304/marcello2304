@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPPCOM Voice Agent - Test</title>
-    <!-- Correct LiveKit Client Library -->
+    <!-- LiveKit Client SDK v2.x -->
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -186,86 +186,78 @@
                     // Auto-generate token from server
                     log('Generiere Token...', 'info');
 
-                    // Use nginx proxy endpoint or direct token server
-                    let tokenServerUrl = 'http://localhost:8765';
+                    // Use nginx proxy endpoint
                     let proxyUrl = window.location.origin + '/api/token';
 
                     if (url.includes('46.224.54.65')) {
-                        tokenServerUrl = 'http://46.224.54.65:8765';
+                        // Proxy on same server
                     } else if (url.includes('eppcom.de')) {
                         proxyUrl = 'https://eppcom.de/api/token';
                     }
 
                     try {
-                        // Try via nginx proxy first (more reliable)
-                        log('Generiere Token via Proxy...', 'info');
                         const proxyResponse = await fetch(`${proxyUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
                         if (proxyResponse.ok) {
                             const tokenData = await proxyResponse.json();
                             token = tokenData.token;
                             document.getElementById('token').value = token;
-                            log('✅ Token generiert (via Proxy)', 'success');
+                            log('✅ Token generiert', 'success');
                         } else {
                             throw new Error('Proxy returned ' + proxyResponse.status);
                         }
-                    } catch (proxyError) {
-                        log(`⚠️ Proxy nicht erreichbar, versuche direkten Token-Server...`, 'info');
-                        try {
-                            const tokenResponse = await fetch(`${tokenServerUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
-                            const tokenData = await tokenResponse.json();
-                            token = tokenData.token;
-                            document.getElementById('token').value = token;
-                            log('✅ Token generiert (direkt)', 'success');
-                        } catch (directError) {
-                            log(`❌ Token-Server nicht erreichbar: ${directError.message}`, 'error');
-                            throw new Error('Token generation failed: ' + directError.message);
-                        }
+                    } catch (error) {
+                        log(`❌ Token-Server nicht erreichbar: ${error.message}`, 'error');
+                        throw new Error('Token generation failed');
                     }
                 }
 
                 log(`Verbinde zu: ${url}`);
 
-                // CORRECT API: window.LivekitClient.connect()
-                // The UMD build exports to window.LivekitClient
-                const RoomClient = window.LivekitClient;
-                if (!RoomClient || !RoomClient.connect) {
-                    throw new Error('LivekitClient not properly loaded. Check console.');
+                // CORRECT LiveKit v2.x API
+                const LivekitClient = window.LivekitClient;
+                if (!LivekitClient || !LivekitClient.Room) {
+                    throw new Error('LiveKit SDK not loaded. Check script tag.');
                 }
 
-                room = await RoomClient.connect(url, token, {
+                // Create a new Room instance (v2.x API)
+                room = new LivekitClient.Room({
                     audio: true,
                     video: false,
                     autoSubscribe: true,
                 });
 
-                localParticipant = room.localParticipant;
+                // Connect to the room
+                await room.connect(url, token);
 
-                // Event listeners
-                room.on(RoomClient.RoomEvent.ParticipantConnected, (participant) => {
-                    log(`✅ Agent verbunden: ${participant.name}`, 'success');
-                    participant.on(RoomClient.ParticipantEvent.TrackSubscribed, (track) => {
+                localParticipant = room.localParticipant;
+                log('✅ Mit LiveKit verbunden', 'success');
+
+                // Handle participant events
+                room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+                    log(`✅ Teilnehmer verbunden: ${participant.name}`, 'success');
+
+                    participant.on(LivekitClient.ParticipantEvent.TrackSubscribed, (track) => {
                         if (track.kind === 'audio') {
                             const audio = document.createElement('audio');
-                            audio.srcObject = new MediaStream([track.mediaStream.getAudioTracks()[0]]);
-                            audio.play();
-                            log('🔊 Audio-Stream gestartet', 'success');
+                            const mediaStream = new MediaStream([track.mediaStreamTrack]);
+                            audio.srcObject = mediaStream;
+                            audio.play().catch(e => log(`Audio-Fehler: ${e.message}`, 'error'));
+                            log('🔊 Audio-Stream aktiv', 'success');
                         }
                     });
                 });
 
-                room.on(RoomClient.RoomEvent.Disconnected, () => {
-                    log('❌ Vom Server getrennt', 'error');
+                room.on(LivekitClient.RoomEvent.Disconnected, () => {
+                    log('❌ Verbindung getrennt', 'error');
                     updateStatus('Getrennt', 'error');
                     document.getElementById('connectBtn').disabled = false;
                     document.getElementById('disconnectBtn').disabled = true;
                     document.getElementById('muteBtn').disabled = true;
                 });
 
-                updateStatus(`✅ Verbunden als "${userName}" in Room "${roomName}"`, 'connected');
+                updateStatus(`✅ Verbunden als "${userName}" in "${roomName}"`, 'connected');
                 document.getElementById('disconnectBtn').disabled = false;
                 document.getElementById('muteBtn').disabled = false;
-                log(`✅ Mit ${url} verbunden`, 'success');
-                log(`📍 Room: ${roomName}, Benutzer: ${userName}`, 'success');
 
             } catch (error) {
                 log(`❌ Fehler: ${error.message}`, 'error');
@@ -278,25 +270,25 @@
             if (room) {
                 room.disconnect();
                 log('👋 Getrennt', 'info');
+                room = null;
             }
         };
 
         const toggleMute = () => {
             if (localParticipant) {
-                const isMuted = !localParticipant.isMicrophoneEnabled;
-                localParticipant.setMicrophoneEnabled(isMuted);
-                document.getElementById('muteBtn').textContent = isMuted ? '🎤 Unmuted' : '🔇 Muted';
-                log(isMuted ? '🎤 Mikrofon aktiviert' : '🔇 Mikrofon stummgeschaltet', 'info');
+                const currentEnabled = localParticipant.isMicrophoneEnabled;
+                localParticipant.setMicrophoneEnabled(!currentEnabled);
+                document.getElementById('muteBtn').textContent = !currentEnabled ? '🎤 Unmuted' : '🔇 Muted';
+                log(!currentEnabled ? '🎤 Mikrofon aktiviert' : '🔇 Mikrofon stummgeschaltet', 'info');
             }
         };
 
-        // Debug: Log when page loads to check if LivekitClient is available
+        // Debug on load
         window.addEventListener('load', () => {
-            if (window.LivekitClient) {
-                log('✅ LivekitClient library loaded successfully', 'success');
-                log(`Available methods: ${Object.keys(window.LivekitClient).slice(0, 5).join(', ')}...`, 'info');
+            if (window.LivekitClient && window.LivekitClient.Room) {
+                log('✅ LiveKit SDK geladen (v2.x)', 'success');
             } else {
-                log('❌ ERROR: LivekitClient not found on window object!', 'error');
+                log('❌ LiveKit SDK nicht geladen!', 'error');
             }
         });
     </script>

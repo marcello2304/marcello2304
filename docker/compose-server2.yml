@@ -123,6 +123,8 @@ services:
     image: livekit-agent:cartesia
     container_name: livekit-agent
     restart: unless-stopped
+    env_file:
+      - ../.env.server2
     environment:
       # LiveKit Connection
       LIVEKIT_URL: "ws://livekit:7880"

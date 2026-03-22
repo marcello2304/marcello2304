@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LiveKit Debug</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
+</head>
+<body>
+    <h1>LiveKit Library Debug</h1>
+    <pre id="output"></pre>
+    <script>
+        const output = document.getElementById('output');
+
+        // Check what's in window
+        output.textContent += "window.LivekitClient exists: " + (!!window.LivekitClient) + "\n";
+        output.textContent += "window.LivekitClient type: " + typeof window.LivekitClient + "\n\n";
+
+        if (window.LivekitClient) {
+            output.textContent += "Keys in window.LivekitClient:\n";
+            const keys = Object.keys(window.LivekitClient);
+            keys.forEach(key => {
+                output.textContent += "  - " + key + " (" + typeof window.LivekitClient[key] + ")\n";
+            });
+
+            // Check specifically for connect
+            output.textContent += "\nLooking for connect function:\n";
+            if (window.LivekitClient.connect) {
+                output.textContent += "  ✓ window.LivekitClient.connect exists\n";
+            } else {
+                output.textContent += "  ✗ window.LivekitClient.connect NOT found\n";
+
+                // Look for it with different names
+                const possibleNames = ['Connect', 'createRoom', 'joinRoom', 'createConnection'];
+                for (const name of possibleNames) {
+                    if (window.LivekitClient[name]) {
+                        output.textContent += "    Found: window.LivekitClient." + name + "\n";
+                    }
+                }
+            }
+
+            // Check for Room class
+            output.textContent += "\nLooking for Room class:\n";
+            if (window.LivekitClient.Room) {
+                output.textContent += "  ✓ window.LivekitClient.Room exists\n";
+                output.textContent += "    Methods: " + Object.getOwnPropertyNames(window.LivekitClient.Room.prototype).slice(0, 10).join(", ") + "\n";
+            } else {
+                output.textContent += "  ✗ window.LivekitClient.Room NOT found\n";
+            }
+        } else {
+            output.textContent += "ERROR: window.LivekitClient is undefined!\n";
+            output.textContent += "window keys: " + Object.keys(window).filter(k => k.includes('livekit') || k.includes('Live')).join(", ");
+        }
+    </script>
+</body>
+</html>
