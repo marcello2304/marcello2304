@@ -94,9 +94,9 @@ _rag_cache: dict[str, str] = {}  # Cache: query_hash → context
 # ─── RAG Context Fetching via n8n Webhook ───────────────────────────────
 async def fetch_rag_context(query: str) -> Optional[str]:
     """
-    Fetch RAG context from n8n webhook with simple hash-based cache.
-    Returns enriched context or None if RAG unavailable.
-    Reduces duplicate requests for repeated queries.
+    Fetch RAG context from n8n RAG Query webhook.
+    Returns enriched system_prompt or None if RAG unavailable.
+    Caches results to avoid duplicate requests.
     """
     if not RAG_WEBHOOK_URL:
         logger.debug("RAG_WEBHOOK_URL not configured, skipping RAG context")
@@ -105,32 +105,42 @@ async def fetch_rag_context(query: str) -> Optional[str]:
     # Check cache first (hash query to avoid large keys)
     query_hash = hashlib.md5(query.encode()).hexdigest()
     if query_hash in _rag_cache:
-        logger.debug(f"RAG context cache hit for query hash {query_hash}")
+        logger.debug(f"RAG cache HIT: {query_hash[:8]}...")
         return _rag_cache[query_hash]
 
     try:
-        async with httpx.AsyncClient(timeout=1.0) as client:  # Reduced: 2.0s → 1.0s
+        # 8.0s timeout: RAG includes vector embedding (~3s) + DB queries (~2-3s)
+        async with httpx.AsyncClient(timeout=8.0) as client:
             payload = {
+                "tenant_slug": "eppcom",  # Required by n8n RAG Query workflow
                 "query": query,
-                "secret": RAG_WEBHOOK_SECRET,
+                "session_id": f"voice-{hashlib.md5(query.encode()).hexdigest()[:8]}",
+                "bot_id": "voice-bot",
+                "top_k": 5,
+                "min_similarity": 0.55,
+                "model": OLLAMA_MODEL,
             }
+            logger.debug(f"RAG fetching: {query[:50]}...")
             response = await client.post(RAG_WEBHOOK_URL, json=payload)
             response.raise_for_status()
             data = response.json()
 
-            # Extract context from n8n response
-            if isinstance(data, dict) and "context" in data:
-                context = data.get("context", "")
-                _rag_cache[query_hash] = context  # Cache the result
-                logger.info(f"RAG context fetched and cached: {len(context)} chars")
-                return context
+            # n8n RAG Query returns: { "answer": "...", "sources": [...], ... }
+            if isinstance(data, dict):
+                # Try different response formats
+                answer = data.get("answer") or data.get("system_prompt") or data.get("context") or ""
+                if answer:
+                    _rag_cache[query_hash] = answer  # Cache for reuse
+                    logger.info(f"RAG fetched: {len(answer)} chars (cached)")
+                    return answer
 
+            logger.debug(f"RAG: No answer in response: {list(data.keys())}")
             return None
     except asyncio.TimeoutError:
-        logger.warning(f"RAG context fetch timeout (1.0s) - proceeding without context")
+        logger.warning(f"RAG timeout (8.0s) - proceeding without context")
         return None
     except Exception as e:
-        logger.warning(f"RAG context fetch failed: {e}")
+        logger.warning(f"RAG fetch failed: {e}")
         return None
 
 
