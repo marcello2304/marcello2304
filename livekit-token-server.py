@@ -5,12 +5,13 @@ Nutzen: http://localhost:8765?room=test-room&user=TestUser
 """
 import jwt
 import json
+import os
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-API_KEY = "8fa8f1b33782e91f85b57f6648712aeb"
-API_SECRET = "a161db1f4107b166ac82cf45d7799a73284a5a799c8d0b14dcbfc150c5bce21c"
+API_KEY = os.environ.get("LIVEKIT_API_KEY", "")
+API_SECRET = os.environ.get("LIVEKIT_API_SECRET", "")
 
 class TokenHandler(BaseHTTPRequestHandler):
     def do_GET(self):

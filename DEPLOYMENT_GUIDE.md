@@ -229,12 +229,11 @@ docker-compose -f docker/compose-server2.yml down
 # Check if old voice-agent should be restored
 docker start voice-agent 2>/dev/null || echo "Old agent not available"
 
-# Or manually start old agent
+# Or manually start old agent (Keys aus .env.server2)
 docker run -d \
   --name voice-agent \
+  --env-file /root/marcello2304/.env.server2 \
   -e LIVEKIT_URL=ws://livekit:7880 \
-  -e LIVEKIT_API_KEY=8fa8f1b33782e91f85b57f6648712aeb \
-  -e LIVEKIT_API_SECRET=a161db1f4107b166ac82cf45d7799a73284a5a799c8d0b14dcbfc150c5bce21c \
   eppcom/voice-agent:latest
 ```
 

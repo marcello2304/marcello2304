@@ -44,6 +44,8 @@ services:
       - ai-net
     expose:
       - "8765"
+    env_file:
+      - ../.env.server2
     environment:
       PYTHONUNBUFFERED: "1"
 

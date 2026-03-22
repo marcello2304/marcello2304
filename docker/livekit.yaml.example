@@ -1,0 +1,29 @@
+# LiveKit Server Konfiguration
+# Kopiere diese Datei als livekit.yaml und setze die echten Keys ein:
+#   cp livekit.yaml.example livekit.yaml
+
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+
+keys:
+  YOUR_LIVEKIT_API_KEY: YOUR_LIVEKIT_API_SECRET
+
+logging:
+  json: false
+  level: info
+
+room:
+  auto_create: true
+  max_participants: 50
+
+turn:
+  enabled: false
+
+webhook:
+  urls:
+    - https://workflows.YOUR_DOMAIN.de/webhook/livekit-events
+  api_key: YOUR_LIVEKIT_API_KEY

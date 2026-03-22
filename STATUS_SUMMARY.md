@@ -160,16 +160,12 @@ docker exec livekit-agent env | grep -E "LIVEKIT|CARTESIA"  # Werte prüfen
 
 ---
 
-## Secrets & Credentials (VERTRAULICH)
+## Secrets & Credentials
 
-Alle Secrets liegen in `.env.server2` (gitignored). Wichtige Keys:
-- **LiveKit API Key:** `8fa8f1b33782e91f85b57f6648712aeb`
-- **LiveKit API Secret:** `a161db1f4107b166ac82cf45d7799a73284a5a799c8d0b14dcbfc150c5bce21c`
-- **Cartesia API Key:** `sk_car_bTemPMLHD6J2o7sjqucYQy` (aus User-Nachricht)
-- **Cartesia Voice ID:** `38aabb6a-f52b-4fb0-a3d1-988518f4dc06` (aus User-Nachricht)
-- **Ollama Bearer Token:** in .env.server2
-- **RAG API Key:** in .env.server2
-- SSH-Passwort Server 2: NICHT in Dateien speichern!
+Alle Secrets liegen ausschließlich in `.env.server2` (gitignored).
+Enthaltene Keys: LIVEKIT_API_KEY, LIVEKIT_API_SECRET, CARTESIA_API_KEY,
+CARTESIA_VOICE_ID, OLLAMA_BEARER_TOKEN, RAG_API_KEY, RAG_WEBHOOK_SECRET.
+SSH-Passwort: NIEMALS in Dateien speichern!
 
 ---
 
@@ -194,7 +190,7 @@ docker logs livekit-agent | head -30  # STT/LLM/TTS Initialisierung prüfen
 Die .env.server2 hat `CARTESIA_VOICE_ID=default`, muss auf die echte Voice ID gesetzt werden:
 ```bash
 # In /root/marcello2304/.env.server2 ändern:
-CARTESIA_VOICE_ID=38aabb6a-f52b-4fb0-a3d1-988518f4dc06
+CARTESIA_VOICE_ID=<deine-voice-id-aus-env>
 # Dann erneut kopieren:
 cp .env.server2 docker/.env
 cd docker && docker-compose -f compose-server2.yml up -d livekit-agent
