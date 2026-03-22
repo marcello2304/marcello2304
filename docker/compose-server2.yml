@@ -101,7 +101,7 @@ services:
   # ── LiveKit Agent (Voice Bot Worker with Cartesia TTS) ──────────────
   livekit-agent:
     build:
-      context: ./voice-agent
+      context: ../voice-agent
       dockerfile: Dockerfile
     image: livekit-agent:cartesia
     container_name: livekit-agent

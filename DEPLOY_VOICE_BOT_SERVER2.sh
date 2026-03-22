@@ -154,7 +154,7 @@ echo "────────────────────────�
 cd "$PROJECT_DIR"
 
 echo "Starting livekit-agent via docker-compose..."
-docker-compose -f "$DOCKER_COMPOSE_FILE" up -d livekit-agent
+docker compose -f "$DOCKER_COMPOSE_FILE" up -d livekit-agent 2>/dev/null || docker-compose -f "$DOCKER_COMPOSE_FILE" up -d livekit-agent
 
 sleep 3
 
