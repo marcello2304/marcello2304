@@ -32,6 +32,22 @@ services:
     depends_on:
       - ollama
       - livekit
+      - token-server
+
+  # ── Token Server (JWT Generation für LiveKit WebSocket) ─────────────────
+  token-server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.token-server
+    image: livekit-token-server:latest
+    container_name: livekit-token-server
+    restart: unless-stopped
+    networks:
+      - ai-net
+    expose:
+      - "8765"
+    environment:
+      PYTHONUNBUFFERED: "1"
 
   # ── Certbot (Let's Encrypt für Nginx) ─────────────────────────────────
   certbot:

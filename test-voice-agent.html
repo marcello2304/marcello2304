@@ -185,28 +185,41 @@
                     // Auto-generate token from server
                     log('Generiere Token...', 'info');
 
-                    // Determine token server URL based on LiveKit URL
+                    // Use nginx proxy endpoint or direct token server
                     let tokenServerUrl = 'http://localhost:8765';
+                    let proxyUrl = window.location.origin + '/api/token';
+
                     if (url.includes('46.224.54.65')) {
+                        // Try nginx proxy first, fallback to direct
                         tokenServerUrl = 'http://46.224.54.65:8765';
                     } else if (url.includes('eppcom.de')) {
-                        tokenServerUrl = 'https://eppcom.de:8765';
+                        proxyUrl = 'https://eppcom.de/api/token';
                     }
 
                     try {
-                        const tokenResponse = await fetch(`${tokenServerUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
-                        const tokenData = await tokenResponse.json();
-                        token = tokenData.token;
-                        document.getElementById('token').value = token;
-                        log('✅ Token generiert', 'success');
-                    } catch (tokenError) {
-                        log(`⚠️ Token-Server nicht erreichbar: ${tokenError.message}`, 'error');
-                        log('Versuche fallback auf localhost...', 'info');
-                        const tokenResponse = await fetch(`http://localhost:8765?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
-                        const tokenData = await tokenResponse.json();
-                        token = tokenData.token;
-                        document.getElementById('token').value = token;
-                        log('✅ Token generiert (fallback)', 'success');
+                        // Try via nginx proxy first (more reliable)
+                        log('Generiere Token via Proxy...', 'info');
+                        const proxyResponse = await fetch(`${proxyUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
+                        if (proxyResponse.ok) {
+                            const tokenData = await proxyResponse.json();
+                            token = tokenData.token;
+                            document.getElementById('token').value = token;
+                            log('✅ Token generiert (via Proxy)', 'success');
+                        } else {
+                            throw new Error('Proxy returned ' + proxyResponse.status);
+                        }
+                    } catch (proxyError) {
+                        log(`⚠️ Proxy nicht erreichbar, versuche direkten Token-Server...`, 'info');
+                        try {
+                            const tokenResponse = await fetch(`${tokenServerUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
+                            const tokenData = await tokenResponse.json();
+                            token = tokenData.token;
+                            document.getElementById('token').value = token;
+                            log('✅ Token generiert (direkt)', 'success');
+                        } catch (directError) {
+                            log(`❌ Token-Server nicht erreichbar: ${directError.message}`, 'error');
+                            throw new Error('Token generation failed: ' + directError.message);
+                        }
                     }
                 }
 
