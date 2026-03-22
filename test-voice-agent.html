@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPPCOM Voice Agent - Test</title>
-    <script src="https://cdn.jsdelivr.net/npm/livekit-client@latest"></script>
+    <!-- Correct LiveKit Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -190,7 +191,6 @@
                     let proxyUrl = window.location.origin + '/api/token';
 
                     if (url.includes('46.224.54.65')) {
-                        // Try nginx proxy first, fallback to direct
                         tokenServerUrl = 'http://46.224.54.65:8765';
                     } else if (url.includes('eppcom.de')) {
                         proxyUrl = 'https://eppcom.de/api/token';
@@ -224,7 +224,15 @@
                 }
 
                 log(`Verbinde zu: ${url}`);
-                room = await window.LivekitClient.connect(url, token, {
+
+                // CORRECT API: window.LivekitClient.connect()
+                // The UMD build exports to window.LivekitClient
+                const RoomClient = window.LivekitClient;
+                if (!RoomClient || !RoomClient.connect) {
+                    throw new Error('LivekitClient not properly loaded. Check console.');
+                }
+
+                room = await RoomClient.connect(url, token, {
                     audio: true,
                     video: false,
                     autoSubscribe: true,
@@ -233,9 +241,9 @@
                 localParticipant = room.localParticipant;
 
                 // Event listeners
-                room.on(window.LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+                room.on(RoomClient.RoomEvent.ParticipantConnected, (participant) => {
                     log(`✅ Agent verbunden: ${participant.name}`, 'success');
-                    participant.on(window.LivekitClient.ParticipantEvent.TrackSubscribed, (track) => {
+                    participant.on(RoomClient.ParticipantEvent.TrackSubscribed, (track) => {
                         if (track.kind === 'audio') {
                             const audio = document.createElement('audio');
                             audio.srcObject = new MediaStream([track.mediaStream.getAudioTracks()[0]]);
@@ -245,7 +253,7 @@
                     });
                 });
 
-                room.on(window.LivekitClient.RoomEvent.Disconnected, () => {
+                room.on(RoomClient.RoomEvent.Disconnected, () => {
                     log('❌ Vom Server getrennt', 'error');
                     updateStatus('Getrennt', 'error');
                     document.getElementById('connectBtn').disabled = false;
@@ -275,13 +283,22 @@
 
         const toggleMute = () => {
             if (localParticipant) {
-                const isMuted = localParticipant.isMicrophoneEnabled;
-                localParticipant.setMicrophoneEnabled(!isMuted);
-                document.getElementById('muteBtn').textContent = isMuted ? '🔇 Muted' : '🎤 Unmuted';
-                log(isMuted ? '🔇 Mikrofon stummgeschaltet' : '🎤 Mikrofon aktiviert', 'info');
+                const isMuted = !localParticipant.isMicrophoneEnabled;
+                localParticipant.setMicrophoneEnabled(isMuted);
+                document.getElementById('muteBtn').textContent = isMuted ? '🎤 Unmuted' : '🔇 Muted';
+                log(isMuted ? '🎤 Mikrofon aktiviert' : '🔇 Mikrofon stummgeschaltet', 'info');
             }
         };
 
+        // Debug: Log when page loads to check if LivekitClient is available
+        window.addEventListener('load', () => {
+            if (window.LivekitClient) {
+                log('✅ LivekitClient library loaded successfully', 'success');
+                log(`Available methods: ${Object.keys(window.LivekitClient).slice(0, 5).join(', ')}...`, 'info');
+            } else {
+                log('❌ ERROR: LivekitClient not found on window object!', 'error');
+            }
+        });
     </script>
 </body>
 </html>
