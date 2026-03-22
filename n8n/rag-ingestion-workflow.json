@@ -278,5 +278,5 @@
     "errorWorkflow": ""
   },
   "tags": ["rag", "ingestion"],
-  "active": false
+  "active": true
 }

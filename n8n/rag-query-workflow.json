@@ -110,24 +110,11 @@
     {
       "parameters": {
         "url": "={{ $env.OLLAMA_BASE_URL }}/api/chat",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer={{ $env.OLLAMA_API_KEY }}"
-            }
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"{{ $('Validate Query').first().json.model }}\",\n  \"stream\": true,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.user_message) }} }\n  ],\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_ctx\": 4096\n  }\n}",
+        "jsonBody": "={\n  \"model\": \"{{ $('Validate Query').first().json.model }}\",\n  \"stream\": false,\n  \"messages\": [\n    { \"role\": \"system\", \"content\": {{ JSON.stringify($json.system_prompt) }} },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($json.user_message) }} }\n  ],\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_ctx\": 4096\n  }\n}",
         "options": {
-          "timeout": 60000
+          "timeout": 120000
         }
       },
       "id": "llm-call",
@@ -138,7 +125,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const llmResponse = $input.first().json;\nconst context = $('Build RAG Context').first().json;\nconst queryData = $('Validate Query').first().json;\nconst schema = $('Get Tenant Schema').first().json.schema_name;\n\nconst answer = llmResponse.message?.content || llmResponse.choices?.[0]?.message?.content || 'Keine Antwort erhalten';\nconst latencyMs = Date.now() - queryData.started_at;\n\nreturn [{ json: {\n  schema_name: schema,\n  session_id: queryData.session_id,\n  bot_id: queryData.bot_id,\n  query: queryData.query,\n  answer,\n  chunks_used: context.chunks_used.map(c => c.chunk_id),\n  model: queryData.model,\n  latency_ms: latencyMs,\n  sources: context.chunks_used\n}}];"
+        "jsCode": "const llmResponse = $input.first().json;\nconst context = $('Build RAG Context').first().json;\nconst queryData = $('Validate Query').first().json;\nconst schema = $('Get Tenant Schema').first().json.schema_name;\n\n// Ollama chat API returns: { \"message\": { \"role\": \"assistant\", \"content\": \"...\" } }\nconst answer = llmResponse.message?.content \n  || llmResponse.choices?.[0]?.message?.content \n  || llmResponse.response \n  || 'Keine Antwort erhalten';\nconst latencyMs = Date.now() - queryData.started_at;\n\nreturn [{ json: {\n  schema_name: schema,\n  session_id: queryData.session_id,\n  bot_id: queryData.bot_id,\n  query: queryData.query,\n  answer,\n  chunks_used: context.chunks_used.map(c => c.chunk_id),\n  model: queryData.model,\n  latency_ms: latencyMs,\n  sources: context.chunks_used\n}}];"
       },
       "id": "prepare-response",
       "name": "Prepare Response",
@@ -221,5 +208,5 @@
     "saveManualExecutions": true
   },
   "tags": ["rag", "query", "typebot"],
-  "active": false
+  "active": true
 }
