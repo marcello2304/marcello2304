@@ -68,6 +68,7 @@ OPENAI_TTS_ENABLED = bool(OPENAI_API_KEY_EXPLICIT and not OPENAI_API_KEY_EXPLICI
 # RAG Configuration (n8n Webhook)
 RAG_WEBHOOK_URL = os.getenv("RAG_WEBHOOK_URL", "")
 RAG_WEBHOOK_SECRET = os.getenv("RAG_WEBHOOK_SECRET", "")
+RAG_TENANT_ID = os.getenv("RAG_TENANT_ID", "a0000000-0000-0000-0000-000000000001")  # eppcom UUID
 
 # Voice Agent Configuration (Ultra-Low Latency for <2s target)
 # Task C: Cartesia TTS + Deepgram STT + Token-Streaming LLM
@@ -112,13 +113,9 @@ async def fetch_rag_context(query: str) -> Optional[str]:
         # 8.0s timeout: RAG includes vector embedding (~3s) + DB queries (~2-3s)
         async with httpx.AsyncClient(timeout=8.0) as client:
             payload = {
-                "tenant_slug": "eppcom",  # Required by n8n RAG Query workflow
+                "tenant_id": RAG_TENANT_ID,  # UUID for n8n RAG Query workflow
                 "query": query,
-                "session_id": f"voice-{hashlib.md5(query.encode()).hexdigest()[:8]}",
-                "bot_id": "voice-bot",
                 "top_k": 5,
-                "min_similarity": 0.55,
-                "model": OLLAMA_MODEL,
             }
             logger.debug(f"RAG fetching: {query[:50]}...")
             response = await client.post(RAG_WEBHOOK_URL, json=payload)
