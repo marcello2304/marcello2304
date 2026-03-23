@@ -127,7 +127,7 @@
 
         <div class="form-group">
             <label for="url">LiveKit URL:</label>
-            <input type="text" id="url" value="ws://46.224.54.65:7880" placeholder="ws://...">
+            <input type="text" id="url" value="ws://94.130.170.167:7880" placeholder="ws://...">
         </div>
 
         <div class="form-group">
@@ -186,14 +186,8 @@
                     // Auto-generate token from server
                     log('Generiere Token...', 'info');
 
-                    // Use nginx proxy endpoint
-                    let proxyUrl = window.location.origin + '/api/token';
-
-                    if (url.includes('46.224.54.65')) {
-                        // Proxy on same server
-                    } else if (url.includes('eppcom.de')) {
-                        proxyUrl = 'https://eppcom.de/api/token';
-                    }
+                    // Token server on Server 1
+                    let proxyUrl = 'http://94.130.170.167:8765';
 
                     try {
                         const proxyResponse = await fetch(`${proxyUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);

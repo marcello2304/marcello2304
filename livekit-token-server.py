@@ -52,7 +52,7 @@ class TokenHandler(BaseHTTPRequestHandler):
                 'token': token,
                 'room': room_name,
                 'user': user_name,
-                'livekit_url': 'ws://46.224.54.65:7880',
+                'livekit_url': os.environ.get('LIVEKIT_PUBLIC_URL', 'ws://94.130.170.167:7880'),
                 'status': 'ok'
             }
             self.wfile.write(json.dumps(response).encode())
