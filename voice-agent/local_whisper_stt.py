@@ -29,7 +29,7 @@ class LocalWhisperSTT(STT):
         )
         self.model_size = model_size
         logger.info(f"Loading Whisper-{model_size} model (device: {device})...")
-        self.model = WhisperModel(
+        self._whisper = WhisperModel(
             model_size,
             device=device,
             compute_type="default",
@@ -69,7 +69,7 @@ class LocalWhisperSTT(STT):
             )
 
     def _transcribe_sync(self, audio_array):
-        segments, info = self.model.transcribe(
+        segments, info = self._whisper.transcribe(
             audio_array,
             language="de",
             beam_size=5,
