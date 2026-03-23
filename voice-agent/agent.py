@@ -396,7 +396,7 @@ class NexoStreamingAgent(Agent):
                                     logger.info(
                                         f"Sentence #{sentence_count}: {sentence[:60]}..."
                                     )
-                                    yield agents.ChatChunk(text=sentence)
+                                    yield llm.ChatChunk(text=sentence)
 
                         else:
                             # Non-text chunks (tool calls, usage) pass through
@@ -421,7 +421,7 @@ class NexoStreamingAgent(Agent):
                         )
                     sentence_count += 1
                     logger.info(f"Final sentence #{sentence_count}: {final_text[:60]}...")
-                    yield agents.ChatChunk(text=final_text)
+                    yield llm.ChatChunk(text=final_text)
 
                 if sentence_count == 0:
                     logger.warning("⚠️  No sentences yielded from LLM!")
@@ -429,7 +429,7 @@ class NexoStreamingAgent(Agent):
         except Exception as e:
             logger.error(f"CRITICAL ERROR in llm_node: {e}", exc_info=True)
             # Yield error message for user
-            yield agents.ChatChunk(text="Entschuldigung, es gab einen Fehler bei der Verarbeitung. Bitte versuche es später erneut.")
+            yield llm.ChatChunk(text="Entschuldigung, es gab einen Fehler bei der Verarbeitung. Bitte versuche es später erneut.")
 
 
 # ─── Agent Entrypoint (v1.4 API) ────────────────────────────────────────
