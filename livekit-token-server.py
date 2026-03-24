@@ -52,7 +52,7 @@ class TokenHandler(BaseHTTPRequestHandler):
                 'token': token,
                 'room': room_name,
                 'user': user_name,
-                'livekit_url': os.environ.get('LIVEKIT_PUBLIC_URL', 'wss://appdb.eppcom.de/lk'),
+                'livekit_url': os.environ.get('LIVEKIT_PUBLIC_URL', 'wss://appdb.eppcom.de:7443'),
                 'status': 'ok'
             }
             self.wfile.write(json.dumps(response).encode())
