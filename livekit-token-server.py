@@ -23,15 +23,15 @@ class TokenHandler(BaseHTTPRequestHandler):
             room_name = params.get('room', ['test-room'])[0]
             user_name = params.get('user', ['TestUser'])[0]
 
-            # Generate token
+            # Generate token (LiveKit JWT format)
             now = int(time.time())
             payload = {
-                'api_key': API_KEY,
+                'iss': API_KEY,
                 'sub': user_name,
                 'iat': now,
                 'exp': now + 3600,  # 1 hour
                 'nbf': now,
-                'grants': {
+                'video': {
                     'roomJoin': True,
                     'room': room_name,
                     'canPublish': True,
@@ -52,7 +52,7 @@ class TokenHandler(BaseHTTPRequestHandler):
                 'token': token,
                 'room': room_name,
                 'user': user_name,
-                'livekit_url': os.environ.get('LIVEKIT_PUBLIC_URL', 'ws://94.130.170.167:7880'),
+                'livekit_url': os.environ.get('LIVEKIT_PUBLIC_URL', 'wss://appdb.eppcom.de/lk'),
                 'status': 'ok'
             }
             self.wfile.write(json.dumps(response).encode())

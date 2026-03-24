@@ -127,7 +127,7 @@
 
         <div class="form-group">
             <label for="url">LiveKit URL:</label>
-            <input type="text" id="url" value="ws://94.130.170.167:7880" placeholder="ws://...">
+            <input type="text" id="url" value="wss://appdb.eppcom.de/lk" placeholder="wss://...">
         </div>
 
         <div class="form-group">
@@ -186,8 +186,8 @@
                     // Auto-generate token from server
                     log('Generiere Token...', 'info');
 
-                    // Token server on Server 1
-                    let proxyUrl = 'http://94.130.170.167:8765';
+                    // Token server via Traefik (HTTPS)
+                    let proxyUrl = 'https://appdb.eppcom.de/api/lk-token';
 
                     try {
                         const proxyResponse = await fetch(`${proxyUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
