@@ -189,7 +189,7 @@ tailwind.config = {
 </div>
 
 <!-- MAIN APP -->
-<div x-show="token && me" class="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden" style="display:none;">
+<div x-show="token && me" x-cloak class="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
 
   <!-- SIDEBAR -->
   <div :class="['fixed md:relative z-40 h-screen w-64 md:w-64 bg-sidebar-DEFAULT dark:bg-slate-900 border-r border-slate-700/50 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-out', sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0']">
@@ -1823,17 +1823,28 @@ function app() {
           method: 'POST',
           body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword }),
         });
-        if (!res) return;
+        if (!res || !res.token) {
+          this.loginError = 'Anmeldung fehlgeschlagen';
+          this.loginLoading = false;
+          return;
+        }
         this.token = res.token;
         localStorage.setItem('rag_token', this.token);
+        this.me = {
+          user_id: res.user_id,
+          email: res.email,
+          display_name: res.display_name,
+          role: res.role,
+          tenant_id: res.tenant_id,
+          tenant_slug: res.tenant_slug,
+        };
         this.loginEmail = '';
         this.loginPassword = '';
-        await this.loadMe();
-        await this.loadInitialData();
-        this.initCharts();
+        this.loginLoading = false;
+        // Load data in background, don't block login
+        this.loadInitialData().catch(() => {});
       } catch(e) {
         this.loginError = e.message || 'Anmeldung fehlgeschlagen';
-      } finally {
         this.loginLoading = false;
       }
     },
