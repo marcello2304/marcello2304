@@ -1710,7 +1710,7 @@ async def public_voice_token(request: Request):
     ).rstrip(b"=")
     token = (signing_input + b"." + signature).decode()
 
-    return {"token": token, "url": f"wss://voice.{os.getenv('DOMAIN', 'eppcom.de')}"}
+    return {"token": token, "url": os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de:7443")}
 
 
 @app.post("/api/public/chat")
@@ -2112,7 +2112,7 @@ async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_a
     ).rstrip(b"=")
     token = (signing_input + b"." + signature).decode()
 
-    return {"token": token, "url": f"wss://voice.{os.getenv('DOMAIN', 'eppcom.de')}"}
+    return {"token": token, "url": os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de:7443")}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2122,7 +2122,7 @@ async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_a
 @app.get("/api/api-keys")
 async def list_api_keys(session: SessionInfo = Depends(require_superadmin)):
     """Liste aller API Keys (nur SuperAdmin)."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT id, name, key_preview, tenant_id, is_active, created_at, last_used_at
             FROM public.api_keys
@@ -2146,7 +2146,7 @@ async def create_api_key(body: dict, session: SessionInfo = Depends(require_supe
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     key_preview = key[-8:]  # Letzte 8 Zeichen
 
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         key_id = await conn.fetchval("""
             INSERT INTO public.api_keys (name, key_hash, key_preview, tenant_id, created_by, expires_at)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -2159,7 +2159,7 @@ async def create_api_key(body: dict, session: SessionInfo = Depends(require_supe
 @app.delete("/api/api-keys/{key_id}")
 async def revoke_api_key(key_id: str, session: SessionInfo = Depends(require_superadmin)):
     """API Key widerrufen."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         await conn.execute("""
             UPDATE public.api_keys SET is_active = false WHERE id = $1
         """, key_id)
@@ -2208,7 +2208,7 @@ async def list_audit_log(
 
     where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         rows = await conn.fetch(f"""
             SELECT * FROM public.audit_log
             {where_clause}
@@ -2226,7 +2226,7 @@ async def list_audit_log(
 @app.get("/api/settings")
 async def get_settings(session: SessionInfo = Depends(require_superadmin)):
     """Alle Platform-Einstellungen abrufen."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         rows = await conn.fetch("SELECT key, value FROM public.platform_settings")
         result = {r['key']: r['value'] for r in rows}
 
@@ -2236,7 +2236,7 @@ async def get_settings(session: SessionInfo = Depends(require_superadmin)):
 @app.put("/api/settings")
 async def update_settings(body: dict, session: SessionInfo = Depends(require_superadmin)):
     """Platform-Einstellungen aktualisieren."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         for key, value in body.items():
             await conn.execute("""
                 INSERT INTO public.platform_settings (key, value, updated_by)
@@ -2257,7 +2257,7 @@ async def analytics_conversations_per_day(
     session: SessionInfo = Depends(require_superadmin)
 ):
     """Conversations pro Tag für die letzten N Tage."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT
                 DATE(created_at) as date,
@@ -2277,7 +2277,7 @@ async def analytics_documents_per_week(
     session: SessionInfo = Depends(require_superadmin)
 ):
     """Dokumente pro Woche für die letzten N Wochen."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT
                 DATE_TRUNC('week', created_at) as week,
@@ -2295,7 +2295,7 @@ async def analytics_documents_per_week(
 @app.get("/api/analytics/tenant-usage")
 async def analytics_tenant_usage(session: SessionInfo = Depends(require_superadmin)):
     """Nutzungsstatistiken pro Tenant."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT
                 t.id,
@@ -2317,7 +2317,7 @@ async def analytics_tenant_usage(session: SessionInfo = Depends(require_superadm
 @app.get("/api/analytics/summary")
 async def analytics_summary(session: SessionInfo = Depends(require_superadmin)):
     """Dashboard Summary Statistics."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         users_count = await conn.fetchval("SELECT COUNT(*) FROM public.users WHERE is_active = true")
         tenants_count = await conn.fetchval("SELECT COUNT(*) FROM public.tenants WHERE status = 'active'")
         documents_count = await conn.fetchval("SELECT COUNT(*) FROM public.audit_log WHERE action = 'document.create'")
@@ -2347,7 +2347,7 @@ async def log_audit(
     ip_address: str = None
 ):
     """Hilfsfunktion zum Schreiben von Audit Log Einträgen."""
-    async with db_pool.acquire() as conn:
+    async with _db_pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO public.audit_log (user_id, user_email, action, resource_type, resource_id, details, ip_address)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
