@@ -33,81 +33,83 @@ tailwind.config = {
   @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   .drag-over { border-color: #3558ff !important; background: #eef4ff !important; }
 
-  /* Dark Mode Base */
   :root { color-scheme: light; }
   html.dark { color-scheme: dark; }
 
-  /* Sidebar */
   .sidebar-link { @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer text-slate-400 dark:text-slate-400; }
   .sidebar-link:hover { @apply bg-sidebar-hover text-white dark:bg-slate-700 dark:text-slate-100; }
   .sidebar-link.active { @apply bg-brand-600/20 text-brand-300 dark:bg-brand-600/30 dark:text-brand-300 shadow-sm; }
   .sidebar-link.active svg { @apply text-brand-400 dark:text-brand-400; }
   .sidebar-section { @apply mt-6 mb-2 px-3 text-[10px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-[0.08em]; }
 
-  /* Badges */
   .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
   .badge-success { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-700; }
   .badge-error { @apply bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-700; }
   .badge-warning { @apply bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-700; }
   .badge-info { @apply bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 ring-1 ring-sky-200 dark:ring-sky-700; }
+  .badge-purple { @apply bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 ring-1 ring-purple-200 dark:ring-purple-700; }
 
-  /* Buttons */
   .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-lg text-sm md:text-sm font-semibold transition-all duration-150 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed min-h-11 md:min-h-10; }
   .btn-primary { @apply bg-brand-600 text-white hover:bg-brand-500 dark:hover:bg-brand-500 focus:ring-brand-500 shadow-sm; }
   .btn-danger { @apply bg-red-600 text-white hover:bg-red-500 dark:hover:bg-red-500 focus:ring-red-500 shadow-sm; }
   .btn-secondary { @apply bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 focus:ring-slate-400 shadow-sm; }
   .btn-sm { @apply px-3 py-1.5 text-xs md:min-h-9; }
 
-  /* Inputs */
   .input { @apply w-full border border-slate-200 dark:border-slate-700 rounded-lg px-3.5 md:px-3 py-3 md:py-2.5 text-base md:text-sm bg-white dark:bg-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 min-h-11 md:min-h-10; }
 
-  /* Cards */
   .card { @apply bg-white dark:bg-slate-900 rounded-xl md:rounded-lg border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden; }
   .card-body { @apply p-5 sm:p-6; }
 
-  /* Modals */
   .modal-overlay { @apply fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 cursor-default p-4 sm:p-0; }
   .modal-box { @apply bg-white dark:bg-slate-900 rounded-2xl md:rounded-xl shadow-2xl p-6 sm:p-5 w-full max-w-lg max-h-[85vh] md:max-h-[90vh] overflow-y-auto fade-in border border-slate-100 dark:border-slate-800 sm:rounded-2xl; }
+  .modal-box-wide { @apply bg-white dark:bg-slate-900 rounded-2xl md:rounded-xl shadow-2xl p-6 sm:p-5 w-full max-w-3xl max-h-[85vh] md:max-h-[90vh] overflow-y-auto fade-in border border-slate-100 dark:border-slate-800 sm:rounded-2xl; }
 
-  /* Tables */
   .tbl { @apply w-full text-sm md:text-sm; }
   .tbl thead th { @apply pb-3 pr-4 text-left text-[10px] md:text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800; }
   .tbl tbody tr { @apply border-b border-slate-50 dark:border-slate-800 transition-colors; }
   .tbl tbody tr:hover { @apply bg-brand-50/40 dark:bg-slate-800/40; }
   .tbl tbody td { @apply py-3.5 pr-3 md:pr-4 text-xs md:text-sm text-slate-700 dark:text-slate-300; }
 
-  /* Mobile Table Wrapper */
   .table-wrapper { @apply overflow-x-auto; }
   .table-wrapper::-webkit-scrollbar { height: 6px; }
   .table-wrapper::-webkit-scrollbar-track { background: transparent; }
   .table-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 
-  /* Stat cards */
   .stat-card { @apply bg-white dark:bg-slate-800 rounded-xl md:rounded-lg border border-slate-200/80 dark:border-slate-700/60 shadow-sm p-5 md:p-4 flex flex-col sm:flex-row sm:items-center gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5; }
   .stat-icon { @apply w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-brand-50 dark:bg-brand-950/30; }
   .stat-value { @apply text-2xl md:text-xl font-bold text-slate-900 dark:text-white leading-none; }
   .stat-label { @apply text-sm md:text-xs text-slate-500 dark:text-slate-400 mt-1; }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
   .dark ::-webkit-scrollbar-thumb { background: #475569; }
   ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-  /* Toast Notifications */
-  .toast-container { @apply fixed bottom-4 right-4 z-40 max-w-sm; }
+  .toast-container { @apply fixed bottom-4 right-4 z-[60] flex flex-col gap-2 max-w-sm; }
   .toast { @apply rounded-lg shadow-lg p-4 text-sm font-medium flex items-center gap-3 animate-slideIn; }
   .toast-success { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700; }
   .toast-error { @apply bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300 border border-red-200 dark:border-red-700; }
   .toast-warning { @apply bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700; }
   @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .upload-zone { @apply border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer transition-all hover:border-brand-400 hover:bg-brand-50/30 dark:hover:bg-brand-950/20; }
+  .upload-zone.drag-over { @apply border-brand-500 bg-brand-50 dark:bg-brand-950/30; }
+
+  @keyframes voicePulse { 0%,100%{ box-shadow: 0 0 0 0 rgba(239,68,68,.4); } 50%{ box-shadow: 0 0 0 20px rgba(239,68,68,0); } }
+  .voice-pulse { animation: voicePulse 1.5s infinite; }
 </style>
+<script>
+  // Apply dark mode BEFORE Alpine.js initializes to prevent flash
+  if (localStorage.getItem('rag_dark') === 'true') {
+    document.documentElement.classList.add('dark');
+  }
+</script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 min-h-screen font-sans text-slate-900 dark:text-slate-100" x-data="app()" x-init="init()" x-cloak>
 
-<!-- ═══════════════ LOGIN PAGE ═══════════════ -->
-<div x-show="!authenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 px-4 sm:px-6">
+<!-- LOGIN PAGE -->
+<div x-show="!token || !me" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 px-4 sm:px-6">
   <div class="w-full max-w-sm fade-in">
     <div class="text-center mb-8">
       <div class="inline-block mb-6">
@@ -120,22 +122,18 @@ tailwind.config = {
 
     <div :class="['transition-all duration-300', loginError ? 'animate-shake' : '']">
       <div class="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl p-6 sm:p-8 shadow-2xl">
-        <!-- Login Error Toast -->
         <div x-show="loginError" class="mb-5 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-100 text-sm font-medium flex items-center gap-3">
           <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
           <span x-text="loginError"></span>
         </div>
 
         <div class="space-y-4">
-          <!-- Email -->
           <div>
             <label class="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">E-Mail</label>
             <input type="email" x-model="loginEmail" placeholder="name@firma.de"
                    class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-white/30 transition-shadow backdrop-blur"
                    @keyup.enter="$refs.pwInput.focus()">
           </div>
-
-          <!-- Password with Toggle -->
           <div>
             <label class="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">Passwort</label>
             <div class="relative">
@@ -144,12 +142,10 @@ tailwind.config = {
                      x-ref="pwInput" @keyup.enter="doLogin()">
               <button type="button" @click="showPassword=!showPassword" class="absolute right-3 top-3.5 text-slate-400 hover:text-white transition-colors">
                 <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                <svg x-show="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <svg x-show="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856A9.015 9.015 0 0112 5c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-4.043 5.2M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18"></path></svg>
               </button>
             </div>
           </div>
-
-          <!-- Login Button with Progress -->
           <button @click="doLogin()" :disabled="loginLoading" class="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 disabled:from-slate-500 disabled:to-slate-500 text-white font-semibold py-3.5 md:py-3 px-4 rounded-xl transition-all shadow-xl shadow-brand-600/30 hover:shadow-xl hover:shadow-brand-500/40 disabled:opacity-50 disabled:cursor-not-allowed min-h-12 md:min-h-11">
             <div x-show="!loginLoading" class="flex items-center justify-center">Anmelden</div>
             <div x-show="loginLoading" class="flex items-center justify-center gap-2">
@@ -167,24 +163,24 @@ tailwind.config = {
 
     <p class="text-center text-xs mt-6 text-slate-400">
       <button @click="showImpressum=true" class="hover:text-slate-300 transition-colors cursor-pointer underline">
-        EPPCOM Solutions — Kontakt & Impressum
+        EPPCOM Solutions -- Kontakt & Impressum
       </button>
     </p>
   </div>
 </div>
 
-<!-- ═══════════════ IMPRESSUM MODAL ═══════════════ -->
+<!-- IMPRESSUM MODAL -->
 <div x-show="showImpressum" class="modal-overlay" @click.self="showImpressum=false">
   <div class="modal-box" @click.stop>
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold">Impressum</h2>
-      <button @click="showImpressum=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">×</button>
+      <button @click="showImpressum=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
     </div>
     <div class="space-y-4 text-sm text-slate-700 dark:text-slate-300">
       <div>
         <h3 class="font-semibold text-slate-900 dark:text-white mb-2">EPPCOM Solutions</h3>
         <p><strong>Vertreter:</strong> Marcel Eppler</p>
-        <p><strong>Adresse:</strong> Ulrichstraße 3, 72764 Reutlingen, Deutschland</p>
+        <p><strong>Adresse:</strong> Ulrichstrasse 3, 72764 Reutlingen, Deutschland</p>
         <p><strong>Telefon:</strong> <a href="tel:+491575364191" class="text-brand-600 hover:text-brand-700">+49 157 536 401 91</a></p>
         <p><strong>E-Mail:</strong> <a href="mailto:kontakt@eppcom.de" class="text-brand-600 hover:text-brand-700">kontakt@eppcom.de</a></p>
       </div>
@@ -192,10 +188,10 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- ═══════════════ MAIN APP ═══════════════ -->
-<div x-show="authenticated" class="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden" style="display:none;">
+<!-- MAIN APP -->
+<div x-show="token && me" class="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden" style="display:none;">
 
-  <!-- ──── SIDEBAR ──── -->
+  <!-- SIDEBAR -->
   <div :class="['fixed md:relative z-40 h-screen w-64 md:w-64 bg-sidebar-DEFAULT dark:bg-slate-900 border-r border-slate-700/50 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-out', sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0']">
 
     <!-- Sidebar Header -->
@@ -213,64 +209,98 @@ tailwind.config = {
 
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-      <!-- Dashboard -->
+
+      <!-- All users -->
       <div class="sidebar-section">Navigation</div>
-      <button @click="page='dashboard'" :class="['sidebar-link', page==='dashboard' && 'active']">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-3m0 0l7-4 7 4M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9m-9 13l4-8m4 8V5m0 0H7"></path></svg>
+      <button @click="navigate('dashboard')" :class="['sidebar-link', page==='dashboard' && 'active']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-4 7 4M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"></path></svg>
         Dashboard
       </button>
-      <button @click="page='users'" :class="['sidebar-link', page==='users' && 'active']">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-2a6 6 0 0112 0v2zm0 0h6v-2a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-        User Management
-      </button>
-      <button @click="page='tenants'" :class="['sidebar-link', page==='tenants' && 'active']">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5.581m0 0H9m0 0h5.581M9 3h5.581M5 21h14"></path></svg>
-        Tenants
-      </button>
-      <button @click="page='documents'" :class="['sidebar-link', page==='documents' && 'active']">
+      <button @click="navigate('documents')" :class="['sidebar-link', page==='documents' && 'active']">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-        Dokumente
+        Meine Dokumente
       </button>
-
-      <!-- Administration -->
-      <div class="sidebar-section">Administration</div>
-      <button @click="page='api-keys'" :class="['sidebar-link', page==='api-keys' && 'active']">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.997 5.795A11.913 11.913 0 1115 7v5m-5 6a2 2 0 100-4 2 2 0 000 4z"></path></svg>
-        API Keys
+      <button @click="navigate('media')" :class="['sidebar-link', page==='media' && 'active']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        Meine Medien
       </button>
-      <button @click="page='audit-log'" :class="['sidebar-link', page==='audit-log' && 'active']">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-        Audit Log
+      <button @click="navigate('chat')" :class="['sidebar-link', page==='chat' && 'active']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+        Chat
       </button>
-      <button @click="page='settings'" :class="['sidebar-link', page==='settings' && 'active']">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-        Einstellungen
+      <button @click="navigate('voicebot')" :class="['sidebar-link', page==='voicebot' && 'active']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+        Voicebot
       </button>
-
-      <!-- Tools -->
-      <div class="sidebar-section">Tools</div>
-      <button @click="page='appointments'" :class="['sidebar-link', page==='appointments' && 'active']">
+      <button @click="navigate('history')" :class="['sidebar-link', page==='history' && 'active']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Chat-Verlauf
+      </button>
+      <button @click="navigate('appointments')" :class="['sidebar-link', page==='appointments' && 'active']">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
         Termine
       </button>
-      <button @click="page='chat'" :class="['sidebar-link', page==='chat' && 'active']">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-        RAG Chat
-      </button>
+
+      <!-- Admin only -->
+      <template x-if="me && (me.role === 'admin' || me.role === 'superadmin')">
+        <div>
+          <div class="sidebar-section">Administration</div>
+          <button @click="navigate('users')" :class="['sidebar-link', page==='users' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-2a6 6 0 0112 0v2zm0 0h6v-2a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            User-Verwaltung
+          </button>
+          <button @click="navigate('shares')" :class="['sidebar-link', page==='shares' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+            Freigaben
+          </button>
+          <button @click="navigate('voicebot-monitor')" :class="['sidebar-link', page==='voicebot-monitor' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            Voicebot-Monitor
+          </button>
+        </div>
+      </template>
+
+      <!-- Superadmin only -->
+      <template x-if="me && me.role === 'superadmin'">
+        <div>
+          <div class="sidebar-section">Plattform</div>
+          <button @click="navigate('tenants')" :class="['sidebar-link', page==='tenants' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-7 0H5m0 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            Firmen (Tenants)
+          </button>
+          <button @click="navigate('api-keys')" :class="['sidebar-link', page==='api-keys' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+            API Keys
+          </button>
+          <button @click="navigate('audit-log')" :class="['sidebar-link', page==='audit-log' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+            Audit Log
+          </button>
+          <button @click="navigate('settings')" :class="['sidebar-link', page==='settings' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            Einstellungen
+          </button>
+          <button @click="navigate('domains')" :class="['sidebar-link', page==='domains' && 'active']">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+            Domains
+          </button>
+        </div>
+      </template>
     </nav>
 
     <!-- Sidebar Footer -->
     <div class="border-t border-slate-700/50 dark:border-slate-800 p-4 space-y-3">
-      <button @click="darkMode=!darkMode" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-slate-700 hover:bg-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-sm font-medium transition-colors">
+      <button @click="toggleDarkMode()" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-slate-700 hover:bg-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-sm font-medium transition-colors">
         <svg x-show="!darkMode" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
         <svg x-show="darkMode" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
         <span x-text="darkMode ? 'Light Mode' : 'Dark Mode'"></span>
       </button>
 
       <div class="text-xs text-slate-400 text-center py-2">
-        <p>v2.0</p>
-        <p x-text="`User: ${session?.email || 'N/A'}`"></p>
-        <button @click="doLogout()" class="mt-2 text-red-400 hover:text-red-300 transition-colors cursor-pointer underline">
+        <p>v3.0</p>
+        <p x-text="me ? me.display_name || me.email : ''"></p>
+        <p x-show="me" class="text-slate-500" x-text="me ? me.role : ''"></p>
+        <button @click="logout()" class="mt-2 text-red-400 hover:text-red-300 transition-colors cursor-pointer underline">
           Logout
         </button>
       </div>
@@ -280,27 +310,33 @@ tailwind.config = {
   <!-- Mobile Sidebar Overlay -->
   <div x-show="sidebarOpen" @click="sidebarOpen=false" class="fixed inset-0 bg-black/40 z-30 md:hidden"></div>
 
-  <!-- ──── MAIN CONTENT ──── -->
+  <!-- MAIN CONTENT -->
   <div class="flex-1 flex flex-col overflow-hidden">
 
     <!-- Header -->
     <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 h-14 md:h-16 flex items-center justify-between px-4 md:px-6 shadow-sm">
       <div class="flex items-center gap-4">
-        <!-- Hamburger Menu -->
         <button @click="sidebarOpen=!sidebarOpen" class="md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
-
-        <!-- Breadcrumb -->
         <nav class="text-sm text-slate-500 dark:text-slate-400 hidden sm:flex gap-2">
           <span x-text="pageBreadcrumb"></span>
         </nav>
       </div>
-
-      <!-- Loading Indicator -->
-      <div x-show="isLoading" class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <div class="w-3 h-3 rounded-full bg-brand-500 animate-pulse"></div>
-        <span>Loading...</span>
+      <div class="flex items-center gap-3">
+        <!-- Tenant selector for superadmin -->
+        <template x-if="me && me.role === 'superadmin'">
+          <select x-model="selectedTenantId" @change="onTenantChange()" class="input py-1.5 text-xs w-48">
+            <option value="">Alle Tenants</option>
+            <template x-for="t in tenants" :key="t.id">
+              <option :value="t.id" x-text="t.name"></option>
+            </template>
+          </select>
+        </template>
+        <div x-show="isLoading" class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <div class="w-3 h-3 rounded-full bg-brand-500 animate-pulse"></div>
+          <span>Laden...</span>
+        </div>
       </div>
     </header>
 
@@ -308,49 +344,48 @@ tailwind.config = {
     <main class="flex-1 overflow-y-auto">
       <div class="p-4 md:p-6 lg:p-8">
 
-        <!-- ─── DASHBOARD ─── -->
+        <!-- DASHBOARD -->
         <div x-show="page==='dashboard'">
           <h2 class="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Dashboard</h2>
 
-          <!-- KPI Cards -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div class="stat-card">
-              <div class="stat-icon bg-blue-100 dark:bg-blue-950/30">
-                <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-              </div>
-              <div>
-                <div class="stat-value" x-text="stats?.users || 0"></div>
-                <div class="stat-label">Aktive User</div>
-              </div>
-            </div>
-
-            <div class="stat-card">
-              <div class="stat-icon bg-green-100 dark:bg-green-950/30">
-                <svg class="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5.581m0 0H9m0 0h5.581M9 3h5.581M5 21h14"></path></svg>
-              </div>
-              <div>
-                <div class="stat-value" x-text="stats?.tenants || 0"></div>
-                <div class="stat-label">Tenants</div>
-              </div>
-            </div>
-
-            <div class="stat-card">
               <div class="stat-icon bg-purple-100 dark:bg-purple-950/30">
-                <svg class="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
+                <svg class="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               </div>
               <div>
-                <div class="stat-value" x-text="stats?.documents || 0"></div>
+                <div class="stat-value" x-text="stats.sources || 0"></div>
                 <div class="stat-label">Dokumente</div>
               </div>
             </div>
 
             <div class="stat-card">
-              <div class="stat-icon bg-amber-100 dark:bg-amber-950/30">
-                <svg class="w-6 h-6 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              <div class="stat-icon bg-green-100 dark:bg-green-950/30">
+                <svg class="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
               </div>
               <div>
-                <div class="stat-value" x-text="stats?.api_calls_today || 0"></div>
-                <div class="stat-label">API Calls heute</div>
+                <div class="stat-value" x-text="stats.media || 0"></div>
+                <div class="stat-label">Medien</div>
+              </div>
+            </div>
+
+            <div class="stat-card" x-show="me && (me.role === 'admin' || me.role === 'superadmin')">
+              <div class="stat-icon bg-blue-100 dark:bg-blue-950/30">
+                <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              </div>
+              <div>
+                <div class="stat-value" x-text="stats.users || 0"></div>
+                <div class="stat-label">Benutzer</div>
+              </div>
+            </div>
+
+            <div class="stat-card" x-show="me && me.role === 'superadmin'">
+              <div class="stat-icon bg-amber-100 dark:bg-amber-950/30">
+                <svg class="w-6 h-6 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-7 0H5m0 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+              </div>
+              <div>
+                <div class="stat-value" x-text="stats.tenants || 0"></div>
+                <div class="stat-label">Firmen</div>
               </div>
             </div>
           </div>
@@ -360,37 +395,338 @@ tailwind.config = {
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Conversations diese Woche</h3>
-                <canvas x-ref="conversationsChart"></canvas>
+                <canvas x-ref="conversationsChart" style="height:220px"></canvas>
               </div>
             </div>
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Dokumente pro Woche</h3>
-                <canvas x-ref="documentsChart"></canvas>
+                <canvas x-ref="documentsChart" style="height:220px"></canvas>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ─── USERS ─── -->
-        <div x-show="page==='users'">
+        <!-- MEINE DOKUMENTE -->
+        <div x-show="page==='documents'">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <h2 class="text-2xl md:text-3xl font-bold">User Management</h2>
-            <button @click="showCreateUser=true" class="btn btn-primary w-full sm:w-auto whitespace-nowrap">
+            <h2 class="text-2xl md:text-3xl font-bold">Meine Dokumente</h2>
+            <button @click="showUploadModal=true" class="btn btn-primary w-full sm:w-auto whitespace-nowrap">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-              Neuer User
+              Dokument hochladen
+            </button>
+          </div>
+
+          <!-- Filters -->
+          <div class="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6">
+            <input type="text" x-model="docSearchQuery" placeholder="Nach Name suchen..." class="input flex-1 min-w-0">
+            <select x-model="docStatusFilter" class="input sm:w-40">
+              <option value="">Alle Status</option>
+              <option value="pending">Ausstehend</option>
+              <option value="processing">Verarbeitung</option>
+              <option value="completed">Fertig</option>
+              <option value="error">Fehler</option>
+            </select>
+          </div>
+
+          <div class="card">
+            <div class="card-body table-wrapper">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Chunks</th>
+                    <th>Erstellt</th>
+                    <th>Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="doc in filteredSources" :key="doc.id">
+                    <tr>
+                      <td class="font-medium" x-text="doc.filename || doc.name || '-'"></td>
+                      <td><span :class="['badge', badgeForDocStatus(doc.status)]" x-text="docStatusLabel(doc.status)"></span></td>
+                      <td x-text="doc.chunk_count || 0"></td>
+                      <td x-text="fmtDate(doc.created_at)"></td>
+                      <td class="flex gap-1 flex-wrap">
+                        <button @click="viewDocument(doc)" class="btn btn-secondary btn-sm">Ansehen</button>
+                        <button @click="editDocument(doc)" class="btn btn-secondary btn-sm">Bearbeiten</button>
+                        <button @click="deleteDocConfirm(doc.id)" class="btn btn-danger btn-sm">Entfernen</button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="filteredSources.length === 0">
+                    <td colspan="5" class="text-center py-8 text-slate-400">Keine Dokumente vorhanden</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- MEINE MEDIEN -->
+        <div x-show="page==='media'">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold">Meine Medien</h2>
+            <button @click="showMediaUploadModal=true" class="btn btn-primary w-full sm:w-auto whitespace-nowrap">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Medium hochladen
+            </button>
+          </div>
+
+          <!-- Media Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <template x-for="item in media" :key="item.id">
+              <div class="card group">
+                <div class="aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+                  <template x-if="item.mime_type && item.mime_type.startsWith('image/')">
+                    <img :src="item.presigned_url || item.url" :alt="item.filename" class="w-full h-full object-cover">
+                  </template>
+                  <template x-if="!item.mime_type || !item.mime_type.startsWith('image/')">
+                    <div class="text-slate-400 flex flex-col items-center gap-2">
+                      <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                      <span class="text-xs" x-text="item.mime_type || 'Datei'"></span>
+                    </div>
+                  </template>
+                </div>
+                <div class="p-3">
+                  <p class="text-sm font-medium truncate" x-text="item.filename"></p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="item.description || 'Keine Beschreibung'"></p>
+                  <div class="flex gap-1 mt-2">
+                    <button @click="editMedia(item)" class="btn btn-secondary btn-sm flex-1">Bearbeiten</button>
+                    <button @click="deleteMediaConfirm(item.id)" class="btn btn-danger btn-sm">Entfernen</button>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div x-show="media.length === 0" class="col-span-full text-center py-12 text-slate-400">
+              Keine Medien vorhanden
+            </div>
+          </div>
+        </div>
+
+        <!-- RAG CHAT -->
+        <div x-show="page==='chat'" class="h-full">
+          <h2 class="text-2xl md:text-3xl font-bold mb-4">Chat</h2>
+
+          <div class="card flex flex-col" style="height: calc(100vh - 220px); min-height: 400px;">
+            <!-- Messages -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" x-ref="chatScroll">
+              <div x-show="chatMessages.length === 0" class="h-full flex items-center justify-center text-slate-400">
+                <div class="text-center">
+                  <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                  <p>Stellen Sie eine Frage an Ihre Wissensdatenbank</p>
+                </div>
+              </div>
+              <template x-for="(msg, idx) in chatMessages" :key="idx">
+                <div :class="[msg.role === 'user' ? 'ml-12' : 'mr-12']">
+                  <div :class="[
+                    'p-4 rounded-xl text-sm',
+                    msg.role === 'user' ? 'bg-brand-600 text-white rounded-br-sm' :
+                    msg.role === 'error' ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800' :
+                    msg.role === 'loading' ? 'bg-slate-100 dark:bg-slate-800' :
+                    'bg-slate-100 dark:bg-slate-800 rounded-bl-sm'
+                  ]">
+                    <template x-if="msg.role === 'loading'">
+                      <div class="flex gap-1.5 py-1">
+                        <div class="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0s"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0.15s"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style="animation-delay:0.3s"></div>
+                      </div>
+                    </template>
+                    <template x-if="msg.role !== 'loading'">
+                      <div>
+                        <p class="whitespace-pre-wrap" x-text="msg.content"></p>
+                        <div x-show="msg.sources && msg.sources.length > 0" class="mt-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                          <p class="text-xs font-semibold mb-1 opacity-70">Quellen:</p>
+                          <template x-for="src in (msg.sources || [])" :key="src">
+                            <span class="badge badge-info mr-1 mb-1" x-text="src"></span>
+                          </template>
+                        </div>
+                        <p x-show="msg.latency_ms" class="text-xs mt-2 opacity-60" x-text="msg.latency_ms + ' ms'"></p>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Input -->
+            <div class="border-t border-slate-200 dark:border-slate-800 p-4">
+              <div class="flex gap-2">
+                <input type="text" x-model="chatInput" placeholder="Frage eingeben..." class="input flex-1" @keyup.enter="sendChat()" :disabled="chatLoading">
+                <button @click="sendChat()" :disabled="chatLoading || !chatInput.trim()" class="btn btn-primary">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VOICEBOT -->
+        <div x-show="page==='voicebot'">
+          <h2 class="text-2xl md:text-3xl font-bold mb-6">Voicebot</h2>
+
+          <div class="card max-w-lg mx-auto">
+            <div class="card-body flex flex-col items-center py-12">
+              <p class="text-sm text-slate-500 dark:text-slate-400 mb-8" x-text="voiceStatusText"></p>
+
+              <!-- Microphone Button -->
+              <button @click="toggleVoice()"
+                :class="[
+                  'w-28 h-28 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none',
+                  voiceState === 'idle' ? 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500' :
+                  voiceState === 'connecting' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 voice-pulse' :
+                  'bg-red-500 text-white voice-pulse shadow-lg shadow-red-500/30'
+                ]">
+                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <template x-if="voiceState !== 'active'">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                  </template>
+                  <template x-if="voiceState === 'active'">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM10 9v6m4-6v6"></path>
+                  </template>
+                </svg>
+              </button>
+
+              <p class="mt-6 text-sm font-medium" :class="voiceState === 'active' ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'" x-text="voiceState === 'idle' ? 'Antippen zum Starten' : voiceState === 'connecting' ? 'Verbinde...' : 'Aktiv -- antippen zum Beenden'"></p>
+
+              <!-- Hidden audio container -->
+              <div id="voicebot-audio" class="hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHAT-VERLAUF -->
+        <div x-show="page==='history'">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold">Chat-Verlauf</h2>
+            <div class="flex gap-2" x-show="me && (me.role === 'admin' || me.role === 'superadmin')">
+              <select x-model="historyUserFilter" @change="loadConversations()" class="input w-48">
+                <option value="">Alle Benutzer</option>
+                <template x-for="u in users" :key="u.id">
+                  <option :value="u.user_id || u.id" x-text="u.display_name || u.email"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <template x-for="conv in conversations" :key="conv.id">
+              <div class="card">
+                <div class="card-body">
+                  <div class="flex items-start justify-between gap-4 cursor-pointer" @click="conv._expanded = !conv._expanded">
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium truncate" x-text="conv.query || conv.question || '-'"></p>
+                      <div class="flex flex-wrap gap-2 mt-2">
+                        <span class="text-xs text-slate-500 dark:text-slate-400" x-text="fmtDate(conv.created_at)"></span>
+                        <span x-show="conv.latency_ms" class="text-xs text-slate-500" x-text="conv.latency_ms + ' ms'"></span>
+                      </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 flex-shrink-0">
+                      <span x-show="conv.kernaussage" class="badge badge-success">Kernaussage</span>
+                      <span x-show="conv.kernfrage" class="badge badge-info">Kernfrage</span>
+                      <svg :class="['w-5 h-5 text-slate-400 transition-transform', conv._expanded && 'rotate-180']" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
+
+                  <div x-show="conv._expanded" class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <div>
+                      <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Frage</p>
+                      <p class="text-sm" x-text="conv.query || conv.question"></p>
+                    </div>
+                    <div>
+                      <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Antwort</p>
+                      <p class="text-sm whitespace-pre-wrap" x-text="conv.answer || conv.response"></p>
+                    </div>
+                    <div x-show="conv.kernaussage" class="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-3">
+                      <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Kernaussage</p>
+                      <p class="text-sm text-emerald-800 dark:text-emerald-200" x-text="conv.kernaussage"></p>
+                    </div>
+                    <div x-show="conv.kernfrage" class="bg-sky-50 dark:bg-sky-950/20 rounded-lg p-3">
+                      <p class="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">Kernfrage</p>
+                      <p class="text-sm text-sky-800 dark:text-sky-200" x-text="conv.kernfrage"></p>
+                    </div>
+                    <div x-show="conv.sources && conv.sources.length > 0">
+                      <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Quellen</p>
+                      <div class="flex flex-wrap gap-1">
+                        <template x-for="src in (conv.sources || [])" :key="src">
+                          <span class="badge badge-info" x-text="src"></span>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div x-show="conversations.length === 0" class="text-center py-12 text-slate-400">
+              Keine Unterhaltungen vorhanden
+            </div>
+          </div>
+        </div>
+
+        <!-- TERMINE -->
+        <div x-show="page==='appointments'">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold">Termine</h2>
+            <button @click="newAppt={}; editingAppt=false; showCreateAppt=true" class="btn btn-primary w-full sm:w-auto">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Neuer Termin
             </button>
           </div>
 
           <div class="card">
-            <div class="card-body overflow-x-auto">
+            <div class="card-body table-wrapper">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Titel</th>
+                    <th>Kunde</th>
+                    <th>Zeitraum</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="appt in appointments" :key="appt.id">
+                    <tr>
+                      <td class="font-medium" x-text="appt.title"></td>
+                      <td x-text="appt.customer_name || '-'"></td>
+                      <td x-text="fmtDate(appt.start_time)"></td>
+                      <td><span :class="['badge', badgeForApptStatus(appt.status)]" x-text="apptStatusLabel(appt.status)"></span></td>
+                      <td class="flex gap-1">
+                        <button @click="editAppt(appt)" class="btn btn-secondary btn-sm">Bearbeiten</button>
+                        <button @click="deleteApptConfirm(appt.id)" class="btn btn-danger btn-sm">Entfernen</button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="appointments.length === 0">
+                    <td colspan="5" class="text-center py-8 text-slate-400">Keine Termine vorhanden</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- USER-VERWALTUNG (Admin) -->
+        <div x-show="page==='users'">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold">User-Verwaltung</h2>
+            <button @click="newUser={}; editingUserId=null; showUserModal=true" class="btn btn-primary w-full sm:w-auto whitespace-nowrap">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Neuer Benutzer
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="card-body table-wrapper">
               <table class="tbl">
                 <thead>
                   <tr>
                     <th>E-Mail</th>
                     <th>Name</th>
                     <th>Rolle</th>
-                    <th>Tenant</th>
                     <th>Status</th>
                     <th>Erstellt</th>
                     <th>Aktionen</th>
@@ -400,30 +736,138 @@ tailwind.config = {
                   <template x-for="user in users" :key="user.id">
                     <tr>
                       <td class="font-medium" x-text="user.email"></td>
-                      <td x-text="user.display_name"></td>
+                      <td x-text="user.display_name || '-'"></td>
                       <td><span :class="['badge', badgeForRole(user.role)]" x-text="user.role"></span></td>
-                      <td x-text="user.tenant_id ? getTenantName(user.tenant_id) : '-'"></td>
                       <td><span :class="['badge', user.is_active ? 'badge-success' : 'badge-error']" x-text="user.is_active ? 'Aktiv' : 'Inaktiv'"></span></td>
                       <td x-text="fmtDate(user.created_at)"></td>
-                      <td class="space-x-2">
-                        <button @click="editUser(user)" class="btn btn-secondary btn-sm">Edit</button>
-                        <button @click="deleteUserConfirm(user.id)" class="btn btn-danger btn-sm">Löschen</button>
+                      <td class="flex gap-1 flex-wrap">
+                        <button @click="editUser(user)" class="btn btn-secondary btn-sm">Bearbeiten</button>
+                        <button @click="openPasswordModal(user)" class="btn btn-secondary btn-sm">Passwort</button>
+                        <button @click="deleteUserConfirm(user.id)" class="btn btn-danger btn-sm">Entfernen</button>
                       </td>
                     </tr>
                   </template>
+                  <tr x-show="users.length === 0">
+                    <td colspan="6" class="text-center py-8 text-slate-400">Keine Benutzer gefunden</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
 
-        <!-- ─── TENANTS ─── -->
+        <!-- FREIGABEN (Admin) -->
+        <div x-show="page==='shares'">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold">Freigaben</h2>
+            <button @click="showShareModal=true" class="btn btn-primary w-full sm:w-auto whitespace-nowrap">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Neue Freigabe
+            </button>
+          </div>
+
+          <!-- Filter by type -->
+          <div class="flex gap-2 mb-6">
+            <button @click="shareTypeFilter='source'; loadShares()" :class="['btn btn-sm', shareTypeFilter==='source' ? 'btn-primary' : 'btn-secondary']">Dokumente</button>
+            <button @click="shareTypeFilter='media'; loadShares()" :class="['btn btn-sm', shareTypeFilter==='media' ? 'btn-primary' : 'btn-secondary']">Medien</button>
+            <button @click="shareTypeFilter='conversation'; loadShares()" :class="['btn btn-sm', shareTypeFilter==='conversation' ? 'btn-primary' : 'btn-secondary']">Chats</button>
+          </div>
+
+          <div class="card">
+            <div class="card-body table-wrapper">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Inhalt</th>
+                    <th>Typ</th>
+                    <th>Freigegeben fuer</th>
+                    <th>Erstellt</th>
+                    <th>Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="share in shares" :key="share.id">
+                    <tr>
+                      <td class="font-medium" x-text="share.content_name || share.content_id"></td>
+                      <td><span class="badge badge-info" x-text="share.content_type"></span></td>
+                      <td x-text="share.shared_with_name || share.shared_with"></td>
+                      <td x-text="fmtDate(share.created_at)"></td>
+                      <td>
+                        <button @click="deleteShareConfirm(share.id)" class="btn btn-danger btn-sm">Entfernen</button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="shares.length === 0">
+                    <td colspan="5" class="text-center py-8 text-slate-400">Keine Freigaben vorhanden</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- VOICEBOT-MONITOR (Admin) -->
+        <div x-show="page==='voicebot-monitor'">
+          <h2 class="text-2xl md:text-3xl font-bold mb-6">Voicebot-Monitor</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="stat-card">
+              <div class="stat-icon bg-green-100 dark:bg-green-950/30">
+                <svg class="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728M9.172 15.828a4.5 4.5 0 010-6.364m5.656 0a4.5 4.5 0 010 6.364"></path></svg>
+              </div>
+              <div>
+                <div class="stat-value" x-text="voiceMonitor.active_sessions || 0"></div>
+                <div class="stat-label">Aktive Sessions</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon bg-blue-100 dark:bg-blue-950/30">
+                <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <div>
+                <div class="stat-value" x-text="voiceMonitor.total_today || 0"></div>
+                <div class="stat-label">Sessions heute</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon bg-purple-100 dark:bg-purple-950/30">
+                <svg class="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              </div>
+              <div>
+                <div class="stat-value" x-text="voiceMonitor.avg_duration || '0s'"></div>
+                <div class="stat-label">Durchschn. Dauer</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <h3 class="font-semibold mb-4">Letzte Sessions</h3>
+              <div class="text-center py-8 text-slate-400" x-show="!voiceMonitor.sessions || voiceMonitor.sessions.length === 0">
+                Keine Voicebot-Sessions vorhanden
+              </div>
+              <div class="space-y-2" x-show="voiceMonitor.sessions && voiceMonitor.sessions.length > 0">
+                <template x-for="s in (voiceMonitor.sessions || [])" :key="s.id">
+                  <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <div>
+                      <p class="text-sm font-medium" x-text="s.user_name || s.identity || '-'"></p>
+                      <p class="text-xs text-slate-500" x-text="fmtDate(s.started_at)"></p>
+                    </div>
+                    <span :class="['badge', s.active ? 'badge-success' : 'badge-info']" x-text="s.active ? 'Aktiv' : 'Beendet'"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FIRMEN / TENANTS (Superadmin) -->
         <div x-show="page==='tenants'">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <h2 class="text-2xl md:text-3xl font-bold">Tenant Management</h2>
-            <button @click="showCreateTenant=true" class="btn btn-primary w-full sm:w-auto">
+            <h2 class="text-2xl md:text-3xl font-bold">Firmen (Tenants)</h2>
+            <button @click="newTenant={max_docs:500, max_chunks:50000}; editingTenantId=null; showCreateTenant=true" class="btn btn-primary w-full sm:w-auto">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-              Neuer Tenant
+              Neue Firma
             </button>
           </div>
 
@@ -434,17 +878,17 @@ tailwind.config = {
                   <div class="flex items-start justify-between mb-4">
                     <div>
                       <h3 class="text-lg font-semibold" x-text="tenant.name"></h3>
-                      <p class="text-sm text-slate-500 dark:text-slate-400" x-text="tenant.email"></p>
+                      <p class="text-sm text-slate-500 dark:text-slate-400" x-text="tenant.email || tenant.slug"></p>
                     </div>
-                    <span :class="['badge', tenant.plan === 'enterprise' ? 'badge-purple' : 'badge-info']" x-text="tenant.plan.toUpperCase()"></span>
+                    <span :class="['badge', tenant.plan === 'enterprise' ? 'badge-purple' : 'badge-info']" x-text="(tenant.plan || 'starter').toUpperCase()"></span>
                   </div>
                   <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
                       <span class="text-slate-600 dark:text-slate-400">Dokumente:</span>
-                      <span x-text="`${tenant.doc_count || 0} / ${tenant.max_docs}`" class="font-medium"></span>
+                      <span x-text="`${tenant.doc_count || 0} / ${tenant.max_docs || '-'}`" class="font-medium"></span>
                     </div>
                     <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div class="bg-brand-600 h-2 rounded-full" :style="`width: ${Math.min(100, ((tenant.doc_count || 0) / tenant.max_docs * 100))}%`"></div>
+                      <div class="bg-brand-600 h-2 rounded-full" :style="`width: ${Math.min(100, ((tenant.doc_count || 0) / (tenant.max_docs || 1) * 100))}%`"></div>
                     </div>
                   </div>
                 </div>
@@ -453,66 +897,19 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- ─── DOCUMENTS ─── -->
-        <div x-show="page==='documents'">
-          <div class="mb-6">
-            <h2 class="text-2xl md:text-3xl font-bold mb-4">Document Management</h2>
-            <div class="flex flex-col sm:flex-row gap-3 md:gap-4">
-              <input type="text" x-model="docSearchQuery" placeholder="Nach Name durchsuchen..." class="input flex-1 min-w-0">
-              <select x-model="docStatusFilter" class="input sm:w-40">
-                <option value="">Alle Status</option>
-                <option value="processing">Processing</option>
-                <option value="completed">Completed</option>
-                <option value="error">Error</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-body overflow-x-auto">
-              <table class="tbl">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Tenant</th>
-                    <th>Chunks</th>
-                    <th>Status</th>
-                    <th>Erstellt</th>
-                    <th>Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template x-for="doc in filteredDocuments" :key="doc.id">
-                    <tr>
-                      <td class="font-medium" x-text="doc.filename"></td>
-                      <td x-text="getTenantName(doc.tenant_id)"></td>
-                      <td x-text="doc.chunk_count || 0"></td>
-                      <td><span :class="['badge', badgeForDocStatus(doc.status)]" x-text="doc.status"></span></td>
-                      <td x-text="fmtDate(doc.created_at)"></td>
-                      <td>
-                        <button @click="deleteDocConfirm(doc.id)" class="btn btn-danger btn-sm">Löschen</button>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- ─── API KEYS ─── -->
+        <!-- API KEYS (Superadmin) -->
         <div x-show="page==='api-keys'">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <h2 class="text-2xl md:text-3xl font-bold">API Key Management</h2>
-            <button @click="showCreateApiKey=true" class="btn btn-primary w-full sm:w-auto whitespace-nowrap">
+            <h2 class="text-2xl md:text-3xl font-bold">API Keys</h2>
+            <button @click="newApiKey={}; generatedApiKey=null; showCreateApiKey=true" class="btn btn-primary w-full sm:w-auto whitespace-nowrap">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
               Neuer Key
             </button>
           </div>
 
           <div class="card">
-            <div class="card-body overflow-x-auto md:overflow-visible">
-              <table class="tbl min-w-full md:w-full">
+            <div class="card-body table-wrapper">
+              <table class="tbl">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -527,11 +924,11 @@ tailwind.config = {
                   <template x-for="key in apiKeys" :key="key.id">
                     <tr>
                       <td class="font-medium" x-text="key.name"></td>
-                      <td class="font-mono text-xs" x-text="`sk-${key.key_preview}`"></td>
+                      <td class="font-mono text-xs" x-text="`sk-${key.key_preview || '...'}`"></td>
                       <td x-text="key.tenant_id ? getTenantName(key.tenant_id) : '(Global)'"></td>
                       <td><span :class="['badge', key.is_active ? 'badge-success' : 'badge-error']" x-text="key.is_active ? 'Aktiv' : 'Widerrufen'"></span></td>
                       <td x-text="fmtDate(key.created_at)"></td>
-                      <td class="space-x-2">
+                      <td>
                         <button x-show="key.is_active" @click="revokeApiKey(key.id)" class="btn btn-danger btn-sm">Widerrufen</button>
                       </td>
                     </tr>
@@ -542,26 +939,26 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- ─── AUDIT LOG ─── -->
+        <!-- AUDIT LOG (Superadmin) -->
         <div x-show="page==='audit-log'">
           <h2 class="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Audit Log</h2>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-6">
-            <input type="date" x-model="auditFilterFrom" class="input">
-            <input type="date" x-model="auditFilterTo" class="input">
-            <select x-model="auditFilterAction" class="input sm:col-span-2 lg:col-span-1">
+            <input type="date" x-model="auditFilterFrom" class="input" @change="loadAuditLog()">
+            <input type="date" x-model="auditFilterTo" class="input" @change="loadAuditLog()">
+            <select x-model="auditFilterAction" class="input sm:col-span-2 lg:col-span-1" @change="loadAuditLog()">
               <option value="">Alle Aktionen</option>
               <option value="login">Login</option>
               <option value="logout">Logout</option>
               <option value="user.create">User erstellt</option>
-              <option value="user.delete">User gelöscht</option>
+              <option value="user.delete">User geloescht</option>
               <option value="tenant.create">Tenant erstellt</option>
-              <option value="document.delete">Dokument gelöscht</option>
+              <option value="document.delete">Dokument geloescht</option>
             </select>
           </div>
 
           <div class="card">
-            <div class="card-body overflow-x-auto">
+            <div class="card-body table-wrapper">
               <table class="tbl">
                 <thead>
                   <tr>
@@ -579,8 +976,8 @@ tailwind.config = {
                       <td x-text="log.user_email || '-'"></td>
                       <td><span :class="['badge', badgeForAction(log.action)]" x-text="log.action"></span></td>
                       <td x-text="`${log.resource_type || '-'} ${log.resource_id ? `(${log.resource_id.slice(0, 8)})` : ''}`"></td>
-                      <td class="text-xs font-mono text-slate-600 dark:text-slate-400">
-                        <button @click="showAuditDetails=log" class="text-brand-600 dark:text-brand-400 hover:underline">Details</button>
+                      <td>
+                        <button @click="showAuditDetails=log" class="text-brand-600 dark:text-brand-400 hover:underline text-xs">Details</button>
                       </td>
                     </tr>
                   </template>
@@ -594,7 +991,7 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- ─── SETTINGS ─── -->
+        <!-- EINSTELLUNGEN (Superadmin) -->
         <div x-show="page==='settings'">
           <h2 class="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Plattform-Einstellungen</h2>
 
@@ -604,7 +1001,6 @@ tailwind.config = {
             <button @click="settingsTab='security'" :class="['px-3 md:px-4 py-2 border-b-2 transition-colors text-sm md:text-base whitespace-nowrap', settingsTab==='security' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-600 dark:text-slate-400']">Sicherheit</button>
           </div>
 
-          <!-- Platform Tab -->
           <div x-show="settingsTab==='platform'" class="space-y-6">
             <div class="card">
               <div class="card-body space-y-4">
@@ -617,14 +1013,13 @@ tailwind.config = {
                   <input type="email" x-model="settingsForm.support_email" class="input" @change="saveSetting('support_email', settingsForm.support_email)">
                 </div>
                 <div>
-                  <label class="block text-xs md:text-sm font-medium mb-2">Max. Upload-Größe (MB)</label>
+                  <label class="block text-xs md:text-sm font-medium mb-2">Max. Upload-Groesse (MB)</label>
                   <input type="number" x-model.number="settingsForm.max_upload_size_mb" class="input" @change="saveSetting('max_upload_size_mb', settingsForm.max_upload_size_mb)">
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Embedding Tab -->
           <div x-show="settingsTab==='embedding'" class="space-y-6">
             <div class="card">
               <div class="card-body space-y-4">
@@ -637,14 +1032,13 @@ tailwind.config = {
                   <input type="number" x-model.number="settingsForm.embedding_dimensions" class="input" @change="saveSetting('embedding_dimensions', settingsForm.embedding_dimensions)">
                 </div>
                 <div>
-                  <label class="block text-xs md:text-sm font-medium mb-2">Chunk-Größe</label>
+                  <label class="block text-xs md:text-sm font-medium mb-2">Chunk-Groesse</label>
                   <input type="number" x-model.number="settingsForm.chunk_size" class="input" @change="saveSetting('chunk_size', settingsForm.chunk_size)">
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Security Tab -->
           <div x-show="settingsTab==='security'" class="space-y-6">
             <div class="card">
               <div class="card-body space-y-4">
@@ -661,84 +1055,41 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- ─── APPOINTMENTS ─── -->
-        <div x-show="page==='appointments'">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-3xl font-bold">Terminverwaltung</h2>
-            <button @click="showCreateAppt=true" class="btn btn-primary">
+        <!-- DOMAINS (Superadmin) -->
+        <div x-show="page==='domains'">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold">Domain-Whitelist</h2>
+            <button @click="showDomainModal=true; newDomain=''" class="btn btn-primary w-full sm:w-auto">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-              Neuer Termin
+              Domain hinzufuegen
             </button>
           </div>
 
           <div class="card">
-            <div class="card-body overflow-x-auto">
+            <div class="card-body table-wrapper">
               <table class="tbl">
                 <thead>
                   <tr>
-                    <th>Titel</th>
-                    <th>Kunde</th>
-                    <th>Zeitraum</th>
-                    <th>Status</th>
+                    <th>Domain</th>
+                    <th>Erstellt</th>
                     <th>Aktionen</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <template x-for="appt in appointments" :key="appt.id">
+                  <template x-for="d in domains" :key="d.id">
                     <tr>
-                      <td class="font-medium" x-text="appt.title"></td>
-                      <td x-text="appt.customer_name || '-'"></td>
-                      <td x-text="`${fmtDate(appt.start_time)}`"></td>
-                      <td><span :class="['badge', badgeForApptStatus(appt.status)]" x-text="apptStatusLabel(appt.status)"></span></td>
-                      <td class="space-x-2">
-                        <button @click="editAppt(appt)" class="btn btn-secondary btn-sm">Edit</button>
-                        <button @click="deleteApptConfirm(appt.id)" class="btn btn-danger btn-sm">Löschen</button>
+                      <td class="font-medium font-mono" x-text="d.domain"></td>
+                      <td x-text="fmtDate(d.created_at)"></td>
+                      <td>
+                        <button @click="deleteDomainConfirm(d.id)" class="btn btn-danger btn-sm">Entfernen</button>
                       </td>
                     </tr>
                   </template>
+                  <tr x-show="domains.length === 0">
+                    <td colspan="3" class="text-center py-8 text-slate-400">Keine Domains vorhanden</td>
+                  </tr>
                 </tbody>
               </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- ─── CHAT ─── -->
-        <div x-show="page==='chat'">
-          <h2 class="text-3xl font-bold mb-6">RAG Chat Tester</h2>
-
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 card h-[600px] flex flex-col">
-              <div class="card-body flex-1 overflow-y-auto flex flex-col gap-4" x-ref="chatScroll">
-                <template x-for="msg in chatMessages" :key="msg.content">
-                  <div :class="['p-4 rounded-lg', msg.role==='user' ? 'bg-brand-100 dark:bg-brand-950/30 ml-8 text-right' : msg.role==='error' ? 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 mr-8']">
-                    <p x-text="msg.content"></p>
-                    <p x-show="msg.latency_ms" class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="`⚡ ${msg.latency_ms}ms`"></p>
-                  </div>
-                </template>
-              </div>
-
-              <div class="border-t border-slate-200 dark:border-slate-800 p-4">
-                <div class="flex gap-2">
-                  <input type="text" x-model="chatInput" placeholder="Frage eingeben..." class="input flex-1" @keyup.enter="sendChat()" :disabled="chatLoading">
-                  <button @click="sendChat()" :disabled="chatLoading || !chatInput.trim()" class="btn btn-primary">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="space-y-4">
-              <div class="card">
-                <div class="card-body">
-                  <label class="block text-xs md:text-sm font-medium mb-2">Tenant wählen</label>
-                  <select x-model="chatTenantId" class="input">
-                    <option value="">Default</option>
-                    <template x-for="t in tenants" :key="t.id">
-                      <option :value="t.id" x-text="t.name"></option>
-                    </template>
-                  </select>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -747,19 +1098,199 @@ tailwind.config = {
     </main>
   </div>
 
-  <!-- ═══════════════ MODALS ═══════════════ -->
+  <!-- ========== MODALS ========== -->
 
-  <!-- Create/Edit User Modal -->
-  <div x-show="showCreateUser || editingUserId" class="modal-overlay" @click.self="showCreateUser=false; editingUserId=null;">
+  <!-- Document Upload Modal -->
+  <div x-show="showUploadModal" class="modal-overlay" @click.self="showUploadModal=false">
+    <div class="modal-box-wide" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Dokument hochladen</h2>
+        <button @click="showUploadModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+
+      <!-- Tab: File or Text -->
+      <div class="flex gap-2 mb-6">
+        <button @click="uploadTab='file'" :class="['btn btn-sm', uploadTab==='file' ? 'btn-primary' : 'btn-secondary']">Datei hochladen</button>
+        <button @click="uploadTab='text'" :class="['btn btn-sm', uploadTab==='text' ? 'btn-primary' : 'btn-secondary']">Text eingeben</button>
+      </div>
+
+      <!-- File Upload -->
+      <div x-show="uploadTab==='file'">
+        <div class="upload-zone"
+             @dragover.prevent="$event.currentTarget.classList.add('drag-over')"
+             @dragleave.prevent="$event.currentTarget.classList.remove('drag-over')"
+             @drop.prevent="handleFileDrop($event); $event.currentTarget.classList.remove('drag-over')"
+             @click="$refs.fileInput.click()">
+          <svg class="w-12 h-12 mx-auto mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+          <p class="text-sm text-slate-600 dark:text-slate-400">Datei hierher ziehen oder klicken</p>
+          <p class="text-xs text-slate-400 mt-1">PDF, DOCX, TXT, MD, CSV, JSON, HTML</p>
+          <input type="file" x-ref="fileInput" class="hidden" accept=".pdf,.docx,.txt,.md,.csv,.json,.html" @change="uploadFile=$event.target.files[0]">
+        </div>
+        <div x-show="uploadFile" class="mt-4 flex items-center gap-3 p-3 bg-brand-50 dark:bg-brand-950/20 rounded-lg">
+          <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span class="text-sm font-medium flex-1" x-text="uploadFile?.name || ''"></span>
+          <button @click="uploadFile=null; $refs.fileInput.value=''" class="text-slate-400 hover:text-red-500">&times;</button>
+        </div>
+      </div>
+
+      <!-- Text Input -->
+      <div x-show="uploadTab==='text'" class="space-y-4">
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Name</label>
+          <input type="text" x-model="uploadTextName" class="input" placeholder="Dokumentname">
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Inhalt</label>
+          <textarea x-model="uploadTextContent" class="input min-h-[200px]" placeholder="Text eingeben..."></textarea>
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="mt-4">
+        <label class="block text-xs md:text-sm font-medium mb-2">Tags (optional, kommagetrennt)</label>
+        <input type="text" x-model="uploadTags" class="input" placeholder="z.B. vertrag, intern">
+      </div>
+
+      <!-- Upload Progress -->
+      <div x-show="uploadProgress > 0 && uploadProgress < 100" class="mt-4">
+        <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+          <div class="bg-brand-600 h-2 rounded-full transition-all" :style="`width: ${uploadProgress}%`"></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-1" x-text="`${uploadProgress}%`"></p>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button @click="doUploadDocument()" :disabled="uploadingDoc" class="btn btn-primary flex-1">
+          <span x-show="!uploadingDoc">Hochladen</span>
+          <span x-show="uploadingDoc">Wird hochgeladen...</span>
+        </button>
+        <button @click="showUploadModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document View Modal -->
+  <div x-show="showDocViewModal" class="modal-overlay" @click.self="showDocViewModal=false">
+    <div class="modal-box-wide" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" x-text="viewingDoc?.filename || viewingDoc?.name || 'Dokument'"></h2>
+        <button @click="showDocViewModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+      <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 max-h-[60vh] overflow-y-auto">
+        <pre class="text-sm whitespace-pre-wrap font-mono" x-text="viewingDocContent"></pre>
+      </div>
+      <button @click="showDocViewModal=false" class="btn btn-secondary w-full mt-4">Schliessen</button>
+    </div>
+  </div>
+
+  <!-- Document Edit Modal -->
+  <div x-show="showDocEditModal" class="modal-overlay" @click.self="showDocEditModal=false">
+    <div class="modal-box-wide" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Dokument bearbeiten</h2>
+        <button @click="showDocEditModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Name</label>
+          <input type="text" x-model="editDocName" class="input">
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Inhalt</label>
+          <textarea x-model="editDocContent" class="input min-h-[300px] font-mono text-sm"></textarea>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">Hinweis: Beim Speichern werden Chunking und Embedding neu gestartet.</p>
+      <div class="flex gap-3 mt-6">
+        <button @click="saveDocumentEdit()" :disabled="savingDoc" class="btn btn-primary flex-1">Speichern</button>
+        <button @click="showDocEditModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media Upload Modal -->
+  <div x-show="showMediaUploadModal" class="modal-overlay" @click.self="showMediaUploadModal=false">
     <div class="modal-box" @click.stop>
-      <h2 class="text-2xl font-bold mb-6" x-text="editingUserId ? 'User bearbeiten' : 'Neuer User'"></h2>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Medium hochladen</h2>
+        <button @click="showMediaUploadModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+
+      <div class="upload-zone"
+           @dragover.prevent="$event.currentTarget.classList.add('drag-over')"
+           @dragleave.prevent="$event.currentTarget.classList.remove('drag-over')"
+           @drop.prevent="handleMediaDrop($event); $event.currentTarget.classList.remove('drag-over')"
+           @click="$refs.mediaFileInput.click()">
+        <svg class="w-12 h-12 mx-auto mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <p class="text-sm text-slate-600 dark:text-slate-400">Datei hierher ziehen oder klicken</p>
+        <p class="text-xs text-slate-400 mt-1">Bilder, Video, Audio, PDF</p>
+        <input type="file" x-ref="mediaFileInput" class="hidden" accept="image/*,video/*,audio/*,.pdf" @change="mediaUploadFile=$event.target.files[0]">
+      </div>
+      <div x-show="mediaUploadFile" class="mt-4 flex items-center gap-3 p-3 bg-brand-50 dark:bg-brand-950/20 rounded-lg">
+        <span class="text-sm font-medium flex-1" x-text="mediaUploadFile?.name || ''"></span>
+        <button @click="mediaUploadFile=null; $refs.mediaFileInput.value=''" class="text-slate-400 hover:text-red-500">&times;</button>
+      </div>
+
+      <div class="space-y-4 mt-4">
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Beschreibung (optional)</label>
+          <input type="text" x-model="mediaUploadDesc" class="input" placeholder="Beschreibung">
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Ordner (optional)</label>
+          <input type="text" x-model="mediaUploadFolder" class="input" placeholder="z.B. bilder/produkte">
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button @click="doUploadMedia()" :disabled="uploadingMedia" class="btn btn-primary flex-1">Hochladen</button>
+        <button @click="showMediaUploadModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media Edit Modal -->
+  <div x-show="showMediaEditModal" class="modal-overlay" @click.self="showMediaEditModal=false">
+    <div class="modal-box" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Medium bearbeiten</h2>
+        <button @click="showMediaEditModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Beschreibung</label>
+          <input type="text" x-model="editMediaDesc" class="input">
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Ordner</label>
+          <input type="text" x-model="editMediaFolder" class="input">
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" x-model="editMediaPublic" id="mediaPublic" class="rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500">
+          <label for="mediaPublic" class="text-sm">Oeffentlich</label>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button @click="saveMediaEdit()" class="btn btn-primary flex-1">Speichern</button>
+        <button @click="showMediaEditModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Create/Edit Modal -->
+  <div x-show="showUserModal" class="modal-overlay" @click.self="showUserModal=false">
+    <div class="modal-box" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" x-text="editingUserId ? 'Benutzer bearbeiten' : 'Neuer Benutzer'"></h2>
+        <button @click="showUserModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
       <div class="space-y-4">
         <div>
           <label class="block text-xs md:text-sm font-medium mb-2">E-Mail</label>
-          <input type="email" x-model="newUser.email" class="input" :disabled="editingUserId">
+          <input type="email" x-model="newUser.email" class="input" :disabled="!!editingUserId">
         </div>
         <div>
-          <label class="block text-xs md:text-sm font-medium mb-2">Name</label>
+          <label class="block text-xs md:text-sm font-medium mb-2">Anzeigename</label>
           <input type="text" x-model="newUser.display_name" class="input">
         </div>
         <div>
@@ -767,34 +1298,110 @@ tailwind.config = {
           <select x-model="newUser.role" class="input">
             <option value="user">User</option>
             <option value="admin">Admin</option>
-            <option value="superadmin">SuperAdmin</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs md:text-sm font-medium mb-2">Tenant</label>
-          <select x-model="newUser.tenant_id" class="input">
-            <option value="">Keiner</option>
-            <template x-for="t in tenants" :key="t.id">
-              <option :value="t.id" x-text="t.name"></option>
+            <template x-if="me && me.role === 'superadmin'">
+              <option value="superadmin">SuperAdmin</option>
             </template>
           </select>
         </div>
+        <template x-if="me && me.role === 'superadmin'">
+          <div>
+            <label class="block text-xs md:text-sm font-medium mb-2">Firma (Tenant)</label>
+            <select x-model="newUser.tenant_id" class="input">
+              <option value="">Keiner</option>
+              <template x-for="t in tenants" :key="t.id">
+                <option :value="t.id" x-text="t.name"></option>
+              </template>
+            </select>
+          </div>
+        </template>
         <div x-show="!editingUserId">
           <label class="block text-xs md:text-sm font-medium mb-2">Passwort</label>
           <input type="password" x-model="newUser.password" class="input">
         </div>
       </div>
-      <div class="flex flex-col sm:flex-row gap-3 mt-6">
+      <div class="flex gap-3 mt-6">
         <button @click="saveUser()" class="btn btn-primary flex-1">Speichern</button>
-        <button @click="showCreateUser=false; editingUserId=null;" class="btn btn-secondary flex-1">Abbrechen</button>
+        <button @click="showUserModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
       </div>
     </div>
   </div>
 
-  <!-- Create/Edit Tenant Modal -->
-  <div x-show="showCreateTenant || editingTenantId" class="modal-overlay" @click.self="showCreateTenant=false; editingTenantId=null;">
+  <!-- Password Change Modal -->
+  <div x-show="showPasswordModal" class="modal-overlay" @click.self="showPasswordModal=false">
     <div class="modal-box" @click.stop>
-      <h2 class="text-2xl font-bold mb-6" x-text="editingTenantId ? 'Tenant bearbeiten' : 'Neuer Tenant'"></h2>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Passwort aendern</h2>
+        <button @click="showPasswordModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+      <p class="text-sm text-slate-500 mb-4" x-text="'Benutzer: ' + (passwordUser?.email || '')"></p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Neues Passwort</label>
+          <input type="password" x-model="newPassword" class="input" placeholder="Neues Passwort eingeben">
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Passwort bestaetigen</label>
+          <input type="password" x-model="newPasswordConfirm" class="input" placeholder="Passwort wiederholen">
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button @click="changePassword()" class="btn btn-primary flex-1">Passwort aendern</button>
+        <button @click="showPasswordModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Create Modal -->
+  <div x-show="showShareModal" class="modal-overlay" @click.self="showShareModal=false">
+    <div class="modal-box" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Neue Freigabe</h2>
+        <button @click="showShareModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Inhaltstyp</label>
+          <select x-model="newShare.content_type" class="input" @change="loadShareableContent()">
+            <option value="source">Dokument</option>
+            <option value="media">Medium</option>
+            <option value="conversation">Chat</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Inhalt</label>
+          <select x-model="newShare.content_id" class="input">
+            <option value="">Bitte waehlen</option>
+            <template x-for="item in shareableContent" :key="item.id">
+              <option :value="item.id" x-text="item.name || item.filename || item.query || item.id"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Freigeben fuer (Benutzer)</label>
+          <div class="space-y-2 max-h-48 overflow-y-auto">
+            <template x-for="u in users" :key="u.id">
+              <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800">
+                <input type="checkbox" :value="u.user_id || u.id" x-model="newShare.user_ids" class="rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500">
+                <span class="text-sm" x-text="u.display_name || u.email"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button @click="createShare()" class="btn btn-primary flex-1">Freigeben</button>
+        <button @click="showShareModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tenant Create/Edit Modal -->
+  <div x-show="showCreateTenant" class="modal-overlay" @click.self="showCreateTenant=false">
+    <div class="modal-box" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" x-text="editingTenantId ? 'Firma bearbeiten' : 'Neue Firma'"></h2>
+        <button @click="showCreateTenant=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
       <div class="space-y-4">
         <div>
           <label class="block text-xs md:text-sm font-medium mb-2">Name</label>
@@ -823,15 +1430,18 @@ tailwind.config = {
       </div>
       <div class="flex gap-3 mt-6">
         <button @click="saveTenant()" class="btn btn-primary flex-1">Speichern</button>
-        <button @click="showCreateTenant=false; editingTenantId=null;" class="btn btn-secondary flex-1">Abbrechen</button>
+        <button @click="showCreateTenant=false" class="btn btn-secondary flex-1">Abbrechen</button>
       </div>
     </div>
   </div>
 
-  <!-- Create API Key Modal -->
-  <div x-show="showCreateApiKey" class="modal-overlay" @click.self="showCreateApiKey=false;">
+  <!-- API Key Create Modal -->
+  <div x-show="showCreateApiKey" class="modal-overlay" @click.self="showCreateApiKey=false">
     <div class="modal-box" @click.stop>
-      <h2 class="text-2xl font-bold mb-6">Neuer API Key</h2>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Neuer API Key</h2>
+        <button @click="showCreateApiKey=false; generatedApiKey=null; newApiKey={}" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
       <div x-show="generatedApiKey" class="mb-6 p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-700 rounded-lg">
         <p class="text-sm text-emerald-700 dark:text-emerald-300 mb-2">Key erfolgreich erstellt (wird nicht erneut angezeigt):</p>
         <div class="flex items-center gap-2">
@@ -866,9 +1476,12 @@ tailwind.config = {
   </div>
 
   <!-- Audit Details Modal -->
-  <div x-show="showAuditDetails" class="modal-overlay" @click.self="showAuditDetails=null;">
+  <div x-show="showAuditDetails" class="modal-overlay" @click.self="showAuditDetails=null">
     <div class="modal-box" @click.stop>
-      <h2 class="text-2xl font-bold mb-6">Audit Details</h2>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Audit Details</h2>
+        <button @click="showAuditDetails=null" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
       <div class="space-y-3 text-sm" x-show="showAuditDetails">
         <div>
           <p class="text-slate-500 dark:text-slate-400">Zeitstempel</p>
@@ -895,14 +1508,17 @@ tailwind.config = {
           <pre class="bg-slate-100 dark:bg-slate-800 p-3 rounded text-xs overflow-x-auto" x-text="showAuditDetails ? JSON.stringify(showAuditDetails.details, null, 2) : ''"></pre>
         </div>
       </div>
-      <button @click="showAuditDetails=null;" class="btn btn-secondary w-full mt-6">Schließen</button>
+      <button @click="showAuditDetails=null" class="btn btn-secondary w-full mt-6">Schliessen</button>
     </div>
   </div>
 
-  <!-- Create Appointment Modal -->
-  <div x-show="showCreateAppt" class="modal-overlay" @click.self="showCreateAppt=false;">
+  <!-- Appointment Create/Edit Modal -->
+  <div x-show="showCreateAppt" class="modal-overlay" @click.self="showCreateAppt=false">
     <div class="modal-box" @click.stop>
-      <h2 class="text-2xl font-bold mb-6">Neuer Termin</h2>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" x-text="editingAppt ? 'Termin bearbeiten' : 'Neuer Termin'"></h2>
+        <button @click="showCreateAppt=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
       <div class="space-y-4">
         <div>
           <label class="block text-xs md:text-sm font-medium mb-2">Titel</label>
@@ -919,13 +1535,31 @@ tailwind.config = {
           </div>
         </div>
         <div>
-          <label class="block text-xs md:text-sm font-medium mb-2">Kundennname</label>
+          <label class="block text-xs md:text-sm font-medium mb-2">Kundenname</label>
           <input type="text" x-model="newAppt.customer_name" class="input">
         </div>
       </div>
       <div class="flex gap-3 mt-6">
         <button @click="saveAppt()" class="btn btn-primary flex-1">Speichern</button>
-        <button @click="showCreateAppt=false;" class="btn btn-secondary flex-1">Abbrechen</button>
+        <button @click="showCreateAppt=false" class="btn btn-secondary flex-1">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Domain Modal -->
+  <div x-show="showDomainModal" class="modal-overlay" @click.self="showDomainModal=false">
+    <div class="modal-box" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold">Domain hinzufuegen</h2>
+        <button @click="showDomainModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+      <div>
+        <label class="block text-xs md:text-sm font-medium mb-2">Domain</label>
+        <input type="text" x-model="newDomain" class="input" placeholder="z.B. firma.de">
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button @click="addDomain()" class="btn btn-primary flex-1">Hinzufuegen</button>
+        <button @click="showDomainModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
       </div>
     </div>
   </div>
@@ -933,47 +1567,81 @@ tailwind.config = {
 </div>
 
 <!-- Toast Container -->
-<div class="toast-container" x-show="toast.show">
-  <div :class="['toast', `toast-${toast.type}`]">
-    <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-    </svg>
-    <span x-text="toast.msg"></span>
-  </div>
+<div class="toast-container">
+  <template x-for="(t, idx) in toasts" :key="t.id">
+    <div :class="['toast', `toast-${t.type}`]">
+      <svg x-show="t.type==='success'" class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+      <svg x-show="t.type==='error'" class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+      <svg x-show="t.type==='warning'" class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+      <span x-text="t.msg"></span>
+    </div>
+  </template>
 </div>
 
 <script>
 function app() {
   return {
-    // Auth State
-    authenticated: false,
+    // Auth
     token: localStorage.getItem('rag_token') || '',
-    session: null,
+    me: null,
     loginEmail: '',
     loginPassword: '',
-    loginLoading: false,
     loginError: '',
+    loginLoading: false,
     showPassword: false,
 
-    // UI State
+    // Navigation
     page: 'dashboard',
-    darkMode: localStorage.getItem('rag_dark') === 'true',
     sidebarOpen: false,
+    darkMode: localStorage.getItem('rag_dark') === 'true',
     isLoading: false,
     showImpressum: false,
 
-    // Toast Notifications
-    toast: { show: false, msg: '', type: 'success' },
-
-    // Data Collections
+    // Data
+    stats: {},
+    sources: [],
+    media: [],
+    conversations: [],
     users: [],
     tenants: [],
-    documents: [],
+    shares: [],
+    appointments: [],
     apiKeys: [],
     auditLog: [],
-    appointments: [],
+    domains: [],
+
+    // Modals
+    showUploadModal: false,
+    showMediaUploadModal: false,
+    showDocViewModal: false,
+    showDocEditModal: false,
+    showMediaEditModal: false,
+    showUserModal: false,
+    showShareModal: false,
+    showPasswordModal: false,
+    showCreateTenant: false,
+    showCreateAppt: false,
+    showCreateApiKey: false,
+    showAuditDetails: null,
+    showDomainModal: false,
+
+    // Chat
     chatMessages: [],
-    stats: null,
+    chatInput: '',
+    chatLoading: false,
+
+    // Voicebot
+    voiceState: 'idle',
+    voiceRoom: null,
+    voiceConnecting: false,
+    voiceStatusText: 'Antippen, um den Sprach-Assistenten zu starten',
+
+    // Voicebot monitor
+    voiceMonitor: {},
+
+    // Toast
+    toasts: [],
+    toastCounter: 0,
 
     // Forms
     newUser: {},
@@ -981,39 +1649,72 @@ function app() {
     newAppt: {},
     newApiKey: {},
     settingsForm: {},
+    newShare: { content_type: 'source', content_id: '', user_ids: [] },
+    shareableContent: [],
 
-    // UI Flags
-    showCreateUser: false,
-    showCreateTenant: false,
-    showCreateAppt: false,
-    showCreateApiKey: false,
+    // Edit state
     editingUserId: null,
     editingTenantId: null,
     editingAppt: false,
-    showApptDetail: null,
+    editingMediaId: null,
+    editingDocId: null,
     generatedApiKey: null,
-    showAuditDetails: null,
+    passwordUser: null,
+    newPassword: '',
+    newPasswordConfirm: '',
+
+    // Document state
+    viewingDoc: null,
+    viewingDocContent: '',
+    editDocName: '',
+    editDocContent: '',
+    uploadTab: 'file',
+    uploadFile: null,
+    uploadTextName: '',
+    uploadTextContent: '',
+    uploadTags: '',
+    uploadProgress: 0,
+    uploadingDoc: false,
+    savingDoc: false,
+
+    // Media state
+    mediaUploadFile: null,
+    mediaUploadDesc: '',
+    mediaUploadFolder: '',
+    uploadingMedia: false,
+    editMediaDesc: '',
+    editMediaFolder: '',
+    editMediaPublic: false,
 
     // Filters
     docSearchQuery: '',
     docStatusFilter: '',
+    shareTypeFilter: 'source',
+    historyUserFilter: '',
     auditFilterFrom: new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0],
     auditFilterTo: new Date().toISOString().split('T')[0],
     auditFilterAction: '',
     settingsTab: 'platform',
-    chatTenantId: '',
-    chatInput: '',
-    chatLoading: false,
+    selectedTenantId: '',
+    newDomain: '',
 
-    // Computed Properties
+    // Computed
     get pageBreadcrumb() {
-      const pages = { dashboard: 'Dashboard', users: 'User Management', tenants: 'Tenants', documents: 'Documents', 'api-keys': 'API Keys', 'audit-log': 'Audit Log', settings: 'Settings', appointments: 'Appointments', chat: 'RAG Chat' };
+      const pages = {
+        dashboard: 'Dashboard', documents: 'Meine Dokumente', media: 'Meine Medien',
+        chat: 'Chat', voicebot: 'Voicebot', history: 'Chat-Verlauf',
+        appointments: 'Termine', users: 'User-Verwaltung', shares: 'Freigaben',
+        'voicebot-monitor': 'Voicebot-Monitor', tenants: 'Firmen (Tenants)',
+        'api-keys': 'API Keys', 'audit-log': 'Audit Log', settings: 'Einstellungen',
+        domains: 'Domains'
+      };
       return pages[this.page] || 'Dashboard';
     },
 
-    get filteredDocuments() {
-      return this.documents.filter(d => {
-        const matchSearch = !this.docSearchQuery || d.filename?.toLowerCase().includes(this.docSearchQuery.toLowerCase());
+    get filteredSources() {
+      return this.sources.filter(d => {
+        const name = (d.filename || d.name || '').toLowerCase();
+        const matchSearch = !this.docSearchQuery || name.includes(this.docSearchQuery.toLowerCase());
         const matchStatus = !this.docStatusFilter || d.status === this.docStatusFilter;
         return matchSearch && matchStatus;
       });
@@ -1028,50 +1729,107 @@ function app() {
       });
     },
 
-    // Initialization
+    // Init
     async init() {
       this.darkMode = localStorage.getItem('rag_dark') === 'true';
       if (this.darkMode) document.documentElement.classList.add('dark');
 
+      this.$watch('darkMode', (val) => {
+        localStorage.setItem('rag_dark', val);
+        document.documentElement.classList.toggle('dark', val);
+      });
+
       if (this.token) {
         try {
-          await this.loadSession();
-          this.authenticated = true;
-          await Promise.all([this.loadUsers(), this.loadTenants(), this.loadDocuments(), this.loadApiKeys(), this.loadAuditLog(), this.loadAppointments(), this.loadSettings(), this.loadStats()]);
-          this.initCharts();
+          await this.loadMe();
+          await this.loadInitialData();
         } catch(e) {
-          this.authenticated = false;
+          this.token = '';
+          this.me = null;
           localStorage.removeItem('rag_token');
         }
       }
     },
 
-    watch: {
-      darkMode: function(newVal) {
-        localStorage.setItem('rag_dark', newVal);
-        document.documentElement.classList.toggle('dark', newVal);
-      }
+    toggleDarkMode() {
+      this.darkMode = !this.darkMode;
     },
 
-    // Auth Methods
+    navigate(pg) {
+      this.page = pg;
+      this.sidebarOpen = false;
+      // Load page-specific data
+      if (pg === 'documents') this.loadSources();
+      if (pg === 'media') this.loadMedia();
+      if (pg === 'history') this.loadConversations();
+      if (pg === 'users') this.loadUsers();
+      if (pg === 'shares') this.loadShares();
+      if (pg === 'tenants') this.loadTenants();
+      if (pg === 'api-keys') this.loadApiKeys();
+      if (pg === 'audit-log') this.loadAuditLog();
+      if (pg === 'appointments') this.loadAppointments();
+      if (pg === 'settings') this.loadSettings();
+      if (pg === 'domains') this.loadDomains();
+      if (pg === 'voicebot-monitor') this.loadVoiceMonitor();
+      if (pg === 'dashboard') { this.loadStats(); this.$nextTick(() => this.initCharts()); }
+    },
+
+    onTenantChange() {
+      this.loadInitialData();
+    },
+
+    get activeTenantId() {
+      if (this.me && this.me.role === 'superadmin' && this.selectedTenantId) return this.selectedTenantId;
+      return this.me?.tenant_id || '';
+    },
+
+    // API Helper
+    async api(path, options = {}) {
+      const headers = {
+        'X-Session-Token': this.token,
+        ...(options.headers || {}),
+      };
+      // Only set Content-Type for non-FormData
+      if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+      }
+      const res = await fetch(path, {
+        ...options,
+        headers,
+      });
+      if (res.status === 401) {
+        this.logout();
+        return null;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Fehler' }));
+        throw new Error(err.detail || 'Fehler');
+      }
+      const text = await res.text();
+      if (!text) return {};
+      return JSON.parse(text);
+    },
+
+    // Auth
     async doLogin() {
       if (!this.loginEmail || !this.loginPassword) {
         this.loginError = 'E-Mail und Passwort erforderlich';
         return;
       }
-
       this.loginLoading = true;
       this.loginError = '';
-
       try {
-        const res = await this.api('POST', '/api/login', { email: this.loginEmail, password: this.loginPassword });
+        const res = await this.api('/api/login', {
+          method: 'POST',
+          body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword }),
+        });
+        if (!res) return;
         this.token = res.token;
         localStorage.setItem('rag_token', this.token);
-        this.authenticated = true;
         this.loginEmail = '';
         this.loginPassword = '';
-        await this.loadSession();
-        await Promise.all([this.loadUsers(), this.loadTenants(), this.loadDocuments(), this.loadApiKeys(), this.loadAuditLog(), this.loadAppointments(), this.loadSettings(), this.loadStats()]);
+        await this.loadMe();
+        await this.loadInitialData();
         this.initCharts();
       } catch(e) {
         this.loginError = e.message || 'Anmeldung fehlgeschlagen';
@@ -1080,201 +1838,323 @@ function app() {
       }
     },
 
-    async doLogout() {
-      this.authenticated = false;
+    logout() {
       this.token = '';
+      this.me = null;
       localStorage.removeItem('rag_token');
+      this.sources = [];
+      this.media = [];
       this.users = [];
       this.tenants = [];
-      this.documents = [];
+      this.conversations = [];
+      this.chatMessages = [];
+      // Disconnect voicebot
+      if (this.voiceRoom) {
+        this.voiceRoom.disconnect();
+        this.voiceRoom = null;
+      }
+      this.voiceState = 'idle';
     },
 
-    async loadSession() {
-      this.session = await this.api('GET', '/api/session');
+    async loadMe() {
+      this.me = await this.api('/api/session');
     },
 
-    // Data Loading
+    async loadInitialData() {
+      this.isLoading = true;
+      try {
+        await Promise.all([
+          this.loadStats(),
+          this.loadSources(),
+          this.loadMedia(),
+          this.me?.role !== 'user' ? this.loadUsers() : Promise.resolve(),
+          this.me?.role === 'superadmin' ? this.loadTenants() : Promise.resolve(),
+          this.loadAppointments(),
+        ]);
+        this.$nextTick(() => this.initCharts());
+      } catch(e) {
+        console.error('Load error:', e);
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    // Data loading
+    async loadStats() {
+      try { this.stats = await this.api('/api/stats') || {}; } catch(e) { this.stats = {}; }
+    },
+
+    async loadSources() {
+      try {
+        const data = await this.api('/api/sources');
+        this.sources = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.sources = []; }
+    },
+
+    async loadMedia() {
+      try {
+        const data = await this.api('/api/media');
+        this.media = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.media = []; }
+    },
+
+    async loadConversations() {
+      try {
+        let url = '/api/conversations?';
+        if (this.activeTenantId) url += `tenant_id=${this.activeTenantId}&`;
+        if (this.historyUserFilter) url += `user_id=${this.historyUserFilter}&`;
+        const data = await this.api(url);
+        this.conversations = (Array.isArray(data) ? data : (data?.items || [])).map(c => ({ ...c, _expanded: false }));
+      } catch(e) { this.conversations = []; }
+    },
+
     async loadUsers() {
-      try { this.users = await this.api('GET', '/api/users'); } catch(e) { this.errorHandler(e); }
+      try {
+        let url = '/api/users';
+        if (this.activeTenantId) url += `?tenant_id=${this.activeTenantId}`;
+        const data = await this.api(url);
+        this.users = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.users = []; }
     },
 
     async loadTenants() {
-      try { this.tenants = await this.api('GET', '/api/tenants'); } catch(e) { this.errorHandler(e); }
+      try {
+        const data = await this.api('/api/tenants');
+        this.tenants = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.tenants = []; }
     },
 
-    async loadDocuments() {
-      try { this.documents = await this.api('GET', '/api/documents'); } catch(e) { this.errorHandler(e); }
-    },
-
-    async loadApiKeys() {
-      try { this.apiKeys = await this.api('GET', '/api/api-keys'); } catch(e) { this.errorHandler(e); }
-    },
-
-    async loadAuditLog() {
-      try { this.auditLog = await this.api('GET', `/api/audit-log?limit=50&from=${this.auditFilterFrom}&to=${this.auditFilterTo}`); } catch(e) { this.errorHandler(e); }
+    async loadShares() {
+      try {
+        const data = await this.api(`/api/shares?content_type=${this.shareTypeFilter}`);
+        this.shares = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.shares = []; }
     },
 
     async loadAppointments() {
-      try { this.appointments = await this.api('GET', '/api/appointments'); } catch(e) { this.errorHandler(e); }
+      try {
+        const data = await this.api('/api/appointments');
+        this.appointments = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.appointments = []; }
     },
 
-    async loadSettings() {
+    async loadApiKeys() {
       try {
-        const settings = await this.api('GET', '/api/settings');
-        this.settingsForm = {
-          platform_name: settings.platform_name || 'EPPCOM',
-          support_email: settings.support_email || 'support@eppcom.de',
-          max_upload_size_mb: settings.max_upload_size_mb || 500,
-          embedding_model: settings.embedding_model || 'nomic-embed-text',
-          embedding_dimensions: settings.embedding_dimensions || 768,
-          chunk_size: settings.chunk_size || 1024,
-          session_timeout_minutes: settings.session_timeout_minutes || 120,
-          allowed_domains: settings.allowed_domains || ''
-        };
-      } catch(e) { this.errorHandler(e); }
+        const data = await this.api('/api/api-keys');
+        this.apiKeys = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.apiKeys = []; }
     },
 
-    async loadStats() {
+    async loadAuditLog() {
       try {
-        this.stats = await this.api('GET', '/api/analytics/summary');
-      } catch(e) { this.errorHandler(e); }
+        this.auditLog = await this.api(`/api/audit-log?limit=50&from=${this.auditFilterFrom}&to=${this.auditFilterTo}`) || [];
+        if (!Array.isArray(this.auditLog)) this.auditLog = [];
+      } catch(e) { this.auditLog = []; }
     },
 
     async loadMoreAuditLog() {
       try {
         const offset = this.auditLog.length;
-        const more = await this.api('GET', `/api/audit-log?limit=50&offset=${offset}&from=${this.auditFilterFrom}&to=${this.auditFilterTo}`);
-        this.auditLog = [...this.auditLog, ...more];
-      } catch(e) { this.errorHandler(e); }
+        const more = await this.api(`/api/audit-log?limit=50&offset=${offset}&from=${this.auditFilterFrom}&to=${this.auditFilterTo}`);
+        if (Array.isArray(more)) this.auditLog = [...this.auditLog, ...more];
+      } catch(e) { this.showToast(e.message, 'error'); }
     },
 
-    // CRUD Operations
-    async saveUser() {
-      if (!this.newUser.email) { this.errorHandler(new Error('E-Mail erforderlich')); return; }
-
+    async loadSettings() {
       try {
-        if (this.editingUserId) {
-          await this.api('PUT', `/api/users/${this.editingUserId}`, this.newUser);
-          this.showToast('User aktualisiert');
+        const s = await this.api('/api/settings');
+        this.settingsForm = {
+          platform_name: s?.platform_name || 'EPPCOM',
+          support_email: s?.support_email || 'support@eppcom.de',
+          max_upload_size_mb: s?.max_upload_size_mb || 500,
+          embedding_model: s?.embedding_model || 'qwen3-embedding',
+          embedding_dimensions: s?.embedding_dimensions || 1024,
+          chunk_size: s?.chunk_size || 1024,
+          session_timeout_minutes: s?.session_timeout_minutes || 120,
+          allowed_domains: s?.allowed_domains || ''
+        };
+      } catch(e) { /* ignore */ }
+    },
+
+    async loadDomains() {
+      try {
+        const data = await this.api('/api/domains');
+        this.domains = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.domains = []; }
+    },
+
+    async loadVoiceMonitor() {
+      try {
+        this.voiceMonitor = await this.api('/api/voicebot/monitor') || {};
+      } catch(e) { this.voiceMonitor = {}; }
+    },
+
+    // Document CRUD
+    async viewDocument(doc) {
+      try {
+        this.viewingDoc = doc;
+        const data = await this.api(`/api/sources/${doc.id}/content`);
+        this.viewingDocContent = data?.content || data?.text || JSON.stringify(data, null, 2);
+        this.showDocViewModal = true;
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async editDocument(doc) {
+      try {
+        this.editingDocId = doc.id;
+        const data = await this.api(`/api/sources/${doc.id}/content`);
+        this.editDocName = doc.filename || doc.name || '';
+        this.editDocContent = data?.content || data?.text || '';
+        this.showDocEditModal = true;
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async saveDocumentEdit() {
+      if (!this.editingDocId) return;
+      this.savingDoc = true;
+      try {
+        await this.api(`/api/sources/${this.editingDocId}/content`, {
+          method: 'PUT',
+          body: JSON.stringify({ content: this.editDocContent, name: this.editDocName }),
+        });
+        this.showToast('Dokument aktualisiert');
+        this.showDocEditModal = false;
+        this.loadSources();
+      } catch(e) { this.showToast(e.message, 'error'); }
+      finally { this.savingDoc = false; }
+    },
+
+    handleFileDrop(event) {
+      const files = event.dataTransfer.files;
+      if (files.length > 0) this.uploadFile = files[0];
+    },
+
+    async doUploadDocument() {
+      if (this.uploadTab === 'file' && !this.uploadFile) {
+        this.showToast('Bitte eine Datei auswaehlen', 'error');
+        return;
+      }
+      if (this.uploadTab === 'text' && !this.uploadTextContent.trim()) {
+        this.showToast('Bitte Text eingeben', 'error');
+        return;
+      }
+
+      this.uploadingDoc = true;
+      this.uploadProgress = 0;
+      try {
+        const fd = new FormData();
+        fd.append('tenant_id', this.activeTenantId);
+        if (this.uploadTags) fd.append('tags', this.uploadTags);
+
+        if (this.uploadTab === 'file') {
+          fd.append('file', this.uploadFile);
         } else {
-          await this.api('POST', '/api/users', this.newUser);
-          this.showToast('User erstellt');
+          fd.append('text_content', this.uploadTextContent);
+          fd.append('name', this.uploadTextName || 'Manueller Text');
         }
-        this.showCreateUser = false;
-        this.editingUserId = null;
-        this.newUser = {};
-        this.loadUsers();
-      } catch(e) { this.errorHandler(e); }
-    },
 
-    async deleteUserConfirm(id) {
-      if (!confirm('User wirklich löschen?')) return;
-      try {
-        await this.api('DELETE', `/api/users/${id}`);
-        this.showToast('User gelöscht');
-        this.loadUsers();
-      } catch(e) { this.errorHandler(e); }
-    },
+        // Use XMLHttpRequest for progress
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/sources/ingest');
+          xhr.setRequestHeader('X-Session-Token', this.token);
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) this.uploadProgress = Math.round((e.loaded / e.total) * 100);
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error(JSON.parse(xhr.responseText)?.detail || 'Upload fehlgeschlagen'));
+          };
+          xhr.onerror = () => reject(new Error('Netzwerkfehler'));
+          xhr.send(fd);
+        });
 
-    editUser(user) {
-      this.editingUserId = user.id;
-      this.newUser = {...user};
-      this.showCreateUser = true;
-    },
-
-    async saveTenant() {
-      if (!this.newTenant.name) { this.errorHandler(new Error('Name erforderlich')); return; }
-
-      try {
-        if (this.editingTenantId) {
-          await this.api('PUT', `/api/tenants/${this.editingTenantId}`, this.newTenant);
-          this.showToast('Tenant aktualisiert');
-        } else {
-          await this.api('POST', '/api/tenants', this.newTenant);
-          this.showToast('Tenant erstellt');
-        }
-        this.showCreateTenant = false;
-        this.editingTenantId = null;
-        this.newTenant = { max_docs: 500, max_chunks: 50000 };
-        this.loadTenants();
-      } catch(e) { this.errorHandler(e); }
-    },
-
-    editTenant(tenant) {
-      this.editingTenantId = tenant.id;
-      this.newTenant = {...tenant};
-      this.showCreateTenant = true;
+        this.showToast('Dokument hochgeladen');
+        this.showUploadModal = false;
+        this.uploadFile = null;
+        this.uploadTextName = '';
+        this.uploadTextContent = '';
+        this.uploadTags = '';
+        this.uploadProgress = 0;
+        this.loadSources();
+      } catch(e) {
+        this.showToast(e.message, 'error');
+      } finally {
+        this.uploadingDoc = false;
+      }
     },
 
     async deleteDocConfirm(id) {
-      if (!confirm('Dokument wirklich löschen?')) return;
+      if (!confirm('Dokument wirklich entfernen?')) return;
       try {
-        await this.api('DELETE', `/api/documents/${id}`);
-        this.showToast('Dokument gelöscht');
-        this.loadDocuments();
-      } catch(e) { this.errorHandler(e); }
+        await this.api(`/api/sources/${id}`, { method: 'DELETE' });
+        this.showToast('Dokument entfernt');
+        this.loadSources();
+      } catch(e) { this.showToast(e.message, 'error'); }
     },
 
-    async createApiKey() {
-      if (!this.newApiKey.name) { this.errorHandler(new Error('Name erforderlich')); return; }
+    // Media CRUD
+    handleMediaDrop(event) {
+      const files = event.dataTransfer.files;
+      if (files.length > 0) this.mediaUploadFile = files[0];
+    },
 
+    async doUploadMedia() {
+      if (!this.mediaUploadFile) {
+        this.showToast('Bitte eine Datei auswaehlen', 'error');
+        return;
+      }
+      this.uploadingMedia = true;
       try {
-        const res = await this.api('POST', '/api/api-keys', this.newApiKey);
-        this.generatedApiKey = res.key;
-        this.showToast('API Key erstellt');
-        await this.loadApiKeys();
-      } catch(e) { this.errorHandler(e); }
+        const fd = new FormData();
+        fd.append('tenant_id', this.activeTenantId);
+        fd.append('file', this.mediaUploadFile);
+        if (this.mediaUploadDesc) fd.append('description', this.mediaUploadDesc);
+        if (this.mediaUploadFolder) fd.append('folder', this.mediaUploadFolder);
+
+        await this.api('/api/media/upload', { method: 'POST', body: fd });
+        this.showToast('Medium hochgeladen');
+        this.showMediaUploadModal = false;
+        this.mediaUploadFile = null;
+        this.mediaUploadDesc = '';
+        this.mediaUploadFolder = '';
+        this.loadMedia();
+      } catch(e) { this.showToast(e.message, 'error'); }
+      finally { this.uploadingMedia = false; }
     },
 
-    async revokeApiKey(id) {
-      if (!confirm('API Key wirklich widerrufen?')) return;
+    editMedia(item) {
+      this.editingMediaId = item.id;
+      this.editMediaDesc = item.description || '';
+      this.editMediaFolder = item.folder || '';
+      this.editMediaPublic = item.is_public || false;
+      this.showMediaEditModal = true;
+    },
+
+    async saveMediaEdit() {
       try {
-        await this.api('DELETE', `/api/api-keys/${id}`);
-        this.showToast('API Key widerrufen');
-        this.loadApiKeys();
-      } catch(e) { this.errorHandler(e); }
+        const fd = new FormData();
+        fd.append('description', this.editMediaDesc);
+        fd.append('folder', this.editMediaFolder);
+        fd.append('is_public', this.editMediaPublic);
+
+        await this.api(`/api/media/${this.editingMediaId}`, { method: 'PUT', body: fd });
+        this.showToast('Medium aktualisiert');
+        this.showMediaEditModal = false;
+        this.loadMedia();
+      } catch(e) { this.showToast(e.message, 'error'); }
     },
 
-    async saveSetting(key, value) {
+    async deleteMediaConfirm(id) {
+      if (!confirm('Medium wirklich entfernen?')) return;
       try {
-        await this.api('PUT', '/api/settings', { [key]: value });
-        this.showToast('Einstellung gespeichert');
-      } catch(e) { this.errorHandler(e); }
+        await this.api(`/api/media/${id}`, { method: 'DELETE' });
+        this.showToast('Medium entfernt');
+        this.loadMedia();
+      } catch(e) { this.showToast(e.message, 'error'); }
     },
 
-    async saveAppt() {
-      try {
-        if (this.editingAppt && this.showApptDetail?.id) {
-          await this.api('PUT', `/api/appointments/${this.showApptDetail.id}`, this.newAppt);
-          this.showToast('Termin aktualisiert');
-        } else {
-          await this.api('POST', '/api/appointments', this.newAppt);
-          this.showToast('Termin erstellt');
-        }
-        this.showCreateAppt = false;
-        this.editingAppt = false;
-        this.newAppt = {};
-        this.loadAppointments();
-      } catch(e) { this.errorHandler(e); }
-    },
-
-    async deleteApptConfirm(id) {
-      if (!confirm('Termin wirklich löschen?')) return;
-      try {
-        await this.api('DELETE', `/api/appointments/${id}`);
-        this.showToast('Termin gelöscht');
-        this.loadAppointments();
-      } catch(e) { this.errorHandler(e); }
-    },
-
-    editAppt(appt) {
-      this.editingAppt = true;
-      this.showApptDetail = appt;
-      this.newAppt = {...appt};
-      this.showCreateAppt = true;
-    },
-
-    // RAG Chat
+    // Chat
     async sendChat() {
       const q = this.chatInput.trim();
       if (!q || this.chatLoading) return;
@@ -1284,18 +2164,382 @@ function app() {
       this.chatLoading = true;
       this.chatMessages.push({ role: 'loading', content: '' });
 
+      this.$nextTick(() => {
+        if (this.$refs.chatScroll) this.$refs.chatScroll.scrollTop = this.$refs.chatScroll.scrollHeight;
+      });
+
       try {
-        const tid = this.chatTenantId || this.session?.tenant_id || (this.tenants[0]?.id || '');
-        const r = await this.api('POST', '/api/rag-chat', { query: q, tenant_id: tid });
+        const r = await this.api('/api/rag-chat', {
+          method: 'POST',
+          body: JSON.stringify({ query: q, tenant_id: this.activeTenantId }),
+        });
         this.chatMessages.pop();
-        this.chatMessages.push({ role: 'assistant', content: r.answer, sources: r.sources, latency_ms: r.latency_ms });
+        this.chatMessages.push({
+          role: 'assistant',
+          content: r.answer,
+          sources: r.sources,
+          latency_ms: r.latency_ms,
+        });
       } catch(e) {
         this.chatMessages.pop();
         this.chatMessages.push({ role: 'error', content: e.message });
       }
 
       this.chatLoading = false;
-      this.$nextTick(() => { if (this.$refs.chatScroll) this.$refs.chatScroll.scrollTop = this.$refs.chatScroll.scrollHeight; });
+      this.$nextTick(() => {
+        if (this.$refs.chatScroll) this.$refs.chatScroll.scrollTop = this.$refs.chatScroll.scrollHeight;
+      });
+    },
+
+    // Voicebot (LiveKit)
+    async toggleVoice() {
+      if (this.voiceRoom) {
+        this.stopVoice();
+      } else {
+        this.startVoice();
+      }
+    },
+
+    async startVoice() {
+      if (this.voiceConnecting || this.voiceRoom) return;
+      this.voiceConnecting = true;
+      this.voiceState = 'connecting';
+      this.voiceStatusText = 'Verbinde...';
+
+      try {
+        // Load LiveKit SDK
+        await this.loadLiveKitSDK();
+
+        // Get token
+        const identity = 'admin-' + (this.me?.user_id || 'anon') + '-' + Date.now();
+        const res = await this.api('/api/livekit-token', {
+          method: 'POST',
+          body: JSON.stringify({ identity, room: 'eppcom-voice' }),
+        });
+
+        if (!res || !res.token) throw new Error('Kein Token erhalten');
+
+        const room = new LivekitClient.Room();
+        this.voiceRoom = room;
+
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+          if (track.kind === LivekitClient.Track.Kind.Audio) {
+            const el = track.attach();
+            el.autoplay = true;
+            el.volume = 1.0;
+            el.setAttribute('playsinline', '');
+            document.getElementById('voicebot-audio').appendChild(el);
+          }
+        });
+
+        room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+          track.detach().forEach(el => el.remove());
+        });
+
+        room.on(LivekitClient.RoomEvent.ParticipantConnected, () => {
+          this.voiceState = 'active';
+          this.voiceStatusText = 'Agent verbunden -- sprechen Sie!';
+        });
+
+        room.on(LivekitClient.RoomEvent.Disconnected, () => {
+          this.voiceRoom = null;
+          this.voiceConnecting = false;
+          this.voiceState = 'idle';
+          this.voiceStatusText = 'Getrennt. Antippen zum Neustart.';
+        });
+
+        const livekitUrl = res.url || 'wss://voice.eppcom.de';
+        await room.connect(livekitUrl, res.token);
+        await room.localParticipant.setMicrophoneEnabled(true);
+
+        this.voiceConnecting = false;
+        this.voiceState = 'active';
+        this.voiceStatusText = 'Verbunden -- sprechen Sie!';
+      } catch(e) {
+        this.voiceConnecting = false;
+        this.voiceRoom = null;
+        this.voiceState = 'idle';
+        this.voiceStatusText = 'Fehler: ' + (e.message || e);
+        console.error('[Voicebot]', e);
+      }
+    },
+
+    stopVoice() {
+      if (this.voiceRoom) {
+        this.voiceRoom.disconnect();
+        this.voiceRoom = null;
+      }
+      this.voiceConnecting = false;
+      this.voiceState = 'idle';
+      this.voiceStatusText = 'Beendet. Antippen zum Neustart.';
+      const ac = document.getElementById('voicebot-audio');
+      if (ac) ac.innerHTML = '';
+    },
+
+    loadLiveKitSDK() {
+      if (window.LivekitClient) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
+        s.onload = () => window.LivekitClient ? resolve() : reject(new Error('SDK nicht verfuegbar'));
+        s.onerror = () => reject(new Error('SDK konnte nicht geladen werden'));
+        document.head.appendChild(s);
+      });
+    },
+
+    // User CRUD
+    editUser(user) {
+      this.editingUserId = user.id;
+      this.newUser = { ...user };
+      this.showUserModal = true;
+    },
+
+    async saveUser() {
+      if (!this.newUser.email) {
+        this.showToast('E-Mail erforderlich', 'error');
+        return;
+      }
+      try {
+        if (this.editingUserId) {
+          await this.api(`/api/users/${this.editingUserId}`, {
+            method: 'PUT',
+            body: JSON.stringify(this.newUser),
+          });
+          this.showToast('Benutzer aktualisiert');
+        } else {
+          // For admin creating in own firm, set tenant_id
+          if (this.me.role === 'admin' && !this.newUser.tenant_id) {
+            this.newUser.tenant_id = this.me.tenant_id;
+          }
+          await this.api('/api/users', {
+            method: 'POST',
+            body: JSON.stringify(this.newUser),
+          });
+          this.showToast('Benutzer erstellt');
+        }
+        this.showUserModal = false;
+        this.editingUserId = null;
+        this.newUser = {};
+        this.loadUsers();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async deleteUserConfirm(id) {
+      if (!confirm('Benutzer wirklich entfernen?')) return;
+      try {
+        await this.api(`/api/users/${id}`, { method: 'DELETE' });
+        this.showToast('Benutzer entfernt');
+        this.loadUsers();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    openPasswordModal(user) {
+      this.passwordUser = user;
+      this.newPassword = '';
+      this.newPasswordConfirm = '';
+      this.showPasswordModal = true;
+    },
+
+    async changePassword() {
+      if (!this.newPassword) {
+        this.showToast('Passwort erforderlich', 'error');
+        return;
+      }
+      if (this.newPassword !== this.newPasswordConfirm) {
+        this.showToast('Passwoerter stimmen nicht ueberein', 'error');
+        return;
+      }
+      try {
+        await this.api(`/api/users/${this.passwordUser.id}/password`, {
+          method: 'PUT',
+          body: JSON.stringify({ password: this.newPassword }),
+        });
+        this.showToast('Passwort geaendert');
+        this.showPasswordModal = false;
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    // Shares
+    async loadShareableContent() {
+      try {
+        if (this.newShare.content_type === 'source') {
+          this.shareableContent = this.sources;
+        } else if (this.newShare.content_type === 'media') {
+          this.shareableContent = this.media;
+        } else {
+          await this.loadConversations();
+          this.shareableContent = this.conversations;
+        }
+      } catch(e) { this.shareableContent = []; }
+    },
+
+    async createShare() {
+      if (!this.newShare.content_id || this.newShare.user_ids.length === 0) {
+        this.showToast('Bitte Inhalt und Benutzer auswaehlen', 'error');
+        return;
+      }
+      try {
+        await this.api('/api/shares/bulk', {
+          method: 'POST',
+          body: JSON.stringify({
+            content_type: this.newShare.content_type,
+            content_id: this.newShare.content_id,
+            user_ids: this.newShare.user_ids,
+          }),
+        });
+        this.showToast('Freigabe erstellt');
+        this.showShareModal = false;
+        this.newShare = { content_type: 'source', content_id: '', user_ids: [] };
+        this.loadShares();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async deleteShareConfirm(id) {
+      if (!confirm('Freigabe wirklich entfernen?')) return;
+      try {
+        await this.api(`/api/shares/${id}`, { method: 'DELETE' });
+        this.showToast('Freigabe entfernt');
+        this.loadShares();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    // Tenant CRUD
+    editTenant(tenant) {
+      this.editingTenantId = tenant.id;
+      this.newTenant = { ...tenant };
+      this.showCreateTenant = true;
+    },
+
+    async saveTenant() {
+      if (!this.newTenant.name) {
+        this.showToast('Name erforderlich', 'error');
+        return;
+      }
+      try {
+        if (this.editingTenantId) {
+          await this.api(`/api/tenants/${this.editingTenantId}`, {
+            method: 'PUT',
+            body: JSON.stringify(this.newTenant),
+          });
+          this.showToast('Firma aktualisiert');
+        } else {
+          await this.api('/api/tenants', {
+            method: 'POST',
+            body: JSON.stringify(this.newTenant),
+          });
+          this.showToast('Firma erstellt');
+        }
+        this.showCreateTenant = false;
+        this.editingTenantId = null;
+        this.newTenant = { max_docs: 500, max_chunks: 50000 };
+        this.loadTenants();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    // API Key CRUD
+    async createApiKey() {
+      if (!this.newApiKey.name) {
+        this.showToast('Name erforderlich', 'error');
+        return;
+      }
+      try {
+        const res = await this.api('/api/api-keys', {
+          method: 'POST',
+          body: JSON.stringify(this.newApiKey),
+        });
+        this.generatedApiKey = res.key;
+        this.showToast('API Key erstellt');
+        this.loadApiKeys();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async revokeApiKey(id) {
+      if (!confirm('API Key wirklich widerrufen?')) return;
+      try {
+        await this.api(`/api/api-keys/${id}`, { method: 'DELETE' });
+        this.showToast('API Key widerrufen');
+        this.loadApiKeys();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    // Settings
+    async saveSetting(key, value) {
+      try {
+        await this.api('/api/settings', {
+          method: 'PUT',
+          body: JSON.stringify({ [key]: value }),
+        });
+        this.showToast('Einstellung gespeichert');
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    // Appointments
+    editAppt(appt) {
+      this.editingAppt = true;
+      this.newAppt = { ...appt };
+      this.showCreateAppt = true;
+    },
+
+    async saveAppt() {
+      if (!this.newAppt.title) {
+        this.showToast('Titel erforderlich', 'error');
+        return;
+      }
+      try {
+        if (this.editingAppt && this.newAppt.id) {
+          await this.api(`/api/appointments/${this.newAppt.id}`, {
+            method: 'PUT',
+            body: JSON.stringify(this.newAppt),
+          });
+          this.showToast('Termin aktualisiert');
+        } else {
+          await this.api('/api/appointments', {
+            method: 'POST',
+            body: JSON.stringify(this.newAppt),
+          });
+          this.showToast('Termin erstellt');
+        }
+        this.showCreateAppt = false;
+        this.editingAppt = false;
+        this.newAppt = {};
+        this.loadAppointments();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async deleteApptConfirm(id) {
+      if (!confirm('Termin wirklich entfernen?')) return;
+      try {
+        await this.api(`/api/appointments/${id}`, { method: 'DELETE' });
+        this.showToast('Termin entfernt');
+        this.loadAppointments();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    // Domains
+    async addDomain() {
+      if (!this.newDomain) {
+        this.showToast('Domain erforderlich', 'error');
+        return;
+      }
+      try {
+        await this.api('/api/domains', {
+          method: 'POST',
+          body: JSON.stringify({ domain: this.newDomain }),
+        });
+        this.showToast('Domain hinzugefuegt');
+        this.showDomainModal = false;
+        this.newDomain = '';
+        this.loadDomains();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async deleteDomainConfirm(id) {
+      if (!confirm('Domain wirklich entfernen?')) return;
+      try {
+        await this.api(`/api/domains/${id}`, { method: 'DELETE' });
+        this.showToast('Domain entfernt');
+        this.loadDomains();
+      } catch(e) { this.showToast(e.message, 'error'); }
     },
 
     // Charts
@@ -1304,6 +2548,10 @@ function app() {
         try {
           const ctxConv = this.$refs.conversationsChart?.getContext('2d');
           if (ctxConv) {
+            // Destroy existing chart if any
+            const existingConv = Chart.getChart(ctxConv.canvas);
+            if (existingConv) existingConv.destroy();
+
             new Chart(ctxConv, {
               type: 'line',
               data: {
@@ -1312,22 +2560,25 @@ function app() {
                   label: 'Conversations',
                   data: [12, 19, 3, 5, 2, 3, 1],
                   borderColor: '#1a33f5',
-                  backgroundColor: '#1a33f5' + '20',
+                  backgroundColor: '#1a33f520',
                   tension: 0.4,
-                  fill: true
-                }]
+                  fill: true,
+                }],
               },
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-              }
+                scales: { y: { beginAtZero: true } },
+              },
             });
           }
 
           const ctxDocs = this.$refs.documentsChart?.getContext('2d');
           if (ctxDocs) {
+            const existingDocs = Chart.getChart(ctxDocs.canvas);
+            if (existingDocs) existingDocs.destroy();
+
             new Chart(ctxDocs, {
               type: 'bar',
               data: {
@@ -1335,15 +2586,15 @@ function app() {
                 datasets: [{
                   label: 'Dokumente',
                   data: [5, 8, 3, 7, 4, 6, 2, 9],
-                  backgroundColor: '#38bdf8' + '80'
-                }]
+                  backgroundColor: '#38bdf880',
+                }],
               },
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-              }
+                scales: { y: { beginAtZero: true } },
+              },
             });
           }
         } catch(e) { console.error('Chart error:', e); }
@@ -1351,30 +2602,12 @@ function app() {
     },
 
     // Helpers
-    async api(method, url, body=null) {
-      const opts = { method, headers: { 'X-Session-Token': this.token, 'Content-Type': 'application/json' } };
-      if (body) opts.body = JSON.stringify(body);
-      const r = await fetch(url, opts);
-      const d = await r.json();
-
-      if (r.status === 401) {
-        this.authenticated = false;
-        localStorage.removeItem('rag_token');
-        throw new Error('Sitzung abgelaufen');
-      }
-
-      if (!r.ok) throw new Error(d.detail || 'API Error');
-      return d;
-    },
-
-    errorHandler(e) {
-      console.error(e);
-      this.showToast(e.message || 'Fehler', 'error');
-    },
-
-    showToast(msg, type='success') {
-      this.toast = { show: true, msg, type };
-      setTimeout(() => this.toast.show = false, 3000);
+    showToast(msg, type = 'success') {
+      const id = ++this.toastCounter;
+      this.toasts.push({ id, msg, type });
+      setTimeout(() => {
+        this.toasts = this.toasts.filter(t => t.id !== id);
+      }, 3500);
     },
 
     fmtDate(d) {
@@ -1383,41 +2616,47 @@ function app() {
     },
 
     getTenantName(tid) {
-      return this.tenants.find(t => t.id === tid)?.name || tid;
+      return this.tenants.find(t => t.id === tid)?.name || tid?.slice?.(0, 8) || '-';
     },
 
     badgeForRole(role) {
       const map = { superadmin: 'badge-error', admin: 'badge-warning', user: 'badge-info' };
-      return map[role] || 'badge-neutral';
+      return map[role] || 'badge-info';
     },
 
     badgeForDocStatus(status) {
-      const map = { processing: 'badge-warning', completed: 'badge-success', error: 'badge-error' };
-      return map[status] || 'badge-neutral';
+      const map = { pending: 'badge-warning', processing: 'badge-warning', completed: 'badge-success', error: 'badge-error' };
+      return map[status] || 'badge-info';
+    },
+
+    docStatusLabel(status) {
+      const map = { pending: 'Ausstehend', processing: 'Verarbeitung', completed: 'Fertig', error: 'Fehler' };
+      return map[status] || status || '-';
     },
 
     badgeForAction(action) {
+      if (!action) return 'badge-info';
       if (action.includes('login')) return 'badge-info';
       if (action.includes('delete')) return 'badge-error';
       if (action.includes('create')) return 'badge-success';
       if (action.includes('update')) return 'badge-warning';
-      return 'badge-neutral';
+      return 'badge-info';
     },
 
     badgeForApptStatus(status) {
       const map = { scheduled: 'badge-info', completed: 'badge-success', cancelled: 'badge-error', blocked: 'badge-warning' };
-      return map[status] || 'badge-neutral';
+      return map[status] || 'badge-info';
     },
 
     apptStatusLabel(status) {
       const map = { scheduled: 'Geplant', completed: 'Erledigt', cancelled: 'Abgesagt', blocked: 'Geblockt' };
-      return map[status] || status;
+      return map[status] || status || '-';
     },
 
     copyToClipboard(text) {
       navigator.clipboard.writeText(text);
       this.showToast('In Zwischenablage kopiert');
-    }
+    },
   };
 }
 </script>

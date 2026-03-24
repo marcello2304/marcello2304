@@ -867,7 +867,11 @@ async def list_sources(
             params.append(user_id)
             idx += 1
     else:
-        conditions.append(f"s.user_id=${idx}::uuid")
+        # User sieht eigene + freigegebene Dokumente
+        conditions.append(f"""(s.user_id=${idx}::uuid OR s.id IN (
+            SELECT content_id FROM public.content_shares
+            WHERE shared_with=${idx}::uuid AND content_type='source'
+        ))""")
         params.append(session.user_id)
         idx += 1
 
@@ -1038,7 +1042,13 @@ async def get_source_content(source_id: str, session: SessionInfo = Depends(requ
         if not session.can_access_tenant(str(source["tenant_id"])):
             raise HTTPException(403, "Kein Zugriff")
         if not session.is_admin() and str(source["user_id"]) != session.user_id:
-            raise HTTPException(403, "Nur eigene Quellen einsehen")
+            # Prüfe ob Dokument für diesen User freigegeben ist
+            shared = await db.fetchval(
+                "SELECT 1 FROM public.content_shares WHERE content_type='source' AND content_id=$1::uuid AND shared_with=$2::uuid",
+                source_id, session.user_id
+            )
+            if not shared:
+                raise HTTPException(403, "Nur eigene Quellen einsehen")
 
     doc = await db.fetchrow(
         "SELECT content FROM public.documents WHERE source_id=$1::uuid ORDER BY created_at DESC LIMIT 1",
@@ -1168,6 +1178,141 @@ async def delete_source(source_id: str, session: SessionInfo = Depends(require_a
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ROUTES: Content Sharing (Admin verteilt Zugriff)
+# ══════════════════════════════════════════════════════════════════════════════
+@app.get("/api/shares")
+async def list_shares(
+    content_type: str = Query(None),
+    tenant_id: str = Query(None),
+    session: SessionInfo = Depends(require_auth),
+):
+    """Listet Freigaben auf. Admins sehen alle der Firma, User nur eigene."""
+    db = await get_db()
+    conditions = []
+    params = []
+    idx = 1
+
+    if session.is_superadmin():
+        if tenant_id:
+            conditions.append(f"cs.tenant_id=${idx}::uuid")
+            params.append(tenant_id)
+            idx += 1
+    elif session.is_admin() and session.tenant_id:
+        conditions.append(f"cs.tenant_id=${idx}::uuid")
+        params.append(session.tenant_id)
+        idx += 1
+    else:
+        conditions.append(f"(cs.shared_with=${idx}::uuid OR cs.shared_by=${idx}::uuid)")
+        params.append(session.user_id)
+        idx += 1
+
+    if content_type:
+        conditions.append(f"cs.content_type=${idx}")
+        params.append(content_type)
+        idx += 1
+
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
+    rows = await db.fetch(f"""
+        SELECT cs.id, cs.content_type, cs.content_id, cs.shared_by, cs.shared_with,
+               cs.tenant_id, cs.created_at,
+               sb.display_name AS shared_by_name, sb.email AS shared_by_email,
+               sw.display_name AS shared_with_name, sw.email AS shared_with_email
+        FROM public.content_shares cs
+        LEFT JOIN public.users sb ON sb.id=cs.shared_by
+        LEFT JOIN public.users sw ON sw.id=cs.shared_with
+        {where}
+        ORDER BY cs.created_at DESC
+        LIMIT 500
+    """, *params)
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/shares", status_code=201)
+async def create_share(request: Request, session: SessionInfo = Depends(require_admin)):
+    """Erstellt eine Freigabe. Nur Admins können Inhalte für User freigeben."""
+    body = await request.json()
+    content_type = body.get("content_type", "")
+    content_id = body.get("content_id", "")
+    shared_with = body.get("shared_with", "")
+
+    if content_type not in ("source", "media", "conversation"):
+        raise HTTPException(400, "content_type muss 'source', 'media' oder 'conversation' sein")
+    if not content_id or not shared_with:
+        raise HTTPException(400, "content_id und shared_with erforderlich")
+
+    db = await get_db()
+
+    # Prüfe ob der Ziel-User im selben Tenant ist
+    target = await db.fetchrow("SELECT tenant_id FROM public.users WHERE id=$1::uuid AND is_active=true", shared_with)
+    if not target:
+        raise HTTPException(404, "Ziel-User nicht gefunden")
+    if not session.is_superadmin():
+        if str(target["tenant_id"]) != session.tenant_id:
+            raise HTTPException(403, "User gehört nicht zur gleichen Firma")
+
+    effective_tenant = session.tenant_id or str(target["tenant_id"])
+
+    try:
+        share_id = await db.fetchval("""
+            INSERT INTO public.content_shares (content_type, content_id, shared_by, shared_with, tenant_id)
+            VALUES ($1, $2::uuid, $3::uuid, $4::uuid, $5::uuid)
+            RETURNING id
+        """, content_type, content_id, session.user_id, shared_with, effective_tenant)
+        return {"id": str(share_id), "message": "Freigabe erstellt"}
+    except Exception:
+        raise HTTPException(409, "Freigabe existiert bereits")
+
+
+@app.delete("/api/shares/{share_id}")
+async def delete_share(share_id: str, session: SessionInfo = Depends(require_admin)):
+    """Entfernt eine Freigabe."""
+    db = await get_db()
+    share = await db.fetchrow("SELECT tenant_id FROM public.content_shares WHERE id=$1::uuid", share_id)
+    if not share:
+        raise HTTPException(404, "Freigabe nicht gefunden")
+    if not session.is_superadmin() and str(share["tenant_id"]) != session.tenant_id:
+        raise HTTPException(403, "Kein Zugriff")
+
+    await db.execute("DELETE FROM public.content_shares WHERE id=$1::uuid", share_id)
+    return {"message": "Freigabe entfernt"}
+
+
+@app.post("/api/shares/bulk", status_code=201)
+async def create_shares_bulk(request: Request, session: SessionInfo = Depends(require_admin)):
+    """Erstellt mehrere Freigaben auf einmal (Admin wählt Dokument + mehrere User)."""
+    body = await request.json()
+    content_type = body.get("content_type", "")
+    content_id = body.get("content_id", "")
+    user_ids = body.get("user_ids", [])
+
+    if content_type not in ("source", "media", "conversation"):
+        raise HTTPException(400, "Ungültiger content_type")
+    if not content_id or not user_ids:
+        raise HTTPException(400, "content_id und user_ids erforderlich")
+
+    db = await get_db()
+    effective_tenant = session.tenant_id
+    if not effective_tenant and session.is_superadmin():
+        effective_tenant = body.get("tenant_id", "")
+    if not effective_tenant:
+        raise HTTPException(400, "Tenant erforderlich")
+
+    created = 0
+    for uid in user_ids:
+        try:
+            await db.execute("""
+                INSERT INTO public.content_shares (content_type, content_id, shared_by, shared_with, tenant_id)
+                VALUES ($1, $2::uuid, $3::uuid, $4::uuid, $5::uuid)
+                ON CONFLICT DO NOTHING
+            """, content_type, content_id, session.user_id, uid, effective_tenant)
+            created += 1
+        except Exception:
+            pass
+
+    return {"created": created, "message": f"{created} Freigaben erstellt"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ROUTES: Media-Dateien (S3, User-scoped, DB-tracked)
 # ══════════════════════════════════════════════════════════════════════════════
 @app.get("/api/media")
@@ -1196,7 +1341,11 @@ async def list_media(
         params.append(session.tenant_id)
         idx += 1
         if not session.is_admin():
-            conditions.append(f"m.user_id=${idx}::uuid")
+            # User sieht eigene + freigegebene Medien
+            conditions.append(f"""(m.user_id=${idx}::uuid OR m.id IN (
+                SELECT content_id FROM public.content_shares
+                WHERE shared_with=${idx}::uuid AND content_type='media'
+            ))""")
             params.append(session.user_id)
             idx += 1
         elif user_id:
@@ -1204,7 +1353,10 @@ async def list_media(
             params.append(user_id)
             idx += 1
     else:
-        conditions.append(f"m.user_id=${idx}::uuid")
+        conditions.append(f"""(m.user_id=${idx}::uuid OR m.id IN (
+            SELECT content_id FROM public.content_shares
+            WHERE shared_with=${idx}::uuid AND content_type='media'
+        ))""")
         params.append(session.user_id)
         idx += 1
 
@@ -1458,10 +1610,11 @@ async def rag_chat(body: RagChatRequest, session: SessionInfo = Depends(require_
     try:
         await db.execute(
             """INSERT INTO public.conversations
-               (tenant_id, session_id, user_question, rag_answer,
+               (tenant_id, session_id, user_id, user_question, rag_answer,
                 kernaussage, kernfrage, chunks_used, latency_ms, sources)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
-            uuid.UUID(tenant_id), f"ui_{session.user_id}", query, answer,
+               VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)""",
+            uuid.UUID(tenant_id), f"ui_{session.user_id}",
+            session.user_id, query, answer,
             kernaussage or None, kernfrage or None,
             chunks_used, elapsed, json.dumps(sources_info),
         )
@@ -1594,6 +1747,7 @@ async def _summarize_conversation(question: str, answer: str) -> tuple:
 async def _save_conversation_bg(
     tenant_id: str, session_id: str, query: str, answer: str,
     chunks_used: int, elapsed: int, sources_info: list,
+    user_id: str = None,
 ):
     """Speichert Conversation + Summarization im Hintergrund (fire-and-forget)."""
     try:
@@ -1601,10 +1755,10 @@ async def _save_conversation_bg(
         db = await get_db()
         await db.execute(
             """INSERT INTO public.conversations
-               (tenant_id, session_id, user_question, rag_answer,
+               (tenant_id, session_id, user_id, user_question, rag_answer,
                 kernaussage, kernfrage, chunks_used, latency_ms, sources)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
-            uuid.UUID(tenant_id), session_id, query, answer,
+               VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $9, $10)""",
+            uuid.UUID(tenant_id), session_id, user_id, query, answer,
             kernaussage or None, kernfrage or None,
             chunks_used, elapsed, json.dumps(sources_info),
         )
@@ -1622,7 +1776,7 @@ async def _resolve_tenant_by_domain(origin: str) -> Optional[str]:
     row = await db.fetchrow(
         """SELECT dw.tenant_id FROM public.domain_whitelist dw
            JOIN public.tenants t ON t.id = dw.tenant_id
-           WHERE dw.domain = $1 AND dw.is_active = true AND t.is_active = true""",
+           WHERE dw.domain = $1 AND dw.is_active = true AND t.status = 'active'""",
         domain,
     )
     return str(row["tenant_id"]) if row else None
@@ -1760,38 +1914,74 @@ async def public_chat(request: Request):
 @app.get("/api/conversations")
 async def list_conversations(
     tenant_id: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
     session: SessionInfo = Depends(require_auth),
 ):
     db = await get_db()
     if session.is_superadmin():
+        conditions = []
+        params = []
+        idx = 1
         if tenant_id:
+            conditions.append(f"c.tenant_id = ${idx}")
+            params.append(uuid.UUID(tenant_id))
+            idx += 1
+        if user_id:
+            conditions.append(f"c.user_id = ${idx}::uuid")
+            params.append(user_id)
+            idx += 1
+        where = "WHERE " + " AND ".join(conditions) if conditions else ""
+        rows = await db.fetch(
+            f"""SELECT c.*, t.slug AS tenant_slug, u.display_name AS user_name, u.email AS user_email
+                FROM public.conversations c
+                JOIN public.tenants t ON t.id = c.tenant_id
+                LEFT JOIN public.users u ON u.id = c.user_id
+                {where} ORDER BY c.created_at DESC LIMIT 200""",
+            *params,
+        )
+    elif session.is_admin() and session.tenant_id:
+        if user_id:
             rows = await db.fetch(
-                """SELECT c.*, t.slug AS tenant_slug FROM public.conversations c
+                """SELECT c.*, t.slug AS tenant_slug, u.display_name AS user_name, u.email AS user_email
+                   FROM public.conversations c
                    JOIN public.tenants t ON t.id = c.tenant_id
-                   WHERE c.tenant_id = $1 ORDER BY c.created_at DESC LIMIT 200""",
-                uuid.UUID(tenant_id),
+                   LEFT JOIN public.users u ON u.id = c.user_id
+                   WHERE c.tenant_id = $1 AND c.user_id = $2::uuid
+                   ORDER BY c.created_at DESC LIMIT 200""",
+                uuid.UUID(session.tenant_id), user_id,
             )
         else:
             rows = await db.fetch(
-                """SELECT c.*, t.slug AS tenant_slug FROM public.conversations c
+                """SELECT c.*, t.slug AS tenant_slug, u.display_name AS user_name, u.email AS user_email
+                   FROM public.conversations c
                    JOIN public.tenants t ON t.id = c.tenant_id
+                   LEFT JOIN public.users u ON u.id = c.user_id
+                   WHERE c.tenant_id = $1
                    ORDER BY c.created_at DESC LIMIT 200""",
+                uuid.UUID(session.tenant_id),
             )
-    elif session.tenant_id:
-        rows = await db.fetch(
-            """SELECT c.*, t.slug AS tenant_slug FROM public.conversations c
-               JOIN public.tenants t ON t.id = c.tenant_id
-               WHERE c.tenant_id = $1 ORDER BY c.created_at DESC LIMIT 200""",
-            uuid.UUID(session.tenant_id),
-        )
     else:
-        return []
+        # User sieht eigene + freigegebene Chats
+        rows = await db.fetch(
+            """SELECT c.*, t.slug AS tenant_slug, u.display_name AS user_name, u.email AS user_email
+               FROM public.conversations c
+               JOIN public.tenants t ON t.id = c.tenant_id
+               LEFT JOIN public.users u ON u.id = c.user_id
+               WHERE (c.user_id = $1::uuid OR c.id IN (
+                   SELECT content_id FROM public.content_shares
+                   WHERE shared_with = $1::uuid AND content_type = 'conversation'
+               ))
+               ORDER BY c.created_at DESC LIMIT 200""",
+            session.user_id,
+        )
 
     result = []
     for r in rows:
         d = dict(r)
         d["id"] = str(d["id"])
         d["tenant_id"] = str(d["tenant_id"])
+        if d.get("user_id"):
+            d["user_id"] = str(d["user_id"])
         d["created_at"] = d["created_at"].isoformat() if d["created_at"] else None
         if isinstance(d.get("sources"), str):
             d["sources"] = json.loads(d["sources"])
@@ -2076,7 +2266,7 @@ LIVEKIT_KEY    = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
 
 @app.post("/api/livekit-token")
-async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_admin)):
+async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_auth)):
     """LiveKit-Token generieren für Voice-Bot-Zugang."""
     if not LIVEKIT_KEY or not LIVEKIT_SECRET:
         raise HTTPException(503, "LiveKit ist nicht konfiguriert (LIVEKIT_API_KEY/SECRET fehlen)")
