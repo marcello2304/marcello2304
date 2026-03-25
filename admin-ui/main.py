@@ -755,6 +755,8 @@ async def create_user(body: UserCreate, session: SessionInfo = Depends(require_a
     tid = body.tenant_id
     if not session.is_superadmin() and session.tenant_id:
         tid = session.tenant_id
+    if not tid:
+        raise HTTPException(400, "Bitte eine Firma (Tenant) zuweisen — User ohne Tenant können keine Dokumente hochladen oder chatten")
 
     try:
         user_id = await db.fetchval(
@@ -2373,24 +2375,9 @@ JITSI_APP_ID     = os.getenv("JITSI_APP_ID", "eppcom")
 JITSI_APP_SECRET = os.getenv("JITSI_APP_SECRET", "")
 JITSI_URL        = os.getenv("JITSI_URL", "https://meet.eppcom.de")
 
-@app.post("/api/jitsi-token")
-async def get_jitsi_token(body: dict, session: SessionInfo = Depends(require_auth)):
-    """JWT-Token fuer Jitsi Meet generieren — authentifiziert User mit ihren Platform-Credentials."""
-    if not JITSI_APP_SECRET:
-        raise HTTPException(503, "Jitsi ist nicht konfiguriert (JITSI_APP_SECRET fehlt)")
-
-    room = body.get("room", "eppcom-meeting")
-    # Raumnamen normalisieren
-    room = re.sub(r'[^a-zA-Z0-9_-]', '', room) or "eppcom-meeting"
-
+def _generate_jitsi_jwt(room: str, user_id: str, display_name: str, email: str, is_moderator: bool) -> str:
+    """Erzeugt ein Jitsi-JWT für den gegebenen User und Raum."""
     import hmac, base64, time as _time
-
-    # Moderator-Berechtigung: nur Marcel Eppler / EPPCOM
-    display = (session.display_name or "").strip()
-    email = (session.email or "").strip().lower()
-    is_moderator = any(tag in display.upper() for tag in ["MARCEL", "EPPLER", "EPPCOM"]) or \
-                   "eppler" in email or "eppcom" in email
-
     header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=")
     now = int(_time.time())
     payload_data = {
@@ -2404,9 +2391,9 @@ async def get_jitsi_token(body: dict, session: SessionInfo = Depends(require_aut
         "moderator": is_moderator,
         "context": {
             "user": {
-                "id": session.user_id,
-                "name": session.display_name or session.email,
-                "email": session.email,
+                "id": user_id,
+                "name": display_name or email,
+                "email": email,
                 "avatar": "",
                 "moderator": is_moderator,
             },
@@ -2417,13 +2404,251 @@ async def get_jitsi_token(body: dict, session: SessionInfo = Depends(require_aut
     signature = base64.urlsafe_b64encode(
         hmac.new(JITSI_APP_SECRET.encode(), signing_input, hashlib.sha256).digest()
     ).rstrip(b"=")
-    token = (signing_input + b"." + signature).decode()
+    return (signing_input + b"." + signature).decode()
+
+
+@app.post("/api/jitsi-token")
+async def get_jitsi_token(body: dict, session: SessionInfo = Depends(require_auth)):
+    """JWT-Token fuer Jitsi Meet generieren — authentifiziert User mit ihren Platform-Credentials."""
+    if not JITSI_APP_SECRET:
+        raise HTTPException(503, "Jitsi ist nicht konfiguriert (JITSI_APP_SECRET fehlt)")
+
+    room = body.get("room", "eppcom-meeting")
+    room = re.sub(r'[^a-zA-Z0-9_-]', '', room) or "eppcom-meeting"
+
+    display = (session.display_name or "").strip()
+    email = (session.email or "").strip().lower()
+    is_moderator = any(tag in display.upper() for tag in ["MARCEL", "EPPLER", "EPPCOM"]) or \
+                   "eppler" in email or "eppcom" in email
+
+    token = _generate_jitsi_jwt(room, session.user_id, session.display_name, session.email, is_moderator)
 
     return {
         "token": token,
         "room": room,
         "url": f"{JITSI_URL}/{room}?jwt={token}",
     }
+
+
+@app.post("/api/jitsi-auth")
+async def jitsi_auth_login(body: dict):
+    """Öffentlicher Endpoint: Login + JWT-Token für Jitsi Meet (für meeting-auth Seite)."""
+    if not JITSI_APP_SECRET:
+        raise HTTPException(503, "Jitsi ist nicht konfiguriert")
+
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+    room = body.get("room") or "eppcom-meeting"
+    room = re.sub(r'[^a-zA-Z0-9_-]', '', room) or "eppcom-meeting"
+
+    if not email or not password:
+        raise HTTPException(400, "E-Mail und Passwort erforderlich")
+
+    db = await get_db()
+    user = await db.fetchrow(
+        "SELECT id, email, password_hash, display_name, role, is_active FROM public.users WHERE email=$1",
+        email
+    )
+    if not user:
+        raise HTTPException(401, "E-Mail oder Passwort falsch")
+    if not user["is_active"]:
+        raise HTTPException(403, "Account deaktiviert")
+    if not _verify_password(password, user["password_hash"]):
+        raise HTTPException(401, "E-Mail oder Passwort falsch")
+
+    # Nur admin/superadmin dürfen Moderator sein
+    if user["role"] not in ("admin", "superadmin"):
+        raise HTTPException(403, "Nur Administratoren können als Moderator beitreten")
+
+    token = _generate_jitsi_jwt(
+        room, str(user["id"]), user["display_name"], user["email"], is_moderator=True
+    )
+
+    return {
+        "token": token,
+        "room": room,
+        "url": f"{JITSI_URL}/{room}?jwt={token}",
+        "display_name": user["display_name"],
+    }
+
+
+@app.get("/meeting-auth")
+async def meeting_auth_page(room: str = "eppcom-meeting"):
+    """Standalone Meeting-Auth Seite: Moderator-Login oder Gast-Beitritt."""
+    room_safe = re.sub(r'[^a-zA-Z0-9_-]', '', room) or "eppcom-meeting"
+    jitsi_guest_url = f"{JITSI_URL}/{room_safe}"
+    html = f"""<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting beitreten — EPPCOM</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body {{ font-family: 'Inter', system-ui, sans-serif; }}
+  .fade-in {{ animation: fadeIn .3s ease-out; }}
+  @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(10px); }} to {{ opacity:1; transform:translateY(0); }} }}
+</style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen flex items-center justify-center p-4">
+  <div id="app" class="w-full max-w-md">
+
+    <!-- Step 1: Moderator-Frage -->
+    <div id="step-question" class="bg-white rounded-2xl shadow-2xl p-8 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg">
+          <span class="text-xl font-bold text-white">E</span>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">Meeting beitreten</h1>
+          <p class="text-sm text-slate-500">Raum: <span class="font-medium text-blue-600">{room_safe}</span></p>
+        </div>
+      </div>
+      <p class="text-slate-700 mb-6">Sind Sie der Moderator dieses Meetings?</p>
+      <div class="flex gap-3">
+        <button onclick="showLogin()" class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-blue-500 transition-all shadow-sm">
+          Ja, ich bin Moderator
+        </button>
+        <button onclick="joinAsGuest()" class="flex-1 bg-slate-100 text-slate-700 py-3 px-4 rounded-xl font-semibold hover:bg-slate-200 transition-all">
+          Nein, als Gast beitreten
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Login-Formular -->
+    <div id="step-login" class="bg-white rounded-2xl shadow-2xl p-8 fade-in" style="display:none;">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg">
+          <span class="text-xl font-bold text-white">E</span>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">Moderator-Login</h1>
+          <p class="text-sm text-slate-500">Raum: <span class="font-medium text-blue-600">{room_safe}</span></p>
+        </div>
+      </div>
+
+      <div id="login-error" class="hidden mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm"></div>
+
+      <form onsubmit="doLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">E-Mail</label>
+          <input type="email" id="login-email" required placeholder="ihre@email.de"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">Passwort</label>
+          <input type="password" id="login-password" required placeholder="Passwort"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all">
+        </div>
+        <button type="submit" id="login-btn"
+          class="w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-blue-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          Als Moderator beitreten
+        </button>
+      </form>
+
+      <div class="mt-4 pt-4 border-t border-slate-100 text-center">
+        <button onclick="joinAsGuest()" class="text-sm text-slate-500 hover:text-blue-600 transition-colors">
+          Stattdessen als Gast beitreten
+        </button>
+      </div>
+
+      <div class="mt-3 text-center">
+        <button onclick="showQuestion()" class="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+          Zurueck
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: Fehler mit Gast-Option -->
+    <div id="step-error" class="bg-white rounded-2xl shadow-2xl p-8 fade-in" style="display:none;">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path></svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">Anmeldung fehlgeschlagen</h1>
+          <p class="text-sm text-slate-500" id="error-detail">Die Zugangsdaten sind nicht korrekt.</p>
+        </div>
+      </div>
+      <p class="text-slate-700 mb-6">Moechten Sie stattdessen als Gast an der Konferenz teilnehmen?</p>
+      <div class="flex gap-3">
+        <button onclick="joinAsGuest()" class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-blue-500 transition-all shadow-sm">
+          Als Gast beitreten
+        </button>
+        <button onclick="showLogin()" class="flex-1 bg-slate-100 text-slate-700 py-3 px-4 rounded-xl font-semibold hover:bg-slate-200 transition-all">
+          Erneut versuchen
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const ROOM = '{room_safe}';
+    const GUEST_URL = '{jitsi_guest_url}';
+
+    function showStep(id) {{
+      document.querySelectorAll('#app > div').forEach(el => el.style.display = 'none');
+      const el = document.getElementById(id);
+      el.style.display = 'block';
+      el.classList.remove('fade-in');
+      void el.offsetWidth;
+      el.classList.add('fade-in');
+    }}
+
+    function showQuestion() {{ showStep('step-question'); }}
+    function showLogin() {{
+      showStep('step-login');
+      document.getElementById('login-error').classList.add('hidden');
+      document.getElementById('login-email').focus();
+    }}
+
+    function joinAsGuest() {{
+      window.location.href = GUEST_URL;
+    }}
+
+    async function doLogin(e) {{
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const btn = document.getElementById('login-btn');
+      const errDiv = document.getElementById('login-error');
+
+      btn.disabled = true;
+      btn.textContent = 'Wird angemeldet...';
+      errDiv.classList.add('hidden');
+
+      try {{
+        const res = await fetch('/api/jitsi-auth', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ email, password, room: ROOM }}),
+        }});
+
+        if (res.ok) {{
+          const data = await res.json();
+          window.location.href = data.url;
+          return;
+        }}
+
+        const err = await res.json().catch(() => ({{ detail: 'Anmeldung fehlgeschlagen' }}));
+        const msg = typeof err.detail === 'string' ? err.detail : 'Anmeldung fehlgeschlagen';
+
+        document.getElementById('error-detail').textContent = msg;
+        showStep('step-error');
+      }} catch(err) {{
+        document.getElementById('error-detail').textContent = 'Netzwerkfehler — bitte erneut versuchen.';
+        showStep('step-error');
+      }} finally {{
+        btn.disabled = false;
+        btn.textContent = 'Als Moderator beitreten';
+      }}
+    }}
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(html)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

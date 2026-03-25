@@ -25,7 +25,7 @@ services:
       - JWT_APP_SECRET=${JWT_APP_SECRET}
       - JWT_ACCEPTED_ISSUERS=${JWT_APP_ID}
       - JWT_ACCEPTED_AUDIENCES=jitsi
-      - TOKEN_AUTH_URL=https://appdb.eppcom.de/#/meeting/{room}
+      - TOKEN_AUTH_URL=https://appdb.eppcom.de/meeting-auth?room={room}
       - ENABLE_LETSENCRYPT=0
       - ENABLE_HTTP_REDIRECT=0
       - ENABLE_TRANSCRIPTIONS=0
@@ -78,7 +78,7 @@ services:
       - JWT_APP_SECRET=${JWT_APP_SECRET}
       - JWT_ACCEPTED_ISSUERS=${JWT_APP_ID}
       - JWT_ACCEPTED_AUDIENCES=jitsi
-      - JWT_ALLOW_EMPTY=0
+      - JWT_ALLOW_EMPTY=1
       - JWT_AUTH_TYPE=token
       - JWT_TOKEN_AUTH_MODULE=token_verification
       - XMPP_DOMAIN=meet.jitsi

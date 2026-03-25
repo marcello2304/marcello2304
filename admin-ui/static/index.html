@@ -1421,13 +1421,19 @@ tailwind.config = {
         </div>
         <template x-if="me && me.role === 'superadmin'">
           <div>
-            <label class="block text-xs md:text-sm font-medium mb-2">Firma (Tenant)</label>
-            <select x-model="newUser.tenant_id" class="input">
-              <option value="">Keiner</option>
+            <label class="block text-xs md:text-sm font-medium mb-2">Firma (Tenant) <span class="text-red-500">*</span></label>
+            <select x-model="newUser.tenant_id" class="input" required>
+              <option value="">Bitte Firma auswaehlen...</option>
               <template x-for="t in tenants" :key="t.id">
                 <option :value="t.id" x-text="t.name"></option>
               </template>
             </select>
+          </div>
+        </template>
+        <template x-if="me && me.role === 'admin'">
+          <div>
+            <label class="block text-xs md:text-sm font-medium mb-2">Firma (Tenant)</label>
+            <input type="text" class="input bg-slate-50 dark:bg-slate-800" disabled :value="me.tenant_slug || 'Zugewiesen'">
           </div>
         </template>
         <div x-show="!editingUserId">
@@ -2542,6 +2548,11 @@ function app() {
           // For admin creating in own firm, set tenant_id
           if (this.me.role === 'admin' && !this.newUser.tenant_id) {
             this.newUser.tenant_id = this.me.tenant_id;
+          }
+          // Validate tenant_id is set
+          if (this.me.role === 'superadmin' && !this.newUser.tenant_id) {
+            this.showToast('Bitte eine Firma (Tenant) auswaehlen', 'error');
+            return;
           }
           await this.api('/api/users', {
             method: 'POST',
