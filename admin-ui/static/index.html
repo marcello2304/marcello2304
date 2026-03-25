@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EPPCOM Enterprise Platform</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Chart.js entfernt — Dashboard nutzt reine CSS-Balken -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
@@ -405,39 +405,21 @@ tailwind.config = {
             </div>
           </div>
 
-          <!-- Charts (pure CSS) -->
+          <!-- Charts -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="card">
               <div class="card-body">
-                <h3 class="text-lg font-semibold mb-4">Conversations (letzte 7 Tage)</h3>
-                <div class="flex items-end gap-2" style="height:180px;" x-show="dashConvData.length > 0">
-                  <template x-for="(item, idx) in dashConvData" :key="idx">
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                      <span class="text-[10px] font-medium text-slate-500" x-text="item.v"></span>
-                      <div class="w-full rounded-t-md bg-brand-500/80 transition-all duration-500" :style="'height:' + (item.v / (dashConvMax || 1) * 140) + 'px'"></div>
-                      <span class="text-[10px] text-slate-400" x-text="item.l"></span>
-                    </div>
-                  </template>
-                </div>
-                <div x-show="dashConvData.length === 0" class="flex items-center justify-center text-slate-400 text-sm" style="height:180px;">
-                  Keine Daten vorhanden
+                <h3 class="text-lg font-semibold mb-4">Conversations diese Woche</h3>
+                <div style="position:relative; width:100%; height:280px;">
+                  <canvas x-ref="conversationsChart"></canvas>
                 </div>
               </div>
             </div>
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Dokumente pro Woche</h3>
-                <div class="flex items-end gap-2" style="height:180px;" x-show="dashDocData.length > 0">
-                  <template x-for="(item, idx) in dashDocData" :key="idx">
-                    <div class="flex-1 flex flex-col items-center gap-1">
-                      <span class="text-[10px] font-medium text-slate-500" x-text="item.v"></span>
-                      <div class="w-full rounded-t-md bg-sky-400/80 transition-all duration-500" :style="'height:' + (item.v / (dashDocMax || 1) * 140) + 'px'"></div>
-                      <span class="text-[10px] text-slate-400" x-text="item.l"></span>
-                    </div>
-                  </template>
-                </div>
-                <div x-show="dashDocData.length === 0" class="flex items-center justify-center text-slate-400 text-sm" style="height:180px;">
-                  Keine Daten vorhanden
+                <div style="position:relative; width:100%; height:280px;">
+                  <canvas x-ref="documentsChart"></canvas>
                 </div>
               </div>
             </div>
@@ -1701,12 +1683,6 @@ function app() {
     isLoading: false,
     showImpressum: false,
 
-    // Dashboard chart data (loaded from API)
-    dashConvData: [],
-    dashConvMax: 0,
-    dashDocData: [],
-    dashDocMax: 0,
-
     // Data
     stats: {},
     sources: [],
@@ -1883,7 +1859,7 @@ function app() {
       if (pg === 'settings') this.loadSettings();
       if (pg === 'domains') this.loadDomains();
       if (pg === 'voicebot-monitor') this.loadVoiceMonitor();
-      if (pg === 'dashboard') { this.loadStats(); }
+      if (pg === 'dashboard') { this.loadStats(); this.$nextTick(() => this.initCharts()); }
     },
 
     onTenantChange() {
@@ -2039,8 +2015,8 @@ function app() {
           this.me?.role === 'superadmin' ? this.loadTenants() : Promise.resolve(),
           this.me?.role === 'superadmin' ? this.loadViewAsUsers() : Promise.resolve(),
           this.loadAppointments(),
-          this.loadChartData(),
         ]);
+        this.$nextTick(() => this.initCharts());
       } catch(e) {
         console.error('Load error:', e);
       } finally {
@@ -2049,24 +2025,6 @@ function app() {
     },
 
     // Data loading
-    async loadChartData() {
-      const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-      try {
-        const convData = await this.api('/api/analytics/conversations-per-day?days=7');
-        if (Array.isArray(convData) && convData.length > 0) {
-          this.dashConvData = convData.map(r => ({l: days[new Date(r.date).getDay()], v: r.count}));
-          this.dashConvMax = Math.max(...this.dashConvData.map(d => d.v), 1);
-        }
-      } catch(e) { /* non-superadmin or no data — charts stay empty */ }
-      try {
-        const docData = await this.api('/api/analytics/documents-per-week?weeks=8');
-        if (Array.isArray(docData) && docData.length > 0) {
-          this.dashDocData = docData.map((r, i) => ({l: 'Wk' + (i+1), v: r.count}));
-          this.dashDocMax = Math.max(...this.dashDocData.map(d => d.v), 1);
-        }
-      } catch(e) { /* non-superadmin or no data — charts stay empty */ }
-    },
-
     async loadStats() {
       try { this.stats = await this.api('/api/stats') || {}; } catch(e) { this.stats = {}; }
     },
@@ -2217,10 +2175,6 @@ function app() {
     },
 
     async doUploadDocument() {
-      if (!this.activeTenantId) {
-        this.showToast('Kein Tenant zugewiesen. Bitte kontaktieren Sie den Administrator.', 'error');
-        return;
-      }
       if (this.uploadTab === 'file' && !this.uploadFile) {
         this.showToast('Bitte eine Datei auswaehlen', 'error');
         return;
@@ -2230,11 +2184,20 @@ function app() {
         return;
       }
 
+      // Tenant validation
+      const tenantId = this.activeTenantId;
+      console.log('[DEBUG Upload] me:', JSON.stringify(this.me));
+      console.log('[DEBUG Upload] activeTenantId:', tenantId);
+      if (!tenantId) {
+        this.showToast('Kein Tenant zugewiesen. Bitte Admin kontaktieren. (Debug: me.tenant_id=' + (this.me?.tenant_id ?? 'undefined') + ')', 'error');
+        return;
+      }
+
       this.uploadingDoc = true;
       this.uploadProgress = 0;
       try {
         const fd = new FormData();
-        fd.append('tenant_id', this.activeTenantId);
+        fd.append('tenant_id', tenantId);
         if (this.uploadTags) fd.append('tags', this.uploadTags);
 
         if (this.uploadTab === 'file') {
@@ -2291,18 +2254,24 @@ function app() {
     },
 
     async doUploadMedia() {
-      if (!this.activeTenantId) {
-        this.showToast('Kein Tenant zugewiesen. Bitte kontaktieren Sie den Administrator.', 'error');
-        return;
-      }
       if (!this.mediaUploadFile) {
         this.showToast('Bitte eine Datei auswaehlen', 'error');
         return;
       }
+
+      // Tenant validation
+      const tenantId = this.activeTenantId;
+      console.log('[DEBUG Media Upload] me:', JSON.stringify(this.me));
+      console.log('[DEBUG Media Upload] activeTenantId:', tenantId);
+      if (!tenantId) {
+        this.showToast('Kein Tenant zugewiesen. Bitte Admin kontaktieren. (Debug: me.tenant_id=' + (this.me?.tenant_id ?? 'undefined') + ')', 'error');
+        return;
+      }
+
       this.uploadingMedia = true;
       try {
         const fd = new FormData();
-        fd.append('tenant_id', this.activeTenantId);
+        fd.append('tenant_id', tenantId);
         fd.append('file', this.mediaUploadFile);
         if (this.mediaUploadDesc) fd.append('description', this.mediaUploadDesc);
         if (this.mediaUploadFolder) fd.append('folder', this.mediaUploadFolder);
@@ -2737,7 +2706,63 @@ function app() {
       } catch(e) { this.showToast(e.message, 'error'); }
     },
 
-    // Charts sind jetzt reine CSS-Balken, keine Chart.js-Initialisierung noetig
+    // Charts
+    initCharts() {
+      this.$nextTick(() => {
+        try {
+          const ctxConv = this.$refs.conversationsChart?.getContext('2d');
+          if (ctxConv) {
+            const existingConv = Chart.getChart(ctxConv.canvas);
+            if (existingConv) existingConv.destroy();
+
+            new Chart(ctxConv, {
+              type: 'line',
+              data: {
+                labels: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+                datasets: [{
+                  label: 'Conversations',
+                  data: [12, 19, 3, 5, 2, 3, 1],
+                  borderColor: '#1a33f5',
+                  backgroundColor: '#1a33f520',
+                  tension: 0.4,
+                  fill: true,
+                }],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } },
+              },
+            });
+          }
+
+          const ctxDocs = this.$refs.documentsChart?.getContext('2d');
+          if (ctxDocs) {
+            const existingDocs = Chart.getChart(ctxDocs.canvas);
+            if (existingDocs) existingDocs.destroy();
+
+            new Chart(ctxDocs, {
+              type: 'bar',
+              data: {
+                labels: ['Wk1', 'Wk2', 'Wk3', 'Wk4', 'Wk5', 'Wk6', 'Wk7', 'Wk8'],
+                datasets: [{
+                  label: 'Dokumente',
+                  data: [5, 8, 3, 7, 4, 6, 2, 9],
+                  backgroundColor: '#38bdf880',
+                }],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } },
+              },
+            });
+          }
+        } catch(e) { console.error('Chart error:', e); }
+      });
+    },
 
     // Helpers
     showToast(msg, type = 'success') {
