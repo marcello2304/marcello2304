@@ -2367,6 +2367,58 @@ async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_a
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Jitsi Meet Token Endpoint
+# ══════════════════════════════════════════════════════════════════════════════
+JITSI_APP_ID     = os.getenv("JITSI_APP_ID", "eppcom")
+JITSI_APP_SECRET = os.getenv("JITSI_APP_SECRET", "")
+JITSI_URL        = os.getenv("JITSI_URL", "https://meet.eppcom.de")
+
+@app.post("/api/jitsi-token")
+async def get_jitsi_token(body: dict, session: SessionInfo = Depends(require_auth)):
+    """JWT-Token fuer Jitsi Meet generieren — authentifiziert User mit ihren Platform-Credentials."""
+    if not JITSI_APP_SECRET:
+        raise HTTPException(503, "Jitsi ist nicht konfiguriert (JITSI_APP_SECRET fehlt)")
+
+    room = body.get("room", "eppcom-meeting")
+    # Raumnamen normalisieren
+    room = re.sub(r'[^a-zA-Z0-9_-]', '', room) or "eppcom-meeting"
+
+    import hmac, base64, time as _time
+
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=")
+    now = int(_time.time())
+    payload_data = {
+        "iss": JITSI_APP_ID,
+        "aud": "jitsi",
+        "sub": "meet.jitsi",
+        "iat": now,
+        "exp": now + 7200,
+        "nbf": now,
+        "room": room,
+        "context": {
+            "user": {
+                "id": session.user_id,
+                "name": session.display_name or session.email,
+                "email": session.email,
+                "avatar": "",
+            },
+        },
+    }
+    payload = base64.urlsafe_b64encode(json.dumps(payload_data).encode()).rstrip(b"=")
+    signing_input = header + b"." + payload
+    signature = base64.urlsafe_b64encode(
+        hmac.new(JITSI_APP_SECRET.encode(), signing_input, hashlib.sha256).digest()
+    ).rstrip(b"=")
+    token = (signing_input + b"." + signature).decode()
+
+    return {
+        "token": token,
+        "room": room,
+        "url": f"{JITSI_URL}/{room}?jwt={token}",
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # API Key Management (Admin-UI)
 # ══════════════════════════════════════════════════════════════════════════════
 

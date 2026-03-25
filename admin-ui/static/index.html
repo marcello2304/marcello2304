@@ -232,6 +232,10 @@ tailwind.config = {
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
         Voicebot
       </button>
+      <button @click="navigate('meeting')" :class="['sidebar-link', page==='meeting' && 'active']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+        Meeting
+      </button>
       <button @click="navigate('history')" :class="['sidebar-link', page==='history' && 'active']">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         Chat-Verlauf
@@ -623,6 +627,32 @@ tailwind.config = {
 
               <!-- Hidden audio container -->
               <div id="voicebot-audio" class="hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MEETING (Jitsi) -->
+        <div x-show="page==='meeting'">
+          <h2 class="text-2xl md:text-3xl font-bold mb-6">Video-Meeting</h2>
+
+          <div class="card max-w-lg mx-auto">
+            <div class="card-body space-y-6">
+              <div>
+                <label class="block text-xs md:text-sm font-medium mb-2">Raumname</label>
+                <input type="text" x-model="meetingRoom" class="input" placeholder="z.B. team-standup">
+                <p class="text-xs text-slate-400 mt-1">Nur Buchstaben, Zahlen und Bindestriche</p>
+              </div>
+
+              <button @click="joinMeeting()" :disabled="meetingLoading" class="btn btn-primary w-full">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                <span x-show="!meetingLoading">Meeting beitreten</span>
+                <span x-show="meetingLoading">Token wird erstellt...</span>
+              </button>
+
+              <div class="text-center text-sm text-slate-500 dark:text-slate-400">
+                <p>Sie werden automatisch mit Ihrem Benutzernamen angemeldet.</p>
+                <p class="mt-1">Andere Teilnehmer brauchen ebenfalls einen EPPCOM-Account.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -1721,6 +1751,10 @@ function app() {
     chatInput: '',
     chatLoading: false,
 
+    // Meeting (Jitsi)
+    meetingRoom: 'eppcom-meeting',
+    meetingLoading: false,
+
     // Voicebot
     voiceState: 'idle',
     voiceRoom: null,
@@ -1795,7 +1829,7 @@ function app() {
     get pageBreadcrumb() {
       const pages = {
         dashboard: 'Dashboard', documents: 'Meine Dokumente', media: 'Meine Medien',
-        chat: 'Chat', voicebot: 'Voicebot', history: 'Chat-Verlauf',
+        chat: 'Chat', voicebot: 'Voicebot', meeting: 'Video-Meeting', history: 'Chat-Verlauf',
         appointments: 'Termine', users: 'User-Verwaltung', shares: 'Freigaben',
         'voicebot-monitor': 'Voicebot-Monitor', tenants: 'Firmen (Tenants)',
         'api-keys': 'API Keys', 'audit-log': 'Audit Log', settings: 'Einstellungen',
@@ -2458,6 +2492,31 @@ function app() {
         s.onerror = () => reject(new Error('SDK konnte nicht geladen werden'));
         document.head.appendChild(s);
       });
+    },
+
+    // Meeting (Jitsi)
+    async joinMeeting() {
+      const room = (this.meetingRoom || 'eppcom-meeting').replace(/[^a-zA-Z0-9_-]/g, '').trim();
+      if (!room) {
+        this.showToast('Bitte einen Raumnamen eingeben', 'error');
+        return;
+      }
+      this.meetingLoading = true;
+      try {
+        const res = await this.api('/api/jitsi-token', {
+          method: 'POST',
+          body: JSON.stringify({ room }),
+        });
+        if (res && res.url) {
+          window.open(res.url, '_blank');
+        } else {
+          this.showToast('Kein Meeting-Link erhalten', 'error');
+        }
+      } catch(e) {
+        this.showToast(e.message, 'error');
+      } finally {
+        this.meetingLoading = false;
+      }
     },
 
     // User CRUD
