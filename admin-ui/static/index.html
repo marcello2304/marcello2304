@@ -1491,7 +1491,12 @@ tailwind.config = {
       <div class="space-y-4">
         <div>
           <label class="block text-xs md:text-sm font-medium mb-2">Name</label>
-          <input type="text" x-model="newTenant.name" class="input">
+          <input type="text" x-model="newTenant.name" class="input" @input="if(!editingTenantId) newTenant.slug = newTenant.name.toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,63)">
+        </div>
+        <div>
+          <label class="block text-xs md:text-sm font-medium mb-2">Slug (URL-Name)</label>
+          <input type="text" x-model="newTenant.slug" class="input font-mono" :disabled="!!editingTenantId" placeholder="z.B. meine-firma">
+          <p class="text-xs text-slate-400 mt-1">Nur Kleinbuchstaben, Zahlen und Bindestriche (3-64 Zeichen)</p>
         </div>
         <div>
           <label class="block text-xs md:text-sm font-medium mb-2">E-Mail</label>
@@ -1936,7 +1941,11 @@ function app() {
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Fehler' }));
-        throw new Error(err.detail || 'Fehler');
+        const detail = err.detail;
+        const msg = typeof detail === 'string' ? detail
+          : Array.isArray(detail) ? detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
+          : detail ? JSON.stringify(detail) : 'Fehler';
+        throw new Error(msg);
       }
       const text = await res.text();
       if (!text) return {};
@@ -2577,6 +2586,10 @@ function app() {
     async saveTenant() {
       if (!this.newTenant.name) {
         this.showToast('Name erforderlich', 'error');
+        return;
+      }
+      if (!this.editingTenantId && (!this.newTenant.slug || !/^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/.test(this.newTenant.slug))) {
+        this.showToast('Slug erforderlich: nur Kleinbuchstaben, Zahlen, - und _ (3-64 Zeichen)', 'error');
         return;
       }
       try {
