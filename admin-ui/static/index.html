@@ -409,8 +409,8 @@ tailwind.config = {
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="card">
               <div class="card-body">
-                <h3 class="text-lg font-semibold mb-4">Conversations diese Woche</h3>
-                <div class="flex items-end gap-2" style="height:180px;">
+                <h3 class="text-lg font-semibold mb-4">Conversations (letzte 7 Tage)</h3>
+                <div class="flex items-end gap-2" style="height:180px;" x-show="dashConvData.length > 0">
                   <template x-for="(item, idx) in dashConvData" :key="idx">
                     <div class="flex-1 flex flex-col items-center gap-1">
                       <span class="text-[10px] font-medium text-slate-500" x-text="item.v"></span>
@@ -419,12 +419,15 @@ tailwind.config = {
                     </div>
                   </template>
                 </div>
+                <div x-show="dashConvData.length === 0" class="flex items-center justify-center text-slate-400 text-sm" style="height:180px;">
+                  Keine Daten vorhanden
+                </div>
               </div>
             </div>
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Dokumente pro Woche</h3>
-                <div class="flex items-end gap-2" style="height:180px;">
+                <div class="flex items-end gap-2" style="height:180px;" x-show="dashDocData.length > 0">
                   <template x-for="(item, idx) in dashDocData" :key="idx">
                     <div class="flex-1 flex flex-col items-center gap-1">
                       <span class="text-[10px] font-medium text-slate-500" x-text="item.v"></span>
@@ -432,6 +435,9 @@ tailwind.config = {
                       <span class="text-[10px] text-slate-400" x-text="item.l"></span>
                     </div>
                   </template>
+                </div>
+                <div x-show="dashDocData.length === 0" class="flex items-center justify-center text-slate-400 text-sm" style="height:180px;">
+                  Keine Daten vorhanden
                 </div>
               </div>
             </div>
@@ -1695,15 +1701,11 @@ function app() {
     isLoading: false,
     showImpressum: false,
 
-    // Dashboard chart data (statisch, max vorberechnet)
-    dashConvData: [
-      {l:'Mo',v:12},{l:'Di',v:19},{l:'Mi',v:3},{l:'Do',v:5},{l:'Fr',v:2},{l:'Sa',v:3},{l:'So',v:1}
-    ],
-    dashConvMax: 19,
-    dashDocData: [
-      {l:'Wk1',v:5},{l:'Wk2',v:8},{l:'Wk3',v:3},{l:'Wk4',v:7},{l:'Wk5',v:4},{l:'Wk6',v:6},{l:'Wk7',v:2},{l:'Wk8',v:9}
-    ],
-    dashDocMax: 9,
+    // Dashboard chart data (loaded from API)
+    dashConvData: [],
+    dashConvMax: 0,
+    dashDocData: [],
+    dashDocMax: 0,
 
     // Data
     stats: {},
@@ -2037,8 +2039,8 @@ function app() {
           this.me?.role === 'superadmin' ? this.loadTenants() : Promise.resolve(),
           this.me?.role === 'superadmin' ? this.loadViewAsUsers() : Promise.resolve(),
           this.loadAppointments(),
+          this.loadChartData(),
         ]);
-        // Charts sind jetzt reine CSS-Balken, kein initCharts noetig
       } catch(e) {
         console.error('Load error:', e);
       } finally {
@@ -2047,6 +2049,24 @@ function app() {
     },
 
     // Data loading
+    async loadChartData() {
+      const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+      try {
+        const convData = await this.api('/api/analytics/conversations-per-day?days=7');
+        if (Array.isArray(convData) && convData.length > 0) {
+          this.dashConvData = convData.map(r => ({l: days[new Date(r.date).getDay()], v: r.count}));
+          this.dashConvMax = Math.max(...this.dashConvData.map(d => d.v), 1);
+        }
+      } catch(e) { /* non-superadmin or no data — charts stay empty */ }
+      try {
+        const docData = await this.api('/api/analytics/documents-per-week?weeks=8');
+        if (Array.isArray(docData) && docData.length > 0) {
+          this.dashDocData = docData.map((r, i) => ({l: 'Wk' + (i+1), v: r.count}));
+          this.dashDocMax = Math.max(...this.dashDocData.map(d => d.v), 1);
+        }
+      } catch(e) { /* non-superadmin or no data — charts stay empty */ }
+    },
+
     async loadStats() {
       try { this.stats = await this.api('/api/stats') || {}; } catch(e) { this.stats = {}; }
     },
@@ -2198,7 +2218,7 @@ function app() {
 
     async doUploadDocument() {
       if (!this.activeTenantId) {
-        this.showToast('Bitte zuerst eine Firma (Tenant) auswaehlen', 'error');
+        this.showToast('Kein Tenant zugewiesen. Bitte kontaktieren Sie den Administrator.', 'error');
         return;
       }
       if (this.uploadTab === 'file' && !this.uploadFile) {
@@ -2272,7 +2292,7 @@ function app() {
 
     async doUploadMedia() {
       if (!this.activeTenantId) {
-        this.showToast('Bitte zuerst eine Firma (Tenant) auswaehlen', 'error');
+        this.showToast('Kein Tenant zugewiesen. Bitte kontaktieren Sie den Administrator.', 'error');
         return;
       }
       if (!this.mediaUploadFile) {
