@@ -479,7 +479,37 @@ async def logout(x_session_token: str = Header(None)):
 
 @app.get("/api/me")
 async def get_me(session: SessionInfo = Depends(require_auth)):
-    return session.to_dict()
+    # Immer aus DB lesen, damit Änderungen (z.B. Tenant-Zuweisung) sofort wirken
+    db = await get_db()
+    user = await db.fetchrow(
+        "SELECT id, email, display_name, role, tenant_id, is_active FROM public.users WHERE id=$1::uuid",
+        session.user_id
+    )
+    if not user or not user["is_active"]:
+        raise HTTPException(401, "Account nicht gefunden oder deaktiviert")
+
+    tenant_id_str = str(user["tenant_id"]) if user["tenant_id"] else None
+    tenant_slug = None
+    if tenant_id_str:
+        tenant_slug = await db.fetchval(
+            "SELECT slug FROM public.tenants WHERE id=$1::uuid AND status='active'", tenant_id_str
+        )
+
+    # Session aktualisieren damit Backend-Checks (Upload etc.) sofort greifen
+    session.email = user["email"]
+    session.display_name = user["display_name"]
+    session.role = user["role"]
+    session.tenant_id = tenant_id_str
+    session.tenant_slug = tenant_slug
+
+    return {
+        "user_id": session.user_id,
+        "email": user["email"],
+        "display_name": user["display_name"],
+        "role": user["role"],
+        "tenant_id": tenant_id_str,
+        "tenant_slug": tenant_slug,
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
