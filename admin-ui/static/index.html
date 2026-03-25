@@ -106,10 +106,10 @@ tailwind.config = {
   }
 </script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 min-h-screen font-sans text-slate-900 dark:text-slate-100" x-data="app()" x-init="init()">
+<body class="bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 h-screen overflow-hidden" x-data="app()" x-init="init()">
 
 <!-- LOGIN PAGE -->
-<div x-show="!token || !me" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 px-4 sm:px-6">
+<div x-show="!token || !me" class="h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 px-4 sm:px-6 overflow-y-auto">
   <div class="w-full max-w-sm fade-in">
     <div class="text-center mb-8">
       <div class="inline-block mb-6">
@@ -356,7 +356,7 @@ tailwind.config = {
     </header>
 
     <!-- Content -->
-    <main class="flex-1 overflow-y-auto">
+    <main class="flex-1 overflow-y-auto" style="min-height:0;">
       <div class="p-4 md:p-6 lg:p-8">
 
         <!-- DASHBOARD -->
@@ -1695,15 +1695,15 @@ function app() {
     isLoading: false,
     showImpressum: false,
 
-    // Dashboard chart data
+    // Dashboard chart data (statisch, max vorberechnet)
     dashConvData: [
       {l:'Mo',v:12},{l:'Di',v:19},{l:'Mi',v:3},{l:'Do',v:5},{l:'Fr',v:2},{l:'Sa',v:3},{l:'So',v:1}
     ],
+    dashConvMax: 19,
     dashDocData: [
       {l:'Wk1',v:5},{l:'Wk2',v:8},{l:'Wk3',v:3},{l:'Wk4',v:7},{l:'Wk5',v:4},{l:'Wk6',v:6},{l:'Wk7',v:2},{l:'Wk8',v:9}
     ],
-    get dashConvMax() { return Math.max(...this.dashConvData.map(d => d.v), 1); },
-    get dashDocMax() { return Math.max(...this.dashDocData.map(d => d.v), 1); },
+    dashDocMax: 9,
 
     // Data
     stats: {},

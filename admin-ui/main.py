@@ -932,16 +932,23 @@ async def ingest_document(
     session: SessionInfo = Depends(require_auth),
 ):
     db = await get_db()
-    # Tenant-Zugriff prüfen
+    # Tenant-Zugriff prüfen — IMMER aus DB lesen, Session kann veraltet sein
     effective_tenant = tenant_id.strip() if tenant_id else ""
     if not session.is_superadmin():
-        if session.tenant_id:
-            effective_tenant = session.tenant_id
+        # Tenant direkt aus der DB lesen, nicht aus der Session
+        user_row = await db.fetchrow(
+            "SELECT tenant_id FROM public.users WHERE id=$1::uuid", session.user_id
+        )
+        db_tenant = str(user_row["tenant_id"]) if user_row and user_row["tenant_id"] else None
+        if db_tenant:
+            effective_tenant = db_tenant
+            # Session aktualisieren fuer nachfolgende Checks
+            session.tenant_id = db_tenant
         else:
-            raise HTTPException(403, "Kein Tenant zugewiesen — bitte Admin kontaktieren")
+            raise HTTPException(403, "Kein Tenant zugewiesen — bitte Admin kontaktieren, damit Ihnen eine Firma zugewiesen wird")
     if not effective_tenant:
         raise HTTPException(400, "Bitte zuerst eine Firma (Tenant) oben rechts auswählen")
-    if not session.can_access_tenant(effective_tenant):
+    if not session.is_superadmin() and effective_tenant != session.tenant_id:
         raise HTTPException(403, "Kein Zugriff auf diesen Tenant")
 
     tenant = await db.fetchrow(
@@ -1434,16 +1441,21 @@ async def upload_media(
     if not S3_KEY:
         raise HTTPException(503, "S3 nicht konfiguriert")
 
+    db = await get_db()
     effective_tenant = tenant_id
     if not session.is_superadmin():
-        if session.tenant_id:
-            effective_tenant = session.tenant_id
+        # Tenant direkt aus der DB lesen, nicht aus der Session
+        user_row = await db.fetchrow(
+            "SELECT tenant_id FROM public.users WHERE id=$1::uuid", session.user_id
+        )
+        db_tenant = str(user_row["tenant_id"]) if user_row and user_row["tenant_id"] else None
+        if db_tenant:
+            effective_tenant = db_tenant
+            session.tenant_id = db_tenant
         else:
-            raise HTTPException(403, "Kein Tenant zugewiesen — bitte Admin kontaktieren")
+            raise HTTPException(403, "Kein Tenant zugewiesen — bitte Admin kontaktieren, damit Ihnen eine Firma zugewiesen wird")
     if not effective_tenant or not effective_tenant.strip():
         raise HTTPException(400, "Bitte zuerst eine Firma (Tenant) oben rechts auswählen")
-
-    db = await get_db()
     tenant = await db.fetchrow(
         "SELECT id, slug, s3_prefix FROM public.tenants WHERE id=$1::uuid AND status='active'",
         effective_tenant
