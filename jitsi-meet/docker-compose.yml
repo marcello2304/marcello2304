@@ -1,19 +1,25 @@
-version: '3.8'
-
 services:
   web:
     image: jitsi/web:stable-9258
     restart: unless-stopped
     ports:
-      - '8000:80'
-      - '8443:443'
+      - '8889:80'
     volumes:
       - jitsi-web-config:/config
       - jitsi-web-crontabs:/var/spool/cron/crontabs
       - jitsi-web-transcripts:/usr/share/jitsi-meet/transcripts
+      - ./custom-backgrounds/background-1.jpg:/usr/share/jitsi-meet/images/virtual-background/background-1.jpg:ro
+      - ./custom-backgrounds/background-2.jpg:/usr/share/jitsi-meet/images/virtual-background/background-2.jpg:ro
+      - ./custom-backgrounds/background-3.jpg:/usr/share/jitsi-meet/images/virtual-background/background-3.jpg:ro
+      - ./custom-backgrounds/background-4.jpg:/usr/share/jitsi-meet/images/virtual-background/background-4.jpg:ro
+      - ./custom-backgrounds/background-5.jpg:/usr/share/jitsi-meet/images/virtual-background/background-5.jpg:ro
+      - ./custom-backgrounds/background-6.jpg:/usr/share/jitsi-meet/images/virtual-background/background-6.jpg:ro
+      - ./custom-backgrounds/background-7.jpg:/usr/share/jitsi-meet/images/virtual-background/background-7.jpg:ro
+      - ./custom-config.js:/custom-config.js:ro
+      - ./append-custom-config.sh:/etc/cont-init.d/99-custom-config:ro
     environment:
       - ENABLE_AUTH=1
-      - ENABLE_GUESTS=0
+      - ENABLE_GUESTS=1
       - AUTH_TYPE=jwt
       - JWT_APP_ID=${JWT_APP_ID}
       - JWT_APP_SECRET=${JWT_APP_SECRET}
@@ -21,7 +27,7 @@ services:
       - JWT_ACCEPTED_AUDIENCES=jitsi
       - TOKEN_AUTH_URL=https://appdb.eppcom.de/#/meeting/{room}
       - ENABLE_LETSENCRYPT=0
-      - ENABLE_HTTP_REDIRECT=1
+      - ENABLE_HTTP_REDIRECT=0
       - ENABLE_TRANSCRIPTIONS=0
       - DISABLE_HTTPS=1
       - JICOFO_AUTH_USER=focus
@@ -29,19 +35,29 @@ services:
       - PUBLIC_URL=https://meet.eppcom.de
       - XMPP_DOMAIN=meet.jitsi
       - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+      - XMPP_GUEST_DOMAIN=guest.meet.jitsi
       - XMPP_BOSH_URL_BASE=http://xmpp.meet.jitsi:5280
       - XMPP_MUC_DOMAIN=muc.meet.jitsi
       - JVB_TCP_HARVESTER_DISABLED=true
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.jitsi.rule=Host(`meet.eppcom.de`)"
-      - "traefik.http.routers.jitsi.entrypoints=websecure"
-      - "traefik.http.routers.jitsi.tls.certresolver=letsencrypt"
-      - "traefik.http.services.jitsi.loadbalancer.server.port=80"
     networks:
-      meet.jitsi:
-        aliases:
-          - meet.jitsi
+      - meet.jitsi
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      # HTTPS router
+      - traefik.http.routers.jitsi.rule=Host(`meet.eppcom.de`)
+      - traefik.http.routers.jitsi.entrypoints=https
+      - traefik.http.routers.jitsi.tls=true
+      - traefik.http.routers.jitsi.tls.certresolver=letsencrypt
+      # HTTP router for redirect + ACME challenge
+      - traefik.http.routers.jitsi-http.rule=Host(`meet.eppcom.de`)
+      - traefik.http.routers.jitsi-http.entrypoints=http
+      - traefik.http.routers.jitsi-http.middlewares=jitsi-redirect
+      - traefik.http.middlewares.jitsi-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.jitsi-redirect.redirectscheme.permanent=true
+      # Service
+      - traefik.http.services.jitsi.loadbalancer.server.port=80
 
   prosody:
     image: jitsi/prosody:stable-9258
@@ -56,7 +72,7 @@ services:
     environment:
       - AUTH_TYPE=jwt
       - ENABLE_AUTH=1
-      - ENABLE_GUESTS=0
+      - ENABLE_GUESTS=1
       - ENABLE_LOBBY=0
       - JWT_APP_ID=${JWT_APP_ID}
       - JWT_APP_SECRET=${JWT_APP_SECRET}
@@ -65,17 +81,11 @@ services:
       - JWT_ALLOW_EMPTY=0
       - JWT_AUTH_TYPE=token
       - JWT_TOKEN_AUTH_MODULE=token_verification
-      - GLOBAL_MODULES=
-      - GLOBAL_CONFIG=
-      - LDAP_URL=
       - XMPP_DOMAIN=meet.jitsi
       - XMPP_AUTH_DOMAIN=auth.meet.jitsi
       - XMPP_GUEST_DOMAIN=guest.meet.jitsi
       - XMPP_MUC_DOMAIN=muc.meet.jitsi
       - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
-      - XMPP_MODULES=
-      - XMPP_MUC_MODULES=
-      - XMPP_INTERNAL_MUC_MODULES=
       - XMPP_RECORDER_DOMAIN=recorder.meet.jitsi
       - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET}
       - JICOFO_AUTH_USER=focus
@@ -106,20 +116,20 @@ services:
       - XMPP_DOMAIN=meet.jitsi
       - XMPP_AUTH_DOMAIN=auth.meet.jitsi
       - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+      - XMPP_MUC_DOMAIN=muc.meet.jitsi
       - XMPP_SERVER=xmpp.meet.jitsi
       - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET}
       - JICOFO_AUTH_USER=focus
       - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
       - JVB_BREWERY_MUC=jvbbrewery
       - JIGASI_BREWERY_MUC=jigasibrewery
-      - JIGASI_SIP_URI=
       - JIBRI_BREWERY_MUC=jibribrewery
       - JIBRI_PENDING_TIMEOUT=90
       - TZ=Europe/Berlin
     depends_on:
       - prosody
     networks:
-      meet.jitsi:
+      - meet.jitsi
 
   jvb:
     image: jitsi/jvb:stable-9258
@@ -130,7 +140,7 @@ services:
     volumes:
       - jitsi-jvb-config:/config
     environment:
-      - DOCKER_HOST_ADDRESS=${DOCKER_HOST_ADDRESS}
+      - DOCKER_HOST_ADDRESS=94.130.170.167
       - XMPP_AUTH_DOMAIN=auth.meet.jitsi
       - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
       - XMPP_SERVER=xmpp.meet.jitsi
@@ -146,7 +156,7 @@ services:
     depends_on:
       - prosody
     networks:
-      meet.jitsi:
+      - meet.jitsi
 
 volumes:
   jitsi-web-config:
@@ -159,3 +169,5 @@ volumes:
 
 networks:
   meet.jitsi:
+  coolify:
+    external: true

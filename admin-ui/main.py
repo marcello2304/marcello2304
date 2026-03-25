@@ -2385,6 +2385,12 @@ async def get_jitsi_token(body: dict, session: SessionInfo = Depends(require_aut
 
     import hmac, base64, time as _time
 
+    # Moderator-Berechtigung: nur Marcel Eppler / EPPCOM
+    display = (session.display_name or "").strip()
+    email = (session.email or "").strip().lower()
+    is_moderator = any(tag in display.upper() for tag in ["MARCEL", "EPPLER", "EPPCOM"]) or \
+                   "eppler" in email or "eppcom" in email
+
     header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=")
     now = int(_time.time())
     payload_data = {
@@ -2395,12 +2401,14 @@ async def get_jitsi_token(body: dict, session: SessionInfo = Depends(require_aut
         "exp": now + 7200,
         "nbf": now,
         "room": room,
+        "moderator": is_moderator,
         "context": {
             "user": {
                 "id": session.user_id,
                 "name": session.display_name or session.email,
                 "email": session.email,
                 "avatar": "",
+                "moderator": is_moderator,
             },
         },
     }
