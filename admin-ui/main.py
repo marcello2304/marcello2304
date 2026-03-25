@@ -908,9 +908,9 @@ async def ingest_document(
         if session.tenant_id:
             effective_tenant = session.tenant_id
         else:
-            raise HTTPException(403, "Kein Tenant zugewiesen")
+            raise HTTPException(403, "Kein Tenant zugewiesen — bitte Admin kontaktieren")
     if not effective_tenant:
-        raise HTTPException(400, "Kein Tenant ausgewählt")
+        raise HTTPException(400, "Bitte zuerst eine Firma (Tenant) oben rechts auswählen")
     if not session.can_access_tenant(effective_tenant):
         raise HTTPException(403, "Kein Zugriff auf diesen Tenant")
 
@@ -1409,7 +1409,9 @@ async def upload_media(
         if session.tenant_id:
             effective_tenant = session.tenant_id
         else:
-            raise HTTPException(403, "Kein Tenant zugewiesen")
+            raise HTTPException(403, "Kein Tenant zugewiesen — bitte Admin kontaktieren")
+    if not effective_tenant or not effective_tenant.strip():
+        raise HTTPException(400, "Bitte zuerst eine Firma (Tenant) oben rechts auswählen")
 
     db = await get_db()
     tenant = await db.fetchrow(

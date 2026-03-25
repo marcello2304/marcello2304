@@ -407,20 +407,16 @@ tailwind.config = {
 
           <!-- Charts -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="card">
-              <div class="card-body">
+            <div class="card" style="max-height:340px;">
+              <div class="card-body" style="max-height:340px; overflow:hidden;">
                 <h3 class="text-lg font-semibold mb-4">Conversations diese Woche</h3>
-                <div style="position:relative; height:220px; width:100%; overflow:hidden;">
-                  <canvas x-ref="conversationsChart" width="400" height="220"></canvas>
-                </div>
+                <canvas x-ref="conversationsChart" height="220" style="max-height:220px; width:100%;"></canvas>
               </div>
             </div>
-            <div class="card">
-              <div class="card-body">
+            <div class="card" style="max-height:340px;">
+              <div class="card-body" style="max-height:340px; overflow:hidden;">
                 <h3 class="text-lg font-semibold mb-4">Dokumente pro Woche</h3>
-                <div style="position:relative; height:220px; width:100%; overflow:hidden;">
-                  <canvas x-ref="documentsChart" width="400" height="220"></canvas>
-                </div>
+                <canvas x-ref="documentsChart" height="220" style="max-height:220px; width:100%;"></canvas>
               </div>
             </div>
           </div>
@@ -2175,6 +2171,10 @@ function app() {
     },
 
     async doUploadDocument() {
+      if (!this.activeTenantId) {
+        this.showToast('Bitte zuerst eine Firma (Tenant) auswaehlen', 'error');
+        return;
+      }
       if (this.uploadTab === 'file' && !this.uploadFile) {
         this.showToast('Bitte eine Datei auswaehlen', 'error');
         return;
@@ -2245,6 +2245,10 @@ function app() {
     },
 
     async doUploadMedia() {
+      if (!this.activeTenantId) {
+        this.showToast('Bitte zuerst eine Firma (Tenant) auswaehlen', 'error');
+        return;
+      }
       if (!this.mediaUploadFile) {
         this.showToast('Bitte eine Datei auswaehlen', 'error');
         return;
@@ -2691,15 +2695,17 @@ function app() {
     _convChart: null,
     _docsChart: null,
     initCharts() {
-      // Delay to ensure x-show has made the dashboard visible and DOM is laid out
+      // Delay to ensure DOM is visible after x-show toggle
       setTimeout(() => {
         try {
-          // Destroy previous instances
           if (this._convChart) { this._convChart.destroy(); this._convChart = null; }
           if (this._docsChart) { this._docsChart.destroy(); this._docsChart = null; }
 
           const convCanvas = this.$refs.conversationsChart;
-          if (convCanvas && convCanvas.offsetParent !== null) {
+          if (convCanvas) {
+            // Set canvas pixel size to match container
+            convCanvas.width = convCanvas.parentElement.clientWidth || 500;
+            convCanvas.height = 220;
             this._convChart = new Chart(convCanvas, {
               type: 'line',
               data: {
@@ -2714,9 +2720,7 @@ function app() {
                 }],
               },
               options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 400 },
+                responsive: false,
                 plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true } },
               },
@@ -2724,7 +2728,9 @@ function app() {
           }
 
           const docsCanvas = this.$refs.documentsChart;
-          if (docsCanvas && docsCanvas.offsetParent !== null) {
+          if (docsCanvas) {
+            docsCanvas.width = docsCanvas.parentElement.clientWidth || 500;
+            docsCanvas.height = 220;
             this._docsChart = new Chart(docsCanvas, {
               type: 'bar',
               data: {
@@ -2736,16 +2742,14 @@ function app() {
                 }],
               },
               options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 400 },
+                responsive: false,
                 plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true } },
               },
             });
           }
         } catch(e) { console.error('Chart error:', e); }
-      }, 100);
+      }, 150);
     },
 
     // Helpers
