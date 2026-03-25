@@ -240,9 +240,13 @@ tailwind.config = {
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
         Termine
       </button>
+      <button @click="navigate('settings')" :class="['sidebar-link', page==='settings' && 'active']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        Einstellungen
+      </button>
 
       <!-- Admin only -->
-      <template x-if="me && (me.role === 'admin' || me.role === 'superadmin')">
+      <template x-if="me && (effectiveRole === 'admin' || effectiveRole === 'superadmin')">
         <div>
           <div class="sidebar-section">Administration</div>
           <button @click="navigate('users')" :class="['sidebar-link', page==='users' && 'active']">
@@ -261,7 +265,7 @@ tailwind.config = {
       </template>
 
       <!-- Superadmin only -->
-      <template x-if="me && me.role === 'superadmin'">
+      <template x-if="me && effectiveRole === 'superadmin'">
         <div>
           <div class="sidebar-section">Plattform</div>
           <button @click="navigate('tenants')" :class="['sidebar-link', page==='tenants' && 'active']">
@@ -275,10 +279,6 @@ tailwind.config = {
           <button @click="navigate('audit-log')" :class="['sidebar-link', page==='audit-log' && 'active']">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
             Audit Log
-          </button>
-          <button @click="navigate('settings')" :class="['sidebar-link', page==='settings' && 'active']">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            Einstellungen
           </button>
           <button @click="navigate('domains')" :class="['sidebar-link', page==='domains' && 'active']">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
@@ -326,12 +326,27 @@ tailwind.config = {
       <div class="flex items-center gap-3">
         <!-- Tenant selector for superadmin -->
         <template x-if="me && me.role === 'superadmin'">
-          <select x-model="selectedTenantId" @change="onTenantChange()" class="input py-1.5 text-xs w-48">
-            <option value="">Alle Tenants</option>
-            <template x-for="t in tenants" :key="t.id">
-              <option :value="t.id" x-text="t.name"></option>
-            </template>
-          </select>
+          <div class="flex items-center gap-2">
+            <select x-model="selectedTenantId" @change="onTenantChange()" class="input py-1.5 text-xs w-40">
+              <option value="">Alle Tenants</option>
+              <template x-for="t in tenants" :key="t.id">
+                <option :value="t.id" x-text="t.name"></option>
+              </template>
+            </select>
+            <select x-model="viewAsUserId" @change="onViewAsUserChange()" class="input py-1.5 text-xs w-48">
+              <option value="">Eigene Ansicht (Superadmin)</option>
+              <template x-for="u in viewAsUserList" :key="u.id">
+                <option :value="u.id" x-text="(u.display_name || u.email) + ' (' + u.role + ')'"></option>
+              </template>
+            </select>
+          </div>
+        </template>
+        <template x-if="viewAsUserId && me && me.role === 'superadmin'">
+          <div class="flex items-center gap-2 px-2 py-1 bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-lg">
+            <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            <span class="text-xs font-medium text-amber-700 dark:text-amber-300" x-text="'Ansicht: ' + (viewAsUserList.find(u => u.id === viewAsUserId)?.display_name || viewAsUserList.find(u => u.id === viewAsUserId)?.email || '')"></span>
+            <button @click="viewAsUserId=''; onViewAsUserChange()" class="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 font-bold">&times;</button>
+          </div>
         </template>
         <div x-show="isLoading" class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           <div class="w-3 h-3 rounded-full bg-brand-500 animate-pulse"></div>
@@ -369,7 +384,7 @@ tailwind.config = {
               </div>
             </div>
 
-            <div class="stat-card" x-show="me && (me.role === 'admin' || me.role === 'superadmin')">
+            <div class="stat-card" x-show="me && (effectiveRole === 'admin' || effectiveRole === 'superadmin')">
               <div class="stat-icon bg-blue-100 dark:bg-blue-950/30">
                 <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
               </div>
@@ -379,7 +394,7 @@ tailwind.config = {
               </div>
             </div>
 
-            <div class="stat-card" x-show="me && me.role === 'superadmin'">
+            <div class="stat-card" x-show="me && effectiveRole === 'superadmin'">
               <div class="stat-icon bg-amber-100 dark:bg-amber-950/30">
                 <svg class="w-6 h-6 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-7 0H5m0 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
               </div>
@@ -395,13 +410,17 @@ tailwind.config = {
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Conversations diese Woche</h3>
-                <canvas x-ref="conversationsChart" style="height:220px"></canvas>
+                <div class="relative" style="height:220px">
+                  <canvas x-ref="conversationsChart"></canvas>
+                </div>
               </div>
             </div>
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Dokumente pro Woche</h3>
-                <canvas x-ref="documentsChart" style="height:220px"></canvas>
+                <div class="relative" style="height:220px">
+                  <canvas x-ref="documentsChart"></canvas>
+                </div>
               </div>
             </div>
           </div>
@@ -490,8 +509,19 @@ tailwind.config = {
                   </template>
                 </div>
                 <div class="p-3">
-                  <p class="text-sm font-medium truncate" x-text="item.filename"></p>
+                  <p class="text-sm font-medium truncate" x-text="item.original_name || item.file_name || item.filename"></p>
                   <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="item.description || 'Keine Beschreibung'"></p>
+                  <template x-if="item.is_public">
+                    <div class="mt-2 flex items-center gap-1.5">
+                      <span class="badge badge-success text-[10px]">Oeffentlich</span>
+                      <button @click="copyToClipboard(location.origin + '/api/public/media/' + item.id)" class="text-brand-600 dark:text-brand-400 hover:underline text-[10px] cursor-pointer">Link kopieren</button>
+                    </div>
+                  </template>
+                  <template x-if="!item.is_public">
+                    <div class="mt-2">
+                      <span class="badge badge-warning text-[10px]">Privat — Login erforderlich</span>
+                    </div>
+                  </template>
                   <div class="flex gap-1 mt-2">
                     <button @click="editMedia(item)" class="btn btn-secondary btn-sm flex-1">Bearbeiten</button>
                     <button @click="deleteMediaConfirm(item.id)" class="btn btn-danger btn-sm">Entfernen</button>
@@ -601,7 +631,7 @@ tailwind.config = {
         <div x-show="page==='history'">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <h2 class="text-2xl md:text-3xl font-bold">Chat-Verlauf</h2>
-            <div class="flex gap-2" x-show="me && (me.role === 'admin' || me.role === 'superadmin')">
+            <div class="flex gap-2" x-show="me && (effectiveRole === 'admin' || effectiveRole === 'superadmin')">
               <select x-model="historyUserFilter" @change="loadConversations()" class="input w-48">
                 <option value="">Alle Benutzer</option>
                 <template x-for="u in users" :key="u.id">
@@ -991,38 +1021,64 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- EINSTELLUNGEN (Superadmin) -->
+        <!-- EINSTELLUNGEN (alle Rollen, Tabs je nach Level) -->
         <div x-show="page==='settings'">
-          <h2 class="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Plattform-Einstellungen</h2>
+          <h2 class="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Einstellungen</h2>
 
           <div class="flex gap-2 md:gap-4 mb-6 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
-            <button @click="settingsTab='platform'" :class="['px-3 md:px-4 py-2 border-b-2 transition-colors text-sm md:text-base whitespace-nowrap', settingsTab==='platform' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-600 dark:text-slate-400']">Plattform</button>
-            <button @click="settingsTab='embedding'" :class="['px-3 md:px-4 py-2 border-b-2 transition-colors text-sm md:text-base whitespace-nowrap', settingsTab==='embedding' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-600 dark:text-slate-400']">Embedding</button>
-            <button @click="settingsTab='security'" :class="['px-3 md:px-4 py-2 border-b-2 transition-colors text-sm md:text-base whitespace-nowrap', settingsTab==='security' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-600 dark:text-slate-400']">Sicherheit</button>
+            <button @click="settingsTab='navigation'" :class="['px-3 md:px-4 py-2 border-b-2 transition-colors text-sm md:text-base whitespace-nowrap', settingsTab==='navigation' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-600 dark:text-slate-400']">Navigation</button>
+            <template x-if="me && (effectiveRole === 'admin' || effectiveRole === 'superadmin')">
+              <button @click="settingsTab='administration'" :class="['px-3 md:px-4 py-2 border-b-2 transition-colors text-sm md:text-base whitespace-nowrap', settingsTab==='administration' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-600 dark:text-slate-400']">Administration</button>
+            </template>
+            <template x-if="me && effectiveRole === 'superadmin'">
+              <button @click="settingsTab='platform'" :class="['px-3 md:px-4 py-2 border-b-2 transition-colors text-sm md:text-base whitespace-nowrap', settingsTab==='platform' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-600 dark:text-slate-400']">Plattform</button>
+            </template>
           </div>
 
-          <div x-show="settingsTab==='platform'" class="space-y-6">
+          <!-- Navigation (alle User) -->
+          <div x-show="settingsTab==='navigation'" class="space-y-6">
             <div class="card">
               <div class="card-body space-y-4">
-                <div>
-                  <label class="block text-xs md:text-sm font-medium mb-2">Plattformname</label>
-                  <input type="text" x-model="settingsForm.platform_name" class="input" @change="saveSetting('platform_name', settingsForm.platform_name)">
+                <h3 class="text-lg font-semibold">Darstellung</h3>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium">Dark Mode</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Dunkles Farbschema verwenden</p>
+                  </div>
+                  <button @click="toggleDarkMode()" :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors', darkMode ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-600']">
+                    <span :class="['inline-block h-4 w-4 rounded-full bg-white transition-transform', darkMode ? 'translate-x-6' : 'translate-x-1']"></span>
+                  </button>
                 </div>
                 <div>
-                  <label class="block text-xs md:text-sm font-medium mb-2">Support-E-Mail</label>
-                  <input type="email" x-model="settingsForm.support_email" class="input" @change="saveSetting('support_email', settingsForm.support_email)">
+                  <p class="text-sm font-medium mb-2">Startseite nach Login</p>
+                  <select x-model="settingsForm.default_page" @change="saveSetting('default_page', settingsForm.default_page)" class="input">
+                    <option value="dashboard">Dashboard</option>
+                    <option value="documents">Meine Dokumente</option>
+                    <option value="media">Meine Medien</option>
+                    <option value="chat">Chat</option>
+                  </select>
                 </div>
-                <div>
-                  <label class="block text-xs md:text-sm font-medium mb-2">Max. Upload-Groesse (MB)</label>
-                  <input type="number" x-model.number="settingsForm.max_upload_size_mb" class="input" @change="saveSetting('max_upload_size_mb', settingsForm.max_upload_size_mb)">
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-body space-y-4">
+                <h3 class="text-lg font-semibold">Benachrichtigungen</h3>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium">Desktop-Benachrichtigungen</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Browser-Benachrichtigungen bei neuen Ereignissen</p>
+                  </div>
+                  <input type="checkbox" x-model="settingsForm.notifications_enabled" @change="saveSetting('notifications_enabled', settingsForm.notifications_enabled)" class="rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500">
                 </div>
               </div>
             </div>
           </div>
 
-          <div x-show="settingsTab==='embedding'" class="space-y-6">
+          <!-- Administration (Admin + Superadmin) -->
+          <div x-show="settingsTab==='administration'" class="space-y-6">
             <div class="card">
               <div class="card-body space-y-4">
+                <h3 class="text-lg font-semibold">Embedding & Chunking</h3>
                 <div>
                   <label class="block text-xs md:text-sm font-medium mb-2">Embedding-Modell</label>
                   <input type="text" x-model="settingsForm.embedding_model" class="input" @change="saveSetting('embedding_model', settingsForm.embedding_model)">
@@ -1037,17 +1093,40 @@ tailwind.config = {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div x-show="settingsTab==='security'" class="space-y-6">
             <div class="card">
               <div class="card-body space-y-4">
+                <h3 class="text-lg font-semibold">Sicherheit</h3>
                 <div>
                   <label class="block text-xs md:text-sm font-medium mb-2">Session-Timeout (Minuten)</label>
                   <input type="number" x-model.number="settingsForm.session_timeout_minutes" class="input" @change="saveSetting('session_timeout_minutes', settingsForm.session_timeout_minutes)">
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Plattform (nur Superadmin) -->
+          <div x-show="settingsTab==='platform'" class="space-y-6">
+            <div class="card">
+              <div class="card-body space-y-4">
+                <h3 class="text-lg font-semibold">Plattform-Konfiguration</h3>
                 <div>
-                  <label class="block text-xs md:text-sm font-medium mb-2">Erlaubte Domains</label>
+                  <label class="block text-xs md:text-sm font-medium mb-2">Plattformname</label>
+                  <input type="text" x-model="settingsForm.platform_name" class="input" @change="saveSetting('platform_name', settingsForm.platform_name)">
+                </div>
+                <div>
+                  <label class="block text-xs md:text-sm font-medium mb-2">Support-E-Mail</label>
+                  <input type="email" x-model="settingsForm.support_email" class="input" @change="saveSetting('support_email', settingsForm.support_email)">
+                </div>
+                <div>
+                  <label class="block text-xs md:text-sm font-medium mb-2">Max. Upload-Groesse (MB)</label>
+                  <input type="number" x-model.number="settingsForm.max_upload_size_mb" class="input" @change="saveSetting('max_upload_size_mb', settingsForm.max_upload_size_mb)">
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-body space-y-4">
+                <h3 class="text-lg font-semibold">Erlaubte Domains</h3>
+                <div>
                   <textarea x-model="settingsForm.allowed_domains" class="input min-h-[100px]" placeholder="Eine pro Zeile" @change="saveSetting('allowed_domains', settingsForm.allowed_domains)"></textarea>
                 </div>
               </div>
@@ -1268,6 +1347,13 @@ tailwind.config = {
         <div class="flex items-center gap-2">
           <input type="checkbox" x-model="editMediaPublic" id="mediaPublic" class="rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500">
           <label for="mediaPublic" class="text-sm">Oeffentlich</label>
+        </div>
+        <div x-show="editMediaPublic" class="mt-2 p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+          <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300 mb-1">Oeffentlicher Link (nach Speichern aktiv):</p>
+          <div class="flex items-center gap-2">
+            <input type="text" readonly :value="location.origin + '/api/public/media/' + editingMediaId" class="input text-xs bg-white dark:bg-slate-900 flex-1">
+            <button @click="copyToClipboard(location.origin + '/api/public/media/' + editingMediaId)" class="btn btn-secondary btn-sm whitespace-nowrap">Kopieren</button>
+          </div>
         </div>
       </div>
       <div class="flex gap-3 mt-6">
@@ -1694,8 +1780,10 @@ function app() {
     auditFilterFrom: new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0],
     auditFilterTo: new Date().toISOString().split('T')[0],
     auditFilterAction: '',
-    settingsTab: 'platform',
+    settingsTab: 'navigation',
     selectedTenantId: '',
+    viewAsUserId: '',
+    viewAsUserList: [],
     newDomain: '',
 
     // Computed
@@ -1775,7 +1863,52 @@ function app() {
     },
 
     onTenantChange() {
+      this.viewAsUserId = '';
+      this.loadViewAsUsers();
       this.loadInitialData();
+    },
+
+    onViewAsUserChange() {
+      if (this.viewAsUserId) {
+        const u = this.viewAsUserList.find(u => u.id === this.viewAsUserId);
+        if (u && u.tenant_id && !this.selectedTenantId) {
+          this.selectedTenantId = u.tenant_id;
+        }
+        // Zur Dashboard-Seite wechseln falls aktuelle Seite nicht sichtbar fuer die Rolle
+        const adminPages = ['users', 'shares', 'voicebot-monitor'];
+        const superPages = ['tenants', 'api-keys', 'audit-log', 'domains'];
+        const role = u?.role || 'user';
+        if (role === 'user' && [...adminPages, ...superPages].includes(this.page)) {
+          this.page = 'dashboard';
+        } else if (role === 'admin' && superPages.includes(this.page)) {
+          this.page = 'dashboard';
+        }
+        // Settings-Tab zurücksetzen wenn nicht sichtbar
+        if (role === 'user' && this.settingsTab !== 'navigation') {
+          this.settingsTab = 'navigation';
+        } else if (role === 'admin' && this.settingsTab === 'platform') {
+          this.settingsTab = 'navigation';
+        }
+      }
+      this.loadInitialData();
+    },
+
+    async loadViewAsUsers() {
+      if (!this.me || this.me.role !== 'superadmin') return;
+      try {
+        let url = '/api/users';
+        if (this.selectedTenantId) url += `?tenant_id=${this.selectedTenantId}`;
+        const data = await this.api(url);
+        this.viewAsUserList = Array.isArray(data) ? data : (data?.items || []);
+      } catch(e) { this.viewAsUserList = []; }
+    },
+
+    get effectiveRole() {
+      if (this.me?.role === 'superadmin' && this.viewAsUserId) {
+        const u = this.viewAsUserList.find(u => u.id === this.viewAsUserId);
+        return u?.role || 'user';
+      }
+      return this.me?.role || 'user';
     },
 
     get activeTenantId() {
@@ -1880,6 +2013,7 @@ function app() {
           this.loadMedia(),
           this.me?.role !== 'user' ? this.loadUsers() : Promise.resolve(),
           this.me?.role === 'superadmin' ? this.loadTenants() : Promise.resolve(),
+          this.me?.role === 'superadmin' ? this.loadViewAsUsers() : Promise.resolve(),
           this.loadAppointments(),
         ]);
         this.$nextTick(() => this.initCharts());

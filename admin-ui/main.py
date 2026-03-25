@@ -33,7 +33,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form, Depends, Query, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -1780,6 +1780,23 @@ async def _resolve_tenant_by_domain(origin: str) -> Optional[str]:
         domain,
     )
     return str(row["tenant_id"]) if row else None
+
+
+@app.get("/api/public/media/{media_id}")
+async def public_media(media_id: str):
+    """Öffentlicher Media-Endpoint — leitet auf presigned S3-URL weiter, nur für is_public=true Medien."""
+    db = await get_db()
+    media = await db.fetchrow(
+        "SELECT s3_key, s3_bucket, is_public FROM public.media_files WHERE id=$1::uuid", media_id
+    )
+    if not media:
+        raise HTTPException(404, "Datei nicht gefunden")
+    if not media["is_public"]:
+        raise HTTPException(403, "Datei ist nicht öffentlich — Login erforderlich")
+    url = presign_url(media["s3_key"], media["s3_bucket"], expires=7200)
+    if not url:
+        raise HTTPException(503, "S3 nicht verfügbar")
+    return RedirectResponse(url=url, status_code=302)
 
 
 @app.post("/api/public/widget-chat")
