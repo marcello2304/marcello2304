@@ -410,16 +410,16 @@ tailwind.config = {
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Conversations diese Woche</h3>
-                <div class="relative" style="height:220px">
-                  <canvas x-ref="conversationsChart"></canvas>
+                <div style="position:relative; height:220px; width:100%; overflow:hidden;">
+                  <canvas x-ref="conversationsChart" width="400" height="220"></canvas>
                 </div>
               </div>
             </div>
             <div class="card">
               <div class="card-body">
                 <h3 class="text-lg font-semibold mb-4">Dokumente pro Woche</h3>
-                <div class="relative" style="height:220px">
-                  <canvas x-ref="documentsChart"></canvas>
+                <div style="position:relative; height:220px; width:100%; overflow:hidden;">
+                  <canvas x-ref="documentsChart" width="400" height="220"></canvas>
                 </div>
               </div>
             </div>
@@ -2688,16 +2688,19 @@ function app() {
     },
 
     // Charts
+    _convChart: null,
+    _docsChart: null,
     initCharts() {
-      this.$nextTick(() => {
+      // Delay to ensure x-show has made the dashboard visible and DOM is laid out
+      setTimeout(() => {
         try {
-          const ctxConv = this.$refs.conversationsChart?.getContext('2d');
-          if (ctxConv) {
-            // Destroy existing chart if any
-            const existingConv = Chart.getChart(ctxConv.canvas);
-            if (existingConv) existingConv.destroy();
+          // Destroy previous instances
+          if (this._convChart) { this._convChart.destroy(); this._convChart = null; }
+          if (this._docsChart) { this._docsChart.destroy(); this._docsChart = null; }
 
-            new Chart(ctxConv, {
+          const convCanvas = this.$refs.conversationsChart;
+          if (convCanvas && convCanvas.offsetParent !== null) {
+            this._convChart = new Chart(convCanvas, {
               type: 'line',
               data: {
                 labels: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
@@ -2713,18 +2716,16 @@ function app() {
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: { duration: 400 },
                 plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true } },
               },
             });
           }
 
-          const ctxDocs = this.$refs.documentsChart?.getContext('2d');
-          if (ctxDocs) {
-            const existingDocs = Chart.getChart(ctxDocs.canvas);
-            if (existingDocs) existingDocs.destroy();
-
-            new Chart(ctxDocs, {
+          const docsCanvas = this.$refs.documentsChart;
+          if (docsCanvas && docsCanvas.offsetParent !== null) {
+            this._docsChart = new Chart(docsCanvas, {
               type: 'bar',
               data: {
                 labels: ['Wk1', 'Wk2', 'Wk3', 'Wk4', 'Wk5', 'Wk6', 'Wk7', 'Wk8'],
@@ -2737,13 +2738,14 @@ function app() {
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: { duration: 400 },
                 plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true } },
               },
             });
           }
         } catch(e) { console.error('Chart error:', e); }
-      });
+      }, 100);
     },
 
     // Helpers
