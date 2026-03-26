@@ -2605,7 +2605,8 @@ async def meeting_auth_page(room: str = "eppcom-meeting"):
     }}
 
     function joinAsGuest() {{
-      window.location.href = GUEST_URL;
+      // Hash-Config-Override verhindert erneuten Auto-Redirect zu dieser Auth-Seite
+      window.location.href = GUEST_URL + '#config.tokenAuthUrl=%22%22';
     }}
 
     async function doLogin(e) {{

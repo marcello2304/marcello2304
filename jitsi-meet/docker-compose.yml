@@ -8,13 +8,6 @@ services:
       - jitsi-web-config:/config
       - jitsi-web-crontabs:/var/spool/cron/crontabs
       - jitsi-web-transcripts:/usr/share/jitsi-meet/transcripts
-      - ./custom-backgrounds/background-1.jpg:/usr/share/jitsi-meet/images/virtual-background/background-1.jpg:ro
-      - ./custom-backgrounds/background-2.jpg:/usr/share/jitsi-meet/images/virtual-background/background-2.jpg:ro
-      - ./custom-backgrounds/background-3.jpg:/usr/share/jitsi-meet/images/virtual-background/background-3.jpg:ro
-      - ./custom-backgrounds/background-4.jpg:/usr/share/jitsi-meet/images/virtual-background/background-4.jpg:ro
-      - ./custom-backgrounds/background-5.jpg:/usr/share/jitsi-meet/images/virtual-background/background-5.jpg:ro
-      - ./custom-backgrounds/background-6.jpg:/usr/share/jitsi-meet/images/virtual-background/background-6.jpg:ro
-      - ./custom-backgrounds/background-7.jpg:/usr/share/jitsi-meet/images/virtual-background/background-7.jpg:ro
       - ./custom-config.js:/custom-config.js:ro
       - ./append-custom-config.sh:/etc/cont-init.d/99-custom-config:ro
     environment:
