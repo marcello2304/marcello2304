@@ -2244,10 +2244,15 @@ async def create_appointment(request: Request, session: SessionInfo = Depends(re
     if not title:
         raise HTTPException(400, "Titel erforderlich")
 
-    start_time = body.get("start_time")
-    end_time = body.get("end_time")
-    if not start_time or not end_time:
+    start_time_raw = body.get("start_time")
+    end_time_raw = body.get("end_time")
+    if not start_time_raw or not end_time_raw:
         raise HTTPException(400, "Start- und Endzeit erforderlich")
+    try:
+        start_time = datetime.fromisoformat(start_time_raw) if isinstance(start_time_raw, str) else start_time_raw
+        end_time = datetime.fromisoformat(end_time_raw) if isinstance(end_time_raw, str) else end_time_raw
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Ungültiges Datums-Format")
 
     target_user_id = body.get("user_id", session.user_id)
     if target_user_id != session.user_id and not session.is_superadmin():
@@ -2263,7 +2268,7 @@ async def create_appointment(request: Request, session: SessionInfo = Depends(re
            (user_id, tenant_id, title, description, start_time, end_time, status,
             customer_name, customer_email, customer_phone, customer_company,
             customer_address, customer_notes)
-           VALUES ($1::uuid, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7,
+           VALUES ($1::uuid, $2, $3, $4, $5, $6, $7,
                    $8, $9, $10, $11, $12, $13)
            RETURNING *""",
         target_user_id,
@@ -2294,17 +2299,21 @@ async def update_appointment(appointment_id: str, request: Request, session: Ses
         raise HTTPException(403, "Kein Zugriff")
 
     body = await request.json()
+    start_val = body.get("start_time")
+    end_val = body.get("end_time")
+    start_dt = datetime.fromisoformat(start_val) if isinstance(start_val, str) else (start_val or existing["start_time"])
+    end_dt = datetime.fromisoformat(end_val) if isinstance(end_val, str) else (end_val or existing["end_time"])
     await db.execute(
         """UPDATE public.appointments SET
-           title=$2, description=$3, start_time=$4::timestamptz, end_time=$5::timestamptz,
+           title=$2, description=$3, start_time=$4, end_time=$5,
            status=$6, customer_name=$7, customer_email=$8, customer_phone=$9,
            customer_company=$10, customer_address=$11, customer_notes=$12, tenant_id=$13
            WHERE id=$1::uuid""",
         appointment_id,
         body.get("title", existing["title"]),
         body.get("description", existing["description"]),
-        body.get("start_time", existing["start_time"].isoformat()),
-        body.get("end_time", existing["end_time"].isoformat()),
+        start_dt,
+        end_dt,
         body.get("status", existing["status"]),
         body.get("customer_name", existing["customer_name"]),
         body.get("customer_email", existing["customer_email"]),
