@@ -849,15 +849,20 @@ async def delete_user(user_id: str, session: SessionInfo = Depends(require_admin
 
 
 @app.delete("/api/users/{user_id}/permanent")
-async def delete_user_permanent(user_id: str, session: SessionInfo = Depends(require_superadmin)):
+async def delete_user_permanent(user_id: str, session: SessionInfo = Depends(require_admin)):
     if user_id == session.user_id:
         raise HTTPException(400, "Eigenen Account kann man nicht löschen")
     db = await get_db()
-    target = await db.fetchrow("SELECT role, email FROM public.users WHERE id=$1::uuid", user_id)
+    target = await db.fetchrow("SELECT role, email, tenant_id FROM public.users WHERE id=$1::uuid", user_id)
     if not target:
         raise HTTPException(404, "User nicht gefunden")
     if target["role"] == "superadmin":
         raise HTTPException(403, "Super-Admin kann nicht endgültig gelöscht werden")
+    if not session.is_superadmin():
+        if str(target["tenant_id"]) != session.tenant_id:
+            raise HTTPException(403, "Kein Zugriff auf diesen User")
+        if target["role"] in ("admin", "superadmin"):
+            raise HTTPException(403, "Admins können nicht von anderen Admins gelöscht werden")
 
     await db.execute("DELETE FROM public.users WHERE id=$1::uuid", user_id)
     return {"message": f"User {target['email']} endgültig gelöscht"}

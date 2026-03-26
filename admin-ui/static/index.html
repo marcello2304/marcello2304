@@ -787,7 +787,8 @@ tailwind.config = {
                     <th>E-Mail</th>
                     <th>Name</th>
                     <th>Rolle</th>
-                    <th>Status</th>
+                    <th>Dokumente</th>
+                    <th>Medien</th>
                     <th>Erstellt</th>
                     <th>Aktionen</th>
                   </tr>
@@ -798,7 +799,8 @@ tailwind.config = {
                       <td class="font-medium" x-text="user.email"></td>
                       <td x-text="user.display_name || '-'"></td>
                       <td><span :class="['badge', badgeForRole(user.role)]" x-text="user.role"></span></td>
-                      <td><span :class="['badge', user.is_active ? 'badge-success' : 'badge-error']" x-text="user.is_active ? 'Aktiv' : 'Inaktiv'"></span></td>
+                      <td><span class="badge badge-info" x-text="user.source_count || 0"></span></td>
+                      <td><span class="badge badge-purple" x-text="user.media_count || 0"></span></td>
                       <td x-text="fmtDate(user.created_at)"></td>
                       <td class="flex gap-1 flex-wrap">
                         <button @click="editUser(user)" class="btn btn-secondary btn-sm">Bearbeiten</button>
@@ -809,7 +811,7 @@ tailwind.config = {
                     </tr>
                   </template>
                   <tr x-show="users.length === 0">
-                    <td colspan="6" class="text-center py-8 text-slate-400">Keine Benutzer gefunden</td>
+                    <td colspan="7" class="text-center py-8 text-slate-400">Keine Benutzer gefunden</td>
                   </tr>
                 </tbody>
               </table>
@@ -841,7 +843,7 @@ tailwind.config = {
                   <tr>
                     <th>Inhalt</th>
                     <th>Typ</th>
-                    <th>Freigegeben fuer</th>
+                    <th>Freigegeben für</th>
                     <th>Erstellt</th>
                     <th>Aktionen</th>
                   </tr>
@@ -934,23 +936,43 @@ tailwind.config = {
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <template x-for="tenant in tenants" :key="tenant.id">
-              <div class="card hover:shadow-md transition-shadow cursor-pointer" @click="editTenant(tenant)">
+              <div class="card hover:shadow-md transition-shadow">
                 <div class="card-body">
                   <div class="flex items-start justify-between mb-4">
-                    <div>
+                    <div class="cursor-pointer flex-1" @click="editTenant(tenant)">
                       <h3 class="text-lg font-semibold" x-text="tenant.name"></h3>
                       <p class="text-sm text-slate-500 dark:text-slate-400" x-text="tenant.email || tenant.slug"></p>
                     </div>
-                    <span :class="['badge', tenant.plan === 'enterprise' ? 'badge-purple' : 'badge-info']" x-text="(tenant.plan || 'starter').toUpperCase()"></span>
+                    <div class="flex items-center gap-2">
+                      <span :class="['badge', tenant.plan === 'enterprise' ? 'badge-purple' : 'badge-info']" x-text="(tenant.plan || 'starter').toUpperCase()"></span>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+                    <div class="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <div class="text-lg font-bold text-brand-600" x-text="tenant.user_count || 0"></div>
+                      <div class="text-xs text-slate-500">Benutzer</div>
+                    </div>
+                    <div class="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <div class="text-lg font-bold text-emerald-600" x-text="tenant.source_count || 0"></div>
+                      <div class="text-xs text-slate-500">Dokumente</div>
+                    </div>
+                    <div class="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <div class="text-lg font-bold text-purple-600" x-text="tenant.media_count || 0"></div>
+                      <div class="text-xs text-slate-500">Medien</div>
+                    </div>
                   </div>
                   <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
                       <span class="text-slate-600 dark:text-slate-400">Dokumente:</span>
-                      <span x-text="`${tenant.doc_count || 0} / ${tenant.max_docs || '-'}`" class="font-medium"></span>
+                      <span x-text="`${tenant.source_count || 0} / ${tenant.max_docs || '-'}`" class="font-medium"></span>
                     </div>
                     <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                      <div class="bg-brand-600 h-2 rounded-full" :style="`width: ${Math.min(100, ((tenant.doc_count || 0) / (tenant.max_docs || 1) * 100))}%`"></div>
+                      <div class="bg-brand-600 h-2 rounded-full" :style="`width: ${Math.min(100, ((tenant.source_count || 0) / (tenant.max_docs || 1) * 100))}%`"></div>
                     </div>
+                  </div>
+                  <div class="flex gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button @click="editTenant(tenant)" class="btn btn-secondary btn-sm flex-1">Bearbeiten</button>
+                    <button @click="deleteTenantConfirm(tenant.id, tenant.name)" class="btn btn-danger btn-sm">Entfernen</button>
                   </div>
                 </div>
               </div>
@@ -1424,7 +1446,7 @@ tailwind.config = {
           <div>
             <label class="block text-xs md:text-sm font-medium mb-2">Firma (Tenant) <span class="text-red-500">*</span></label>
             <select x-model="newUser.tenant_id" class="input" required>
-              <option value="">Bitte Firma auswaehlen...</option>
+              <option value="">Bitte Firma auswählen...</option>
               <template x-for="t in tenants" :key="t.id">
                 <option :value="t.id" x-text="t.name"></option>
               </template>
@@ -1453,7 +1475,7 @@ tailwind.config = {
   <div x-show="showPasswordModal" class="modal-overlay" @click.self="showPasswordModal=false">
     <div class="modal-box" @click.stop>
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold">Passwort aendern</h2>
+        <h2 class="text-2xl font-bold">Passwort ändern</h2>
         <button @click="showPasswordModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
       </div>
       <p class="text-sm text-slate-500 mb-4" x-text="'Benutzer: ' + (passwordUser?.email || '')"></p>
@@ -1463,12 +1485,12 @@ tailwind.config = {
           <input type="password" x-model="newPassword" class="input" placeholder="Neues Passwort eingeben">
         </div>
         <div>
-          <label class="block text-xs md:text-sm font-medium mb-2">Passwort bestaetigen</label>
+          <label class="block text-xs md:text-sm font-medium mb-2">Passwort bestätigen</label>
           <input type="password" x-model="newPasswordConfirm" class="input" placeholder="Passwort wiederholen">
         </div>
       </div>
       <div class="flex gap-3 mt-6">
-        <button @click="changePassword()" class="btn btn-primary flex-1">Passwort aendern</button>
+        <button @click="changePassword()" class="btn btn-primary flex-1">Passwort ändern</button>
         <button @click="showPasswordModal=false" class="btn btn-secondary flex-1">Abbrechen</button>
       </div>
     </div>
@@ -1517,12 +1539,12 @@ tailwind.config = {
             <span class="text-xs text-slate-400" x-text="fmtDate(item.created_at)"></span>
           </label>
         </template>
-        <p x-show="assignableItems.length === 0" class="text-center text-sm text-slate-400 py-4">Keine verfuegbaren Inhalte</p>
+        <p x-show="assignableItems.length === 0" class="text-center text-sm text-slate-400 py-4">Keine verfügbaren Inhalte</p>
       </div>
 
       <div class="flex gap-3 mt-6">
         <button @click="doAssign()" :disabled="assignSelectedIds.length === 0" class="btn btn-primary flex-1">
-          <span x-text="assignSelectedIds.length > 0 ? assignSelectedIds.length + ' zuordnen' : 'Auswaehlen...'"></span>
+          <span x-text="assignSelectedIds.length > 0 ? assignSelectedIds.length + ' zuordnen' : 'Auswählen...'"></span>
         </button>
         <button @click="showAssignModal=false" class="btn btn-secondary flex-1">Schliessen</button>
       </div>
@@ -1548,14 +1570,14 @@ tailwind.config = {
         <div>
           <label class="block text-xs md:text-sm font-medium mb-2">Inhalt</label>
           <select x-model="newShare.content_id" class="input">
-            <option value="">Bitte waehlen</option>
+            <option value="">Bitte wählen</option>
             <template x-for="item in shareableContent" :key="item.id">
               <option :value="item.id" x-text="item.name || item.filename || item.query || item.id"></option>
             </template>
           </select>
         </div>
         <div>
-          <label class="block text-xs md:text-sm font-medium mb-2">Freigeben fuer (Benutzer)</label>
+          <label class="block text-xs md:text-sm font-medium mb-2">Freigeben für (Benutzer)</label>
           <div class="space-y-2 max-h-48 overflow-y-auto">
             <template x-for="u in users" :key="u.id">
               <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-800">
@@ -1981,7 +2003,7 @@ function app() {
         if (u && u.tenant_id && !this.selectedTenantId) {
           this.selectedTenantId = u.tenant_id;
         }
-        // Zur Dashboard-Seite wechseln falls aktuelle Seite nicht sichtbar fuer die Rolle
+        // Zur Dashboard-Seite wechseln falls aktuelle Seite nicht sichtbar für die Rolle
         const adminPages = ['users', 'shares', 'voicebot-monitor'];
         const superPages = ['tenants', 'api-keys', 'audit-log', 'domains'];
         const role = u?.role || 'user';
@@ -2287,7 +2309,7 @@ function app() {
 
     async doUploadDocument() {
       if (this.uploadTab === 'file' && !this.uploadFile) {
-        this.showToast('Bitte eine Datei auswaehlen', 'error');
+        this.showToast('Bitte eine Datei auswählen', 'error');
         return;
       }
       if (this.uploadTab === 'text' && !this.uploadTextContent.trim()) {
@@ -2366,7 +2388,7 @@ function app() {
 
     async doUploadMedia() {
       if (!this.mediaUploadFile) {
-        this.showToast('Bitte eine Datei auswaehlen', 'error');
+        this.showToast('Bitte eine Datei auswählen', 'error');
         return;
       }
 
@@ -2556,7 +2578,7 @@ function app() {
       return new Promise((resolve, reject) => {
         const s = document.createElement('script');
         s.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
-        s.onload = () => window.LivekitClient ? resolve() : reject(new Error('SDK nicht verfuegbar'));
+        s.onload = () => window.LivekitClient ? resolve() : reject(new Error('SDK nicht verfügbar'));
         s.onerror = () => reject(new Error('SDK konnte nicht geladen werden'));
         document.head.appendChild(s);
       });
@@ -2613,7 +2635,7 @@ function app() {
           }
           // Validate tenant_id is set
           if (this.me.role === 'superadmin' && !this.newUser.tenant_id) {
-            this.showToast('Bitte eine Firma (Tenant) auswaehlen', 'error');
+            this.showToast('Bitte eine Firma (Tenant) auswählen', 'error');
             return;
           }
           await this.api('/api/users', {
@@ -2630,12 +2652,19 @@ function app() {
     },
 
     async deleteUserConfirm(id) {
-      if (!confirm('Benutzer wirklich entfernen?')) return;
+      if (!confirm('Benutzer wirklich endgültig löschen?')) return;
       try {
-        await this.api(`/api/users/${id}`, { method: 'DELETE' });
-        this.showToast('Benutzer entfernt');
+        await this.api(`/api/users/${id}/permanent`, { method: 'DELETE' });
+        this.showToast('Benutzer gelöscht');
         this.loadUsers();
-      } catch(e) { this.showToast(e.message, 'error'); }
+      } catch(e) {
+        // Fallback: deaktivieren wenn permanent nicht erlaubt
+        try {
+          await this.api(`/api/users/${id}`, { method: 'DELETE' });
+          this.showToast('Benutzer deaktiviert');
+          this.loadUsers();
+        } catch(e2) { this.showToast(e2.message, 'error'); }
+      }
     },
 
     openPasswordModal(user) {
@@ -2651,7 +2680,7 @@ function app() {
         return;
       }
       if (this.newPassword !== this.newPasswordConfirm) {
-        this.showToast('Passwoerter stimmen nicht ueberein', 'error');
+        this.showToast('Passwörter stimmen nicht überein', 'error');
         return;
       }
       try {
@@ -2659,7 +2688,7 @@ function app() {
           method: 'PUT',
           body: JSON.stringify({ new_password: this.newPassword }),
         });
-        this.showToast('Passwort geaendert');
+        this.showToast('Passwort geändert');
         this.showPasswordModal = false;
       } catch(e) { this.showToast(e.message, 'error'); }
     },
@@ -2681,11 +2710,11 @@ function app() {
     async loadAssignData() {
       if (!this.assignUser) return;
       try {
-        // Lade bereits zugeordnete Freigaben fuer diesen User
+        // Lade bereits zugeordnete Freigaben für diesen User
         const shares = await this.api(`/api/shares?shared_with=${this.assignUser.id}`);
         this.assignedItems = Array.isArray(shares) ? shares : (shares?.items || []);
 
-        // Lade alle verfuegbaren Inhalte (Dokumente oder Medien)
+        // Lade alle verfügbaren Inhalte (Dokumente oder Medien)
         const alreadyAssignedIds = this.assignedItems
           .filter(a => a.content_type === this.assignTab)
           .map(a => a.content_id);
@@ -2761,7 +2790,7 @@ function app() {
 
     async createShare() {
       if (!this.newShare.content_id || this.newShare.user_ids.length === 0) {
-        this.showToast('Bitte Inhalt und Benutzer auswaehlen', 'error');
+        this.showToast('Bitte Inhalt und Benutzer auswählen', 'error');
         return;
       }
       try {
@@ -2822,6 +2851,15 @@ function app() {
         this.showCreateTenant = false;
         this.editingTenantId = null;
         this.newTenant = { max_docs: 500, max_chunks: 50000 };
+        this.loadTenants();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async deleteTenantConfirm(id, name) {
+      if (!confirm(`Firma "${name}" wirklich entfernen? Alle zugehörigen Daten werden deaktiviert.`)) return;
+      try {
+        await this.api(`/api/tenants/${id}`, { method: 'DELETE' });
+        this.showToast('Firma entfernt');
         this.loadTenants();
       } catch(e) { this.showToast(e.message, 'error'); }
     },
@@ -2993,7 +3031,12 @@ function app() {
     // Helpers
     showToast(msg, type = 'success') {
       const id = ++this.toastCounter;
-      this.toasts.push({ id, msg, type });
+      // Sicherstellen dass msg ein String ist (verhindert [object Object])
+      const text = typeof msg === 'string' ? msg
+        : msg instanceof Error ? (msg.message || String(msg))
+        : msg && typeof msg === 'object' ? (msg.detail || msg.message || JSON.stringify(msg))
+        : String(msg || 'Fehler');
+      this.toasts.push({ id, msg: text, type });
       setTimeout(() => {
         this.toasts = this.toasts.filter(t => t.id !== id);
       }, 3500);
