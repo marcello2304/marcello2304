@@ -1,0 +1,213 @@
+{
+  "name": "EPPCOM Voicebot RAG Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voicebot-input",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-voicebot",
+      "name": "Webhook: Voicebot Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\n\nif (!body.transcript || body.transcript.length < 2) {\n  throw new Error('transcript fehlt oder zu kurz');\n}\n\nreturn [{ json: {\n  transcript: body.transcript,\n  session_id: body.session_id || `vb-${Date.now()}`,\n  tenant_slug: body.tenant_slug || 'eppcom',\n  top_k: body.top_k || 5,\n  min_similarity: body.min_similarity || 0.3,\n  model: body.model || 'qwen2.5:7b-eppcom',\n  started_at: Date.now()\n}}];"
+      },
+      "id": "validate-input",
+      "name": "Validate & Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM public.tenants WHERE slug = '{{ $json.tenant_slug }}' AND status = 'active' LIMIT 1;",
+        "options": {}
+      },
+      "id": "get-tenant",
+      "name": "Get Tenant ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [440, 300],
+      "credentials": {
+        "postgres": {
+          "name": "postgres-rag (app_db)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const tenant = $input.first().json;\nif (!tenant || !tenant.id) {\n  throw new Error('Tenant nicht gefunden: ' + $('Validate & Prepare').first().json.tenant_slug);\n}\nconst input = $('Validate & Prepare').first().json;\nreturn [{ json: { ...input, tenant_id: tenant.id } }];"
+      },
+      "id": "merge-tenant",
+      "name": "Merge Tenant ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://46.224.54.65:11434/api/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen3-embedding:0.6b\",\n  \"input\": \"{{ $json.transcript }}\"\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "embed-query",
+      "name": "Embed Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const embeddings = $input.first().json.embeddings;\nif (!embeddings || !embeddings[0]) {\n  throw new Error('Embedding-Generierung fehlgeschlagen');\n}\nconst prev = $('Merge Tenant ID').first().json;\nreturn [{ json: {\n  ...prev,\n  embedding: JSON.stringify(embeddings[0]),\n  embed_time_ms: Date.now() - prev.started_at\n}}];"
+      },
+      "id": "extract-embedding",
+      "name": "Extract Embedding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT c.content, s.name as source_name,\n       1 - (e.embedding <=> '{{ $json.embedding }}'::vector) AS similarity\nFROM public.embeddings e\nJOIN public.chunks c ON c.id = e.chunk_id\nJOIN public.documents d ON d.id = c.document_id\nJOIN public.sources s ON s.id = d.source_id\nWHERE e.tenant_id = '{{ $json.tenant_id }}'::uuid\n  AND 1 - (e.embedding <=> '{{ $json.embedding }}'::vector) >= {{ $json.min_similarity }}\nORDER BY similarity DESC\nLIMIT {{ $json.top_k }};",
+        "options": {}
+      },
+      "id": "rag-search",
+      "name": "RAG Vector Search",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1320, 300],
+      "credentials": {
+        "postgres": {
+          "name": "postgres-rag (app_db)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunks = $input.all().map(i => i.json);\nconst prev = $('Extract Embedding').first().json;\n\n// Build RAG context from top chunks\nlet context = '';\nif (chunks.length > 0 && chunks[0].content) {\n  context = chunks\n    .filter(c => c.content)\n    .map((c, i) => `[Quelle: ${c.source_name || 'Unbekannt'}, Relevanz: ${(c.similarity * 100).toFixed(0)}%]\\n${c.content}`)\n    .join('\\n\\n---\\n\\n');\n} else {\n  context = 'Keine relevanten Dokumente gefunden.';\n}\n\nconst ragTimeMs = Date.now() - prev.started_at;\n\nreturn [{ json: {\n  transcript: prev.transcript,\n  session_id: prev.session_id,\n  tenant_id: prev.tenant_id,\n  model: prev.model,\n  context: context,\n  chunk_count: chunks.filter(c => c.content).length,\n  started_at: prev.started_at,\n  rag_time_ms: ragTimeMs\n}}];"
+      },
+      "id": "build-context",
+      "name": "Build LLM Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://46.224.54.65:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"prompt\": \"KONTEXT-DOKUMENTE:\\n{{ $json.context }}\\n\\n---\\nBEACHTE: Formuliere in eigenen Worten, max 3-4 Sätze. Sprich den Nutzer direkt an.\\n\\nFRAGE: {{ $json.transcript }}\\n\\nANTWORT:\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 200\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "llm-generate",
+      "name": "LLM Generate (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const llmResponse = $input.first().json;\nconst prev = $('Build LLM Context').first().json;\n\nconst totalTimeMs = Date.now() - prev.started_at;\nconst llmTimeMs = totalTimeMs - prev.rag_time_ms;\n\nconst responseText = llmResponse.response || 'Entschuldigung, ich konnte keine Antwort generieren.';\n\n// Clean up response - remove thinking tags if present\nlet cleanResponse = responseText\n  .replace(/<think>[\\s\\S]*?<\\/think>/g, '')\n  .replace(/<\\/no_think>/g, '')\n  .trim();\n\nreturn [{ json: {\n  status: 'success',\n  response: cleanResponse,\n  session_id: prev.session_id,\n  metrics: {\n    rag_time_ms: prev.rag_time_ms,\n    llm_time_ms: llmTimeMs,\n    total_time_ms: totalTimeMs,\n    chunks_found: prev.chunk_count,\n    model: prev.model\n  }\n}}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO voicebot_metrics (id, session_id, step, duration_ms)\nVALUES \n  (gen_random_uuid(), '{{ $json.session_id }}', 'rag', {{ $json.metrics.rag_time_ms }}),\n  (gen_random_uuid(), '{{ $json.session_id }}', 'llm', {{ $json.metrics.llm_time_ms }}),\n  (gen_random_uuid(), '{{ $json.session_id }}', 'total', {{ $json.metrics.total_time_ms }});",
+        "options": {}
+      },
+      "id": "log-metrics",
+      "name": "Log Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2200, 200],
+      "credentials": {
+        "postgres": {
+          "name": "postgres-rag (app_db)"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($('Format Response').first().json) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook: Voicebot Input": {
+      "main": [[{ "node": "Validate & Prepare", "type": "main", "index": 0 }]]
+    },
+    "Validate & Prepare": {
+      "main": [[{ "node": "Get Tenant ID", "type": "main", "index": 0 }]]
+    },
+    "Get Tenant ID": {
+      "main": [[{ "node": "Merge Tenant ID", "type": "main", "index": 0 }]]
+    },
+    "Merge Tenant ID": {
+      "main": [[{ "node": "Embed Query", "type": "main", "index": 0 }]]
+    },
+    "Embed Query": {
+      "main": [[{ "node": "Extract Embedding", "type": "main", "index": 0 }]]
+    },
+    "Extract Embedding": {
+      "main": [[{ "node": "RAG Vector Search", "type": "main", "index": 0 }]]
+    },
+    "RAG Vector Search": {
+      "main": [[{ "node": "Build LLM Context", "type": "main", "index": 0 }]]
+    },
+    "Build LLM Context": {
+      "main": [[{ "node": "LLM Generate (Ollama)", "type": "main", "index": 0 }]]
+    },
+    "LLM Generate (Ollama)": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    },
+    "Format Response": {
+      "main": [
+        [
+          { "node": "Log Metrics", "type": "main", "index": 0 },
+          { "node": "Respond to Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "eppcom-voicebot-pipeline"
+  },
+  "tags": [
+    { "name": "voicebot" },
+    { "name": "rag" },
+    { "name": "production" }
+  ]
+}

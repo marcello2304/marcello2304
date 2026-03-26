@@ -2915,6 +2915,46 @@ async def log_audit(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Voicebot Monitoring API
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/voicebot/metrics")
+async def get_voicebot_metrics(session: SessionInfo = Depends(require_auth)):
+    if not session.is_superadmin():
+        raise HTTPException(403, "Nur SuperAdmin")
+    db = await get_db()
+    stats = await db.fetch("""
+        SELECT step, COUNT(*) as total_calls,
+               ROUND(AVG(duration_ms)) as avg_ms,
+               ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_ms)) as median_ms,
+               ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)) as p95_ms,
+               MIN(duration_ms) as min_ms, MAX(duration_ms) as max_ms
+        FROM voicebot_metrics
+        WHERE timestamp > NOW() - INTERVAL '24 hours'
+        GROUP BY step
+        ORDER BY CASE step WHEN 'total' THEN 1 WHEN 'llm' THEN 2 WHEN 'rag' THEN 3 WHEN 'embedding' THEN 4 ELSE 5 END
+    """)
+    slow = await db.fetch("""
+        SELECT session_id, user_query, total_duration_ms, timestamp
+        FROM voicebot_slow_queries
+        WHERE timestamp > NOW() - INTERVAL '24 hours'
+        ORDER BY timestamp DESC LIMIT 5
+    """)
+    hourly = await db.fetch("""
+        SELECT DATE_TRUNC('hour', timestamp) as hour,
+               COUNT(DISTINCT session_id) as sessions, COUNT(*) as total_calls
+        FROM voicebot_metrics
+        WHERE timestamp > NOW() - INTERVAL '24 hours'
+        GROUP BY hour ORDER BY hour DESC LIMIT 12
+    """)
+    return {
+        "stats": [dict(r) for r in stats],
+        "slow_queries": [dict(r) for r in slow],
+        "hourly": [dict(r) for r in hourly]
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Statische Dateien
 # ══════════════════════════════════════════════════════════════════════════════
 app.mount("/static", StaticFiles(directory="static"), name="static")
