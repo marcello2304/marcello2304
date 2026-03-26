@@ -677,7 +677,7 @@ tailwind.config = {
                 <div class="card-body">
                   <div class="flex items-start justify-between gap-4 cursor-pointer" @click="conv._expanded = !conv._expanded">
                     <div class="flex-1 min-w-0">
-                      <p class="font-medium truncate" x-text="conv.query || conv.question || '-'"></p>
+                      <p class="font-medium truncate" x-text="conv.kernaussage || conv.user_question || '-'"></p>
                       <div class="flex flex-wrap gap-2 mt-2">
                         <span class="text-xs text-slate-500 dark:text-slate-400" x-text="fmtDate(conv.created_at)"></span>
                         <span x-show="conv.latency_ms" class="text-xs text-slate-500" x-text="conv.latency_ms + ' ms'"></span>
@@ -693,11 +693,11 @@ tailwind.config = {
                   <div x-show="conv._expanded" class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
                     <div>
                       <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Frage</p>
-                      <p class="text-sm" x-text="conv.query || conv.question"></p>
+                      <p class="text-sm" x-text="conv.user_question"></p>
                     </div>
                     <div>
                       <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Antwort</p>
-                      <p class="text-sm whitespace-pre-wrap" x-text="conv.answer || conv.response"></p>
+                      <p class="text-sm whitespace-pre-wrap" x-text="conv.rag_answer"></p>
                     </div>
                     <div x-show="conv.kernaussage" class="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-3">
                       <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Kernaussage</p>
