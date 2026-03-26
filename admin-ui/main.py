@@ -1223,6 +1223,7 @@ async def delete_source(source_id: str, session: SessionInfo = Depends(require_a
 async def list_shares(
     content_type: str = Query(None),
     tenant_id: str = Query(None),
+    shared_with: str = Query(None),
     session: SessionInfo = Depends(require_auth),
 ):
     """Listet Freigaben auf. Admins sehen alle der Firma, User nur eigene."""
@@ -1250,15 +1251,23 @@ async def list_shares(
         params.append(content_type)
         idx += 1
 
+    if shared_with:
+        conditions.append(f"cs.shared_with=${idx}::uuid")
+        params.append(shared_with)
+        idx += 1
+
     where = "WHERE " + " AND ".join(conditions) if conditions else ""
     rows = await db.fetch(f"""
         SELECT cs.id, cs.content_type, cs.content_id, cs.shared_by, cs.shared_with,
                cs.tenant_id, cs.created_at,
                sb.display_name AS shared_by_name, sb.email AS shared_by_email,
-               sw.display_name AS shared_with_name, sw.email AS shared_with_email
+               sw.display_name AS shared_with_name, sw.email AS shared_with_email,
+               COALESCE(src.name, mf.original_name, cs.content_id::text) AS content_name
         FROM public.content_shares cs
         LEFT JOIN public.users sb ON sb.id=cs.shared_by
         LEFT JOIN public.users sw ON sw.id=cs.shared_with
+        LEFT JOIN public.sources src ON cs.content_type='source' AND src.id=cs.content_id
+        LEFT JOIN public.media_files mf ON cs.content_type='media' AND mf.id=cs.content_id
         {where}
         ORDER BY cs.created_at DESC
         LIMIT 500

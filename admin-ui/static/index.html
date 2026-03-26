@@ -803,6 +803,7 @@ tailwind.config = {
                       <td class="flex gap-1 flex-wrap">
                         <button @click="editUser(user)" class="btn btn-secondary btn-sm">Bearbeiten</button>
                         <button @click="openPasswordModal(user)" class="btn btn-secondary btn-sm">Passwort</button>
+                        <button @click="openAssignModal(user)" class="btn btn-secondary btn-sm">Zuordnen</button>
                         <button @click="deleteUserConfirm(user.id)" class="btn btn-danger btn-sm">Entfernen</button>
                       </td>
                     </tr>
@@ -1473,6 +1474,61 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- Assign Documents/Media to User Modal -->
+  <div x-show="showAssignModal" class="modal-overlay" @click.self="showAssignModal=false">
+    <div class="modal-box-wide" @click.stop>
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-2xl font-bold">Inhalte zuordnen</h2>
+          <p class="text-sm text-slate-500 mt-1" x-text="'Benutzer: ' + (assignUser?.display_name || assignUser?.email || '')"></p>
+        </div>
+        <button @click="showAssignModal=false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl">&times;</button>
+      </div>
+
+      <!-- Tab-Auswahl -->
+      <div class="flex gap-2 mb-4">
+        <button @click="assignTab='source'" :class="['btn btn-sm', assignTab==='source' ? 'btn-primary' : 'btn-secondary']">Dokumente</button>
+        <button @click="assignTab='media'" :class="['btn btn-sm', assignTab==='media' ? 'btn-primary' : 'btn-secondary']">Medien</button>
+      </div>
+
+      <!-- Bereits zugeordnete Inhalte -->
+      <div class="mb-4" x-show="assignedItems.length > 0">
+        <h3 class="text-sm font-semibold text-slate-500 mb-2">Bereits zugeordnet:</h3>
+        <div class="flex flex-wrap gap-2">
+          <template x-for="item in assignedItems.filter(a => a.content_type === assignTab)" :key="item.id">
+            <span class="badge badge-success flex items-center gap-1">
+              <span x-text="item.content_name || item.content_id"></span>
+              <button @click="removeAssignment(item.id)" class="text-emerald-700 dark:text-emerald-300 hover:text-red-600 ml-1 font-bold">&times;</button>
+            </span>
+          </template>
+        </div>
+      </div>
+
+      <!-- Verfuegbare Inhalte zum Zuordnen -->
+      <div class="space-y-2 max-h-72 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+        <template x-for="item in assignableItems" :key="item.id">
+          <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+            <input type="checkbox" :value="item.id" x-model="assignSelectedIds"
+              class="rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate" x-text="item.name || item.filename || item.original_name || item.id"></p>
+              <p class="text-xs text-slate-400" x-text="item.source_type || item.content_type || ''"></p>
+            </div>
+            <span class="text-xs text-slate-400" x-text="fmtDate(item.created_at)"></span>
+          </label>
+        </template>
+        <p x-show="assignableItems.length === 0" class="text-center text-sm text-slate-400 py-4">Keine verfuegbaren Inhalte</p>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button @click="doAssign()" :disabled="assignSelectedIds.length === 0" class="btn btn-primary flex-1">
+          <span x-text="assignSelectedIds.length > 0 ? assignSelectedIds.length + ' zuordnen' : 'Auswaehlen...'"></span>
+        </button>
+        <button @click="showAssignModal=false" class="btn btn-secondary flex-1">Schliessen</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Share Create Modal -->
   <div x-show="showShareModal" class="modal-overlay" @click.self="showShareModal=false">
     <div class="modal-box" @click.stop>
@@ -1793,6 +1849,12 @@ function app() {
     passwordUser: null,
     newPassword: '',
     newPasswordConfirm: '',
+    showAssignModal: false,
+    assignUser: null,
+    assignTab: 'source',
+    assignSelectedIds: [],
+    assignedItems: [],
+    assignableItems: [],
 
     // Document state
     viewingDoc: null,
@@ -2595,10 +2657,91 @@ function app() {
       try {
         await this.api(`/api/users/${this.passwordUser.id}/password`, {
           method: 'PUT',
-          body: JSON.stringify({ password: this.newPassword }),
+          body: JSON.stringify({ new_password: this.newPassword }),
         });
         this.showToast('Passwort geaendert');
         this.showPasswordModal = false;
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    // Assign documents/media to user
+    async openAssignModal(user) {
+      this.assignUser = user;
+      this.assignTab = 'source';
+      this.assignSelectedIds = [];
+      this.showAssignModal = true;
+      await this.loadAssignData();
+
+      this.$watch('assignTab', () => {
+        this.assignSelectedIds = [];
+        this.loadAssignData();
+      });
+    },
+
+    async loadAssignData() {
+      if (!this.assignUser) return;
+      try {
+        // Lade bereits zugeordnete Freigaben fuer diesen User
+        const shares = await this.api(`/api/shares?shared_with=${this.assignUser.id}`);
+        this.assignedItems = Array.isArray(shares) ? shares : (shares?.items || []);
+
+        // Lade alle verfuegbaren Inhalte (Dokumente oder Medien)
+        const alreadyAssignedIds = this.assignedItems
+          .filter(a => a.content_type === this.assignTab)
+          .map(a => a.content_id);
+
+        let allItems = [];
+        if (this.assignTab === 'source') {
+          const data = await this.api('/api/sources');
+          allItems = Array.isArray(data) ? data : (data?.items || []);
+        } else {
+          const data = await this.api('/api/media');
+          allItems = Array.isArray(data) ? data : (data?.items || []);
+        }
+
+        // Filtere bereits zugeordnete Inhalte raus
+        this.assignableItems = allItems.filter(item => !alreadyAssignedIds.includes(item.id));
+      } catch(e) {
+        this.assignedItems = [];
+        this.assignableItems = [];
+      }
+    },
+
+    async doAssign() {
+      if (!this.assignUser || this.assignSelectedIds.length === 0) return;
+      try {
+        await this.api('/api/shares/bulk', {
+          method: 'POST',
+          body: JSON.stringify({
+            content_type: this.assignTab,
+            content_id: this.assignSelectedIds[0],
+            user_ids: [this.assignUser.id],
+          }),
+        });
+
+        // Falls mehrere ausgewaehlt, einzeln zuordnen
+        for (let i = 1; i < this.assignSelectedIds.length; i++) {
+          await this.api('/api/shares/bulk', {
+            method: 'POST',
+            body: JSON.stringify({
+              content_type: this.assignTab,
+              content_id: this.assignSelectedIds[i],
+              user_ids: [this.assignUser.id],
+            }),
+          });
+        }
+
+        this.showToast(`${this.assignSelectedIds.length} ${this.assignTab === 'source' ? 'Dokument(e)' : 'Medium/Medien'} zugeordnet`);
+        this.assignSelectedIds = [];
+        await this.loadAssignData();
+      } catch(e) { this.showToast(e.message, 'error'); }
+    },
+
+    async removeAssignment(shareId) {
+      try {
+        await this.api(`/api/shares/${shareId}`, { method: 'DELETE' });
+        this.showToast('Zuordnung entfernt');
+        await this.loadAssignData();
       } catch(e) { this.showToast(e.message, 'error'); }
     },
 
