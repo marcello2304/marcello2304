@@ -105,7 +105,7 @@ services:
       - "7881:7881"     # RTC TCP
       - "50000-50100:50000-50100/udp"  # RTC UDP (Range begrenzen!)
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - /root/marcello2304/docker/livekit.yaml:/etc/livekit.yaml:ro
     command: --config /etc/livekit.yaml
     networks:
       - ai-net

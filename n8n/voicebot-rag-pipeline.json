@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json;\n\nif (!body.transcript || body.transcript.length < 2) {\n  throw new Error('transcript fehlt oder zu kurz');\n}\n\nreturn [{ json: {\n  transcript: body.transcript,\n  session_id: body.session_id || `vb-${Date.now()}`,\n  tenant_slug: body.tenant_slug || 'eppcom',\n  top_k: body.top_k || 5,\n  min_similarity: body.min_similarity || 0.3,\n  model: body.model || 'qwen2.5:7b-eppcom',\n  started_at: Date.now()\n}}];"
+        "jsCode": "const body = $input.first().json;\nconst transcript = body.transcript || body.query || '';\n\nif (!transcript || transcript.length < 2) {\n  throw new Error('transcript/query fehlt oder zu kurz');\n}\n\nreturn [{ json: {\n  transcript: transcript,\n  session_id: body.session_id || `vb-${Date.now()}`,\n  tenant_slug: body.tenant_slug || 'eppcom',\n  tenant_id_direct: body.tenant_id || null,\n  top_k: body.top_k || 5,\n  min_similarity: body.min_similarity || 0.3,\n  model: body.model || 'qwen2.5:7b-eppcom',\n  started_at: Date.now()\n}}];"
       },
       "id": "validate-input",
       "name": "Validate & Prepare",
@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const tenant = $input.first().json;\nif (!tenant || !tenant.id) {\n  throw new Error('Tenant nicht gefunden: ' + $('Validate & Prepare').first().json.tenant_slug);\n}\nconst input = $('Validate & Prepare').first().json;\nreturn [{ json: { ...input, tenant_id: tenant.id } }];"
+        "jsCode": "const tenant = $input.first().json;\nconst input = $('Validate & Prepare').first().json;\nconst tid = input.tenant_id_direct || (tenant && tenant.id ? tenant.id : null);\nif (!tid) {\n  throw new Error('Tenant nicht gefunden: ' + input.tenant_slug);\n}\nreturn [{ json: { ...input, tenant_id: tid } }];"
       },
       "id": "merge-tenant",
       "name": "Merge Tenant ID",
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "url": "http://46.224.54.65:11434/api/embed",
+        "url": "http://10.0.0.3:11434/api/embed",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"model\": \"qwen3-embedding:0.6b\",\n  \"input\": \"{{ $json.transcript }}\"\n}",
@@ -106,7 +106,7 @@
     },
     {
       "parameters": {
-        "url": "http://46.224.54.65:11434/api/generate",
+        "url": "http://10.0.0.3:11434/api/generate",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"prompt\": \"KONTEXT-DOKUMENTE:\\n{{ $json.context }}\\n\\n---\\nBEACHTE: Formuliere in eigenen Worten, max 3-4 Sätze. Sprich den Nutzer direkt an.\\n\\nFRAGE: {{ $json.transcript }}\\n\\nANTWORT:\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 200\n  }\n}",
@@ -122,7 +122,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const llmResponse = $input.first().json;\nconst prev = $('Build LLM Context').first().json;\n\nconst totalTimeMs = Date.now() - prev.started_at;\nconst llmTimeMs = totalTimeMs - prev.rag_time_ms;\n\nconst responseText = llmResponse.response || 'Entschuldigung, ich konnte keine Antwort generieren.';\n\n// Clean up response - remove thinking tags if present\nlet cleanResponse = responseText\n  .replace(/<think>[\\s\\S]*?<\\/think>/g, '')\n  .replace(/<\\/no_think>/g, '')\n  .trim();\n\nreturn [{ json: {\n  status: 'success',\n  response: cleanResponse,\n  session_id: prev.session_id,\n  metrics: {\n    rag_time_ms: prev.rag_time_ms,\n    llm_time_ms: llmTimeMs,\n    total_time_ms: totalTimeMs,\n    chunks_found: prev.chunk_count,\n    model: prev.model\n  }\n}}];"
+        "jsCode": "const llmResponse = $input.first().json;\nconst prev = $('Build LLM Context').first().json;\n\nconst totalTimeMs = Date.now() - prev.started_at;\nconst llmTimeMs = totalTimeMs - prev.rag_time_ms;\n\nconst responseText = llmResponse.response || 'Entschuldigung, ich konnte keine Antwort generieren.';\n\n// Clean up response - remove thinking tags if present\nlet cleanResponse = responseText\n  .replace(/<think>[\\s\\S]*?<\\/think>/g, '')\n  .replace(/<\\/no_think>/g, '')\n  .trim();\n\nreturn [{ json: {\n  status: 'success',\n  answer: cleanResponse,\n  response: cleanResponse,\n  session_id: prev.session_id,\n  metrics: {\n    rag_time_ms: prev.rag_time_ms,\n    llm_time_ms: llmTimeMs,\n    total_time_ms: totalTimeMs,\n    chunks_found: prev.chunk_count,\n    model: prev.model\n  }\n}}];"
       },
       "id": "format-response",
       "name": "Format Response",

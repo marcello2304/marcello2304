@@ -52,7 +52,7 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")  # auto, cuda, cpu
 
 # LLM Configuration (Ollama local)
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi:latest")  # Fast: 3B params (~2s inference)
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b-eppcom")  # EPPCOM-optimized 7B model
 
 # TTS Configuration (Cartesia Primary - Ultra-Low Latency)
 CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "")
@@ -82,11 +82,15 @@ VOICEBOT_STREAMING_ENABLED = os.getenv("VOICEBOT_STREAMING_ENABLED", "true").low
 ENABLE_PARTIAL_TRANSCRIPTS = os.getenv("ENABLE_PARTIAL_TRANSCRIPTS", "true").lower() == "true"
 
 # ─── System Prompt with RAG Context ─────────────────────────────────────
-SYSTEM_PROMPT = """Du bist Nexo, ein hilfreicher deutschsprachiger Voice Assistant.
-Du antwortest prägnant, freundlich und direkt auf Fragen des Users.
-Nutze verfügbare Kontextinformationen zur Beantwortung von Fragen.
-Fasse deine Antworten in 1-2 Sätzen zusammen, um schnelle Voice-Responses zu ermöglichen.
-Wenn du nicht sicher bist, frag nach oder sage, dass du die Info nicht hast."""
+SYSTEM_PROMPT = """Du bist Nexo, der KI-Assistent von EPPCOM Solutions - Experte für Workflow-Automatisierung und KI-Chatbots.
+
+ANTWORTSTIL:
+- Formuliere IMMER in eigenen Worten, nie copy-paste
+- Halte Antworten prägnant (max 2-3 Sätze für Voice)
+- Professionell aber zugänglich, kundenorientiert
+- Nutze bereitgestellte Kontextinformationen zur Beantwortung
+
+Wenn du nicht sicher bist, frag nach oder sage ehrlich, dass du die Info nicht hast."""
 
 
 # ─── RAG Context Caching ───────────────────────────────────────────────
@@ -115,6 +119,7 @@ async def fetch_rag_context(query: str) -> Optional[str]:
             payload = {
                 "tenant_id": RAG_TENANT_ID,  # UUID for n8n RAG Query workflow
                 "query": query,
+                "transcript": query,  # n8n Workflow erwartet 'transcript'
                 "top_k": 5,
             }
             logger.debug(f"RAG fetching: {query[:50]}...")
@@ -125,7 +130,7 @@ async def fetch_rag_context(query: str) -> Optional[str]:
             # n8n RAG Query returns: { "answer": "...", "sources": [...], ... }
             if isinstance(data, dict):
                 # Try different response formats
-                answer = data.get("answer") or data.get("system_prompt") or data.get("context") or ""
+                answer = data.get("answer") or data.get("response") or data.get("system_prompt") or data.get("context") or ""
                 if answer:
                     _rag_cache[query_hash] = answer  # Cache for reuse
                     logger.info(f"RAG fetched: {len(answer)} chars (cached)")
