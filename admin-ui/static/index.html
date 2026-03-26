@@ -2164,14 +2164,18 @@ function app() {
 
     async loadSources() {
       try {
-        const data = await this.api('/api/sources');
+        let url = '/api/sources';
+        if (this.activeTenantId) url += `?tenant_id=${this.activeTenantId}`;
+        const data = await this.api(url);
         this.sources = Array.isArray(data) ? data : (data?.items || []);
       } catch(e) { this.sources = []; }
     },
 
     async loadMedia() {
       try {
-        const data = await this.api('/api/media');
+        let url = '/api/media';
+        if (this.activeTenantId) url += `?tenant_id=${this.activeTenantId}`;
+        const data = await this.api(url);
         this.media = Array.isArray(data) ? data : (data?.items || []);
       } catch(e) { this.media = []; }
     },

@@ -809,7 +809,16 @@ async def update_user(user_id: str, body: UserUpdate, session: SessionInfo = Dep
 
 
 @app.put("/api/users/{user_id}/password")
-async def change_password(user_id: str, body: PasswordChange, session: SessionInfo = Depends(require_auth)):
+async def change_password(user_id: str, request: Request, session: SessionInfo = Depends(require_auth)):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Ungültiger Request-Body")
+
+    new_password = body.get("new_password") or ""
+    if not new_password:
+        raise HTTPException(400, "Neues Passwort erforderlich")
+
     if not session.is_superadmin() and session.user_id != user_id:
         if not session.is_admin():
             raise HTTPException(403, "Keine Berechtigung")
@@ -821,10 +830,10 @@ async def change_password(user_id: str, body: PasswordChange, session: SessionIn
     else:
         db = await get_db()
 
-    if len(body.new_password) < 6:
+    if len(new_password) < 6:
         raise HTTPException(400, "Passwort muss mindestens 6 Zeichen haben")
 
-    pw_hash = _hash_password(body.new_password)
+    pw_hash = _hash_password(new_password)
     result = await db.execute("UPDATE public.users SET password_hash=$2 WHERE id=$1::uuid", user_id, pw_hash)
     if result == "UPDATE 0":
         raise HTTPException(404, "User nicht gefunden")
