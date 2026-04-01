@@ -51,7 +51,7 @@ WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")  # tiny, small, base, medium
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")  # auto, cuda, cpu
 
 # LLM Configuration (Ollama local)
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://10.0.0.3:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b-eppcom")  # EPPCOM-optimized 7B model
 
 # TTS Configuration (Cartesia Primary - Ultra-Low Latency)

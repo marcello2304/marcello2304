@@ -22,7 +22,7 @@
 
     <div class="box">
         <h2>Step 2: Configuration</h2>
-        <input type="text" id="url" value="ws://46.224.54.65:7880" placeholder="LiveKit WS URL">
+        <input type="text" id="url" value="wss://appdb.eppcom.de:7443" placeholder="LiveKit WS URL">
         <input type="text" id="room" value="test-room" placeholder="Room Name">
         <input type="text" id="user" value="Tester" placeholder="User Name">
         <button onclick="fetchToken()">Get Token</button>
@@ -79,7 +79,7 @@
                 const room = document.getElementById('room').value;
                 const user = document.getElementById('user').value;
 
-                const res = await fetch(`/api/token?room=${room}&user=${user}`);
+                const res = await fetch(`https://appdb.eppcom.de/api/lk-token?room=${room}&user=${user}`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
                 const data = await res.json();
