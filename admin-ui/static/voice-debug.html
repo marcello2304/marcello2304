@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LiveKit Debug</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.18.0/dist/livekit-client.umd.js"></script>
+</head>
+<body style="font-family:monospace;padding:20px;background:#111;color:#0f0">
+<h2>LiveKit Connection Debug</h2>
+<pre id="out"></pre>
+<button onclick="runTest()" style="padding:10px 20px;font-size:16px;margin:10px 0">START TEST</button>
+
+<script>
+function out(msg) {
+    document.getElementById('out').textContent += new Date().toLocaleTimeString() + ' | ' + msg + '\n';
+    console.log(msg);
+}
+
+async function runTest() {
+    const LK = window.LivekitClient;
+    out('SDK loaded: ' + !!LK);
+    out('Room class: ' + !!LK.Room);
+
+    // Step 1: Raw WebSocket test
+    out('\n--- Step 1: Raw WebSocket Test ---');
+    try {
+        const ws = new WebSocket('wss://appdb.eppcom.de/lk/');
+        await new Promise((resolve, reject) => {
+            ws.onopen = () => { out('Raw WS: OPEN'); resolve(); };
+            ws.onerror = (e) => { out('Raw WS: ERROR ' + JSON.stringify(e)); reject(e); };
+            setTimeout(() => { out('Raw WS: TIMEOUT 5s'); reject('timeout'); }, 5000);
+        });
+        ws.close();
+        out('Raw WS: OK - WebSocket works');
+    } catch(e) {
+        out('Raw WS: FAILED - ' + e);
+        out('>>> PROBLEM: Browser cannot open WebSocket to port 7443');
+        out('>>> This means firewall, proxy, or cert issue');
+        return;
+    }
+
+    // Step 2: Token fetch
+    out('\n--- Step 2: Token Fetch ---');
+    let token;
+    try {
+        const res = await fetch('https://appdb.eppcom.de/api/lk-token?room=debug-room&user=DebugUser');
+        const data = await res.json();
+        token = data.token;
+        out('Token: OK (' + token.substring(0, 30) + '...)');
+    } catch(e) {
+        out('Token: FAILED - ' + e.message);
+        return;
+    }
+
+    // Step 3: LiveKit connect with verbose logging
+    out('\n--- Step 3: LiveKit Room.connect() ---');
+    try {
+        // Enable LiveKit internal logging
+        LK.setLogLevel('debug');
+
+        const room = new LK.Room();
+
+        room.on(LK.RoomEvent.SignalConnected, () => out('EVENT: SignalConnected'));
+        room.on(LK.RoomEvent.Connected, () => out('EVENT: Connected'));
+        room.on(LK.RoomEvent.Disconnected, (reason) => out('EVENT: Disconnected reason=' + reason));
+        room.on(LK.RoomEvent.ConnectionStateChanged, (s) => out('EVENT: State=' + s));
+        room.on(LK.RoomEvent.SignalReconnecting, () => out('EVENT: SignalReconnecting'));
+        room.on(LK.RoomEvent.MediaDevicesError, (e) => out('EVENT: MediaDevicesError=' + e));
+        room.on(LK.RoomEvent.ParticipantConnected, (p) => out('EVENT: Participant=' + p.identity));
+        room.on(LK.RoomEvent.TrackSubscribed, (t, pub, p) => out('EVENT: TrackSubscribed kind=' + t.kind + ' from=' + p.identity));
+
+        out('Calling room.connect()...');
+        const startTime = Date.now();
+
+        await room.connect('wss://appdb.eppcom.de/lk', token, {
+            autoSubscribe: true,
+            websocketTimeout: 30000,
+            peerConnectionTimeout: 30000,
+        });
+
+        out('CONNECTED in ' + (Date.now() - startTime) + 'ms');
+        out('Room: ' + room.name);
+        out('State: ' + room.state);
+        out('Participants: ' + room.remoteParticipants.size);
+
+        // Enable mic
+        out('\nEnabling microphone...');
+        await room.localParticipant.setMicrophoneEnabled(true);
+        out('Microphone enabled');
+
+    } catch(e) {
+        out('CONNECT FAILED: ' + e.message);
+        out('Error type: ' + e.constructor.name);
+        out('Stack: ' + (e.stack || '').split('\n').slice(0,3).join(' | '));
+    }
+}
+</script>
+</body>
+</html>
