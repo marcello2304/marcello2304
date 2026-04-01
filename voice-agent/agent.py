@@ -29,6 +29,9 @@ from constants import (
     TRUNCATION_SUFFIX,
 )
 
+# Regex to strip <think>...</think> blocks from qwen3 models
+THINK_TAG_PATTERN = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+
 # ─── Logging Setup ──────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -52,7 +55,7 @@ WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")  # auto, cuda, cpu
 
 # LLM Configuration (Ollama local)
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://10.0.0.3:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b-eppcom")  # EPPCOM-optimized 7B model
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3-nothink:latest")  # Fast 2B model, TTFT <0.5s on CPU
 
 # TTS Configuration (Cartesia Primary - Ultra-Low Latency)
 CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "")
@@ -374,6 +377,8 @@ class NexoStreamingAgent(Agent):
                         # chunk is ChatChunk with .text, .tool_calls, .usage
                         if chunk.text:
                             buffer += chunk.text
+                            # Strip <think>...</think> blocks from qwen3 models
+                            buffer = THINK_TAG_PATTERN.sub("", buffer)
                             logger.debug(f"LLM token received: {chunk.text[:50]}...")
 
                             # Check for sentence boundaries
@@ -415,6 +420,8 @@ class NexoStreamingAgent(Agent):
 
                 # Yield remaining text at end (if not empty)
                 if buffer.strip():
+                    # Strip any remaining <think> tags from qwen3 models
+                    buffer = THINK_TAG_PATTERN.sub("", buffer)
                     final_text = buffer.strip()
                     if len(final_text) > MAX_SENTENCE_LENGTH:
                         max_len = (
