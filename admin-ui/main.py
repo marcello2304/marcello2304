@@ -2969,6 +2969,12 @@ async def get_voicebot_metrics(session: SessionInfo = Depends(require_auth)):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/widget", StaticFiles(directory="widget"), name="widget")
 
+@app.get("/voice-test", response_class=HTMLResponse)
+async def voice_test():
+    with open("static/voice-test.html") as f:
+        content = f.read()
+    return HTMLResponse(content)
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     with open("static/index.html") as f:
