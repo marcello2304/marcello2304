@@ -39,9 +39,16 @@ class LocalWhisperSTT(STT):
     async def _recognize_impl(self, buffer, *, language="de", conn_options=None):
         """Transcribe audio buffer using local Whisper model."""
         try:
-            # Convert AudioBuffer to numpy array
-            frame = buffer.to_frame()
-            audio_array = np.frombuffer(frame.data, dtype=np.int16).astype(np.float32) / 32768.0
+            # livekit-agents v1.5: buffer is AudioBuffer with .data or direct frame
+            if hasattr(buffer, 'to_frame'):
+                frame = buffer.to_frame()
+                raw_data = frame.data
+            elif hasattr(buffer, 'data'):
+                raw_data = buffer.data
+            else:
+                # v1.5+: buffer may be rtc.AudioFrame directly
+                raw_data = bytes(buffer)
+            audio_array = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
 
             loop = asyncio.get_event_loop()
             segments, info = await loop.run_in_executor(
