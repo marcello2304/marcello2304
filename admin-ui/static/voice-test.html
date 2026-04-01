@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPPCOM Voice Agent - Test</title>
-    <!-- LiveKit Client SDK v2.x -->
-    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.18.0/dist/livekit-client.umd.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -25,12 +24,7 @@
             max-width: 600px;
             width: 100%;
         }
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-            font-size: 28px;
-        }
+        h1 { color: #333; margin-bottom: 30px; text-align: center; font-size: 28px; }
         .status {
             background: #f5f5f5;
             border-left: 4px solid #667eea;
@@ -38,67 +32,36 @@
             margin-bottom: 20px;
             border-radius: 4px;
             font-size: 14px;
-            font-family: monospace;
-            min-height: 60px;
-            overflow: auto;
+            min-height: 40px;
         }
         .status.connected { border-left-color: #10b981; background: #ecfdf5; }
         .status.error { border-left-color: #ef4444; background: #fef2f2; }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-        }
-        input, select {
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; }
+        input {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             border: 1px solid #ddd;
             border-radius: 6px;
             font-size: 14px;
             font-family: monospace;
         }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 30px;
-        }
+        .buttons { display: flex; gap: 10px; margin-top: 20px; }
         button {
-            padding: 12px 20px;
+            flex: 1;
+            padding: 12px;
             border: none;
             border-radius: 6px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
         }
-        .btn-primary {
-            background: #667eea;
-            color: white;
-            grid-column: 1 / -1;
-        }
-        .btn-primary:hover:not(:disabled) { background: #5568d3; transform: translateY(-2px); }
-        .btn-secondary {
-            background: #e5e7eb;
-            color: #333;
-        }
-        .btn-secondary:hover:not(:disabled) { background: #d1d5db; }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
+        .btn-connect { background: #667eea; color: white; }
+        .btn-connect:hover:not(:disabled) { background: #5568d3; }
+        .btn-disconnect { background: #ef4444; color: white; }
+        .btn-disconnect:hover:not(:disabled) { background: #dc2626; }
+        .btn-mute { background: #e5e7eb; color: #333; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
         .logs {
             background: #1f2937;
             color: #10b981;
@@ -106,185 +69,176 @@
             border-radius: 6px;
             font-family: monospace;
             font-size: 12px;
-            max-height: 200px;
+            max-height: 250px;
             overflow-y: auto;
             margin-top: 20px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
-        .log-line { margin-bottom: 4px; }
         .log-error { color: #ef4444; }
         .log-info { color: #60a5fa; }
         .log-success { color: #10b981; }
+        #audioContainer audio { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎤 EPPCOM Voice Agent Test</h1>
+        <h1>EPPCOM Voice Agent</h1>
 
-        <div class="status" id="status">
-            Status: <span id="status-text">Bereit zum Verbinden</span>
-        </div>
+        <div class="status" id="status">Bereit zum Verbinden</div>
 
         <div class="form-group">
-            <label for="url">LiveKit URL:</label>
-            <input type="text" id="url" value="wss://appdb.eppcom.de:7443" placeholder="wss://...">
+            <label>LiveKit URL:</label>
+            <input type="text" id="url" value="wss://appdb.eppcom.de:7443">
         </div>
-
         <div class="form-group">
-            <label for="token">Token:</label>
-            <input type="text" id="token" placeholder="JWT Token (optional - auto-generated)">
+            <label>Room:</label>
+            <input type="text" id="roomName" value="voice-test-001">
         </div>
-
         <div class="form-group">
-            <label for="roomName">Room Name:</label>
-            <input type="text" id="roomName" value="test-voice-agent-001" placeholder="z.B. test-room-001">
-        </div>
-
-        <div class="form-group">
-            <label for="userName">Your Name:</label>
-            <input type="text" id="userName" value="Tester" placeholder="z.B. Dein Name">
+            <label>Name:</label>
+            <input type="text" id="userName" value="Tester">
         </div>
 
         <div class="buttons">
-            <button class="btn-primary" id="connectBtn" onclick="connect()">🔗 Verbinden</button>
-            <button class="btn-secondary" id="disconnectBtn" onclick="disconnect()" disabled>Trennen</button>
-            <button class="btn-secondary" id="muteBtn" onclick="toggleMute()" disabled>🎤 Unmuted</button>
+            <button class="btn-connect" id="connectBtn" onclick="doConnect()">Verbinden</button>
+            <button class="btn-mute" id="muteBtn" onclick="toggleMute()" disabled>Mikrofon An</button>
+            <button class="btn-disconnect" id="disconnectBtn" onclick="doDisconnect()" disabled>Trennen</button>
         </div>
 
+        <div id="audioContainer"></div>
         <div class="logs" id="logs"></div>
     </div>
 
-    <script>
-        let room = null;
-        let localParticipant = null;
+<script>
+const { Room, RoomEvent, Track, ConnectionState } = window.LivekitClient;
+let room = null;
 
-        const log = (msg, type = 'info') => {
-            const logs = document.getElementById('logs');
-            const line = document.createElement('div');
-            line.className = `log-line log-${type}`;
-            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            logs.appendChild(line);
-            logs.scrollTop = logs.scrollHeight;
-        };
+function log(msg, type = 'info') {
+    const el = document.getElementById('logs');
+    const d = document.createElement('div');
+    d.className = 'log-' + type;
+    d.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+    console.log('[' + type + ']', msg);
+}
 
-        const updateStatus = (text, type = 'info') => {
-            document.getElementById('status-text').textContent = text;
-            document.getElementById('status').className = `status ${type === 'error' ? 'error' : type === 'connected' ? 'connected' : ''}`;
-        };
+function setStatus(text, type) {
+    const el = document.getElementById('status');
+    el.textContent = text;
+    el.className = 'status' + (type ? ' ' + type : '');
+}
 
-        const connect = async () => {
-            try {
-                updateStatus('Verbinde...', 'info');
-                document.getElementById('connectBtn').disabled = true;
+async function doConnect() {
+    const url = document.getElementById('url').value;
+    const roomName = document.getElementById('roomName').value;
+    const userName = document.getElementById('userName').value;
 
-                const url = document.getElementById('url').value;
-                const roomName = document.getElementById('roomName').value;
-                const userName = document.getElementById('userName').value;
-                let token = document.getElementById('token').value;
+    document.getElementById('connectBtn').disabled = true;
+    setStatus('Verbinde...');
 
-                if (!token) {
-                    // Auto-generate token from server
-                    log('Generiere Token...', 'info');
+    try {
+        // 1. Token holen
+        log('Token wird generiert...');
+        const tokenRes = await fetch('https://appdb.eppcom.de/api/lk-token?room=' +
+            encodeURIComponent(roomName) + '&user=' + encodeURIComponent(userName));
+        if (!tokenRes.ok) throw new Error('Token-Server HTTP ' + tokenRes.status);
+        const tokenData = await tokenRes.json();
+        const token = tokenData.token;
+        log('Token erhalten', 'success');
 
-                    // Token server via Traefik (HTTPS)
-                    let proxyUrl = 'https://appdb.eppcom.de/api/lk-token';
+        // 2. Room erstellen (OHNE audio:true - Mikrofon wird nach Connect aktiviert)
+        room = new Room({
+            adaptiveStream: false,
+            dynacast: false,
+        });
 
-                    try {
-                        const proxyResponse = await fetch(`${proxyUrl}?room=${encodeURIComponent(roomName)}&user=${encodeURIComponent(userName)}`);
-                        if (proxyResponse.ok) {
-                            const tokenData = await proxyResponse.json();
-                            token = tokenData.token;
-                            document.getElementById('token').value = token;
-                            log('✅ Token generiert', 'success');
-                        } else {
-                            throw new Error('Proxy returned ' + proxyResponse.status);
-                        }
-                    } catch (error) {
-                        log(`❌ Token-Server nicht erreichbar: ${error.message}`, 'error');
-                        throw new Error('Token generation failed');
-                    }
-                }
+        // 3. Event Listener VOR connect() registrieren
+        room.on(RoomEvent.Connected, () => {
+            log('Verbunden mit Room: ' + room.name, 'success');
+        });
 
-                log(`Verbinde zu: ${url}`);
+        room.on(RoomEvent.Disconnected, () => {
+            log('Getrennt', 'error');
+            setStatus('Getrennt', 'error');
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            document.getElementById('muteBtn').disabled = true;
+            room = null;
+        });
 
-                // CORRECT LiveKit v2.x API
-                const LivekitClient = window.LivekitClient;
-                if (!LivekitClient || !LivekitClient.Room) {
-                    throw new Error('LiveKit SDK not loaded. Check script tag.');
-                }
+        room.on(RoomEvent.ParticipantConnected, (participant) => {
+            log('Teilnehmer: ' + participant.identity, 'success');
+        });
 
-                // Create a new Room instance (v2.x API)
-                room = new LivekitClient.Room({
-                    audio: true,
-                    video: false,
-                    autoSubscribe: true,
-                });
-
-                // Connect to the room
-                await room.connect(url, token);
-
-                localParticipant = room.localParticipant;
-                log('✅ Mit LiveKit verbunden', 'success');
-
-                // Handle participant events
-                room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-                    log(`✅ Teilnehmer verbunden: ${participant.name}`, 'success');
-
-                    participant.on(LivekitClient.ParticipantEvent.TrackSubscribed, (track) => {
-                        if (track.kind === 'audio') {
-                            const audio = document.createElement('audio');
-                            const mediaStream = new MediaStream([track.mediaStreamTrack]);
-                            audio.srcObject = mediaStream;
-                            audio.play().catch(e => log(`Audio-Fehler: ${e.message}`, 'error'));
-                            log('🔊 Audio-Stream aktiv', 'success');
-                        }
-                    });
-                });
-
-                room.on(LivekitClient.RoomEvent.Disconnected, () => {
-                    log('❌ Verbindung getrennt', 'error');
-                    updateStatus('Getrennt', 'error');
-                    document.getElementById('connectBtn').disabled = false;
-                    document.getElementById('disconnectBtn').disabled = true;
-                    document.getElementById('muteBtn').disabled = true;
-                });
-
-                updateStatus(`✅ Verbunden als "${userName}" in "${roomName}"`, 'connected');
-                document.getElementById('disconnectBtn').disabled = false;
-                document.getElementById('muteBtn').disabled = false;
-
-            } catch (error) {
-                log(`❌ Fehler: ${error.message}`, 'error');
-                updateStatus(`Fehler: ${error.message}`, 'error');
-                document.getElementById('connectBtn').disabled = false;
-            }
-        };
-
-        const disconnect = () => {
-            if (room) {
-                room.disconnect();
-                log('👋 Getrennt', 'info');
-                room = null;
-            }
-        };
-
-        const toggleMute = () => {
-            if (localParticipant) {
-                const currentEnabled = localParticipant.isMicrophoneEnabled;
-                localParticipant.setMicrophoneEnabled(!currentEnabled);
-                document.getElementById('muteBtn').textContent = !currentEnabled ? '🎤 Unmuted' : '🔇 Muted';
-                log(!currentEnabled ? '🎤 Mikrofon aktiviert' : '🔇 Mikrofon stummgeschaltet', 'info');
-            }
-        };
-
-        // Debug on load
-        window.addEventListener('load', () => {
-            if (window.LivekitClient && window.LivekitClient.Room) {
-                log('✅ LiveKit SDK geladen (v2.x)', 'success');
-            } else {
-                log('❌ LiveKit SDK nicht geladen!', 'error');
+        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+            log('Track empfangen: ' + track.kind + ' von ' + participant.identity, 'success');
+            if (track.kind === Track.Kind.Audio) {
+                const el = track.attach();
+                document.getElementById('audioContainer').appendChild(el);
+                log('Audio-Wiedergabe gestartet', 'success');
             }
         });
-    </script>
+
+        room.on(RoomEvent.TrackUnsubscribed, (track) => {
+            track.detach().forEach(el => el.remove());
+            log('Track entfernt');
+        });
+
+        room.on(RoomEvent.ConnectionStateChanged, (state) => {
+            log('Verbindungsstatus: ' + state);
+        });
+
+        room.on(RoomEvent.SignalConnected, () => {
+            log('Signal-Verbindung hergestellt', 'success');
+        });
+
+        // 4. Verbinden
+        log('Verbinde zu ' + url + ' ...');
+        await room.connect(url, token, {
+            autoSubscribe: true,
+        });
+
+        // 5. Mikrofon aktivieren NACH dem Connect
+        log('Mikrofon wird aktiviert...');
+        await room.localParticipant.setMicrophoneEnabled(true);
+        log('Mikrofon aktiv - sprich jetzt!', 'success');
+
+        setStatus('Verbunden als "' + userName + '" in "' + roomName + '"', 'connected');
+        document.getElementById('disconnectBtn').disabled = false;
+        document.getElementById('muteBtn').disabled = false;
+
+    } catch (err) {
+        log('Fehler: ' + err.message, 'error');
+        setStatus('Fehler: ' + err.message, 'error');
+        document.getElementById('connectBtn').disabled = false;
+        if (room) { room.disconnect(); room = null; }
+    }
+}
+
+function doDisconnect() {
+    if (room) {
+        room.disconnect();
+        room = null;
+    }
+}
+
+async function toggleMute() {
+    if (!room) return;
+    const enabled = room.localParticipant.isMicrophoneEnabled;
+    await room.localParticipant.setMicrophoneEnabled(!enabled);
+    document.getElementById('muteBtn').textContent = !enabled ? 'Mikrofon An' : 'Mikrofon Aus';
+    log((!enabled ? 'Mikrofon aktiviert' : 'Mikrofon stummgeschaltet'));
+}
+
+// SDK Check on load
+window.addEventListener('load', () => {
+    if (window.LivekitClient && window.LivekitClient.Room) {
+        log('LiveKit SDK v2.x geladen', 'success');
+    } else {
+        log('LiveKit SDK nicht geladen!', 'error');
+    }
+});
+</script>
 </body>
 </html>
