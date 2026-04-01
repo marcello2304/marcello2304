@@ -2975,6 +2975,12 @@ async def voice_test():
         content = f.read()
     return HTMLResponse(content)
 
+@app.get("/voice-debug", response_class=HTMLResponse)
+async def voice_debug():
+    with open("static/voice-debug.html") as f:
+        content = f.read()
+    return HTMLResponse(content)
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     with open("static/index.html") as f:
