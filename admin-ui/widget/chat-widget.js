@@ -7,7 +7,7 @@
  *           data-typebot-id="eppcom-chatbot-v2"
  *           data-typebot-host="https://bot.eppcom.de"
  *           data-voice-token-url="https://appdb.eppcom.de/api/public/voice-token"
- *           data-livekit-url="wss://voice.eppcom.de"
+ *           data-livekit-url="wss://appdb.eppcom.de/lk"
  *           data-color="#0042DA"
  *           data-auto-open="true"
  *           defer></script>
@@ -19,7 +19,7 @@
   var TYPEBOT_ID = (script && script.getAttribute("data-typebot-id")) || "eppcom-chatbot-v2";
   var TYPEBOT_HOST = (script && script.getAttribute("data-typebot-host")) || "https://bot.eppcom.de";
   var VOICE_TOKEN_URL = (script && script.getAttribute("data-voice-token-url")) || "https://appdb.eppcom.de/api/public/voice-token";
-  var LIVEKIT_URL = (script && script.getAttribute("data-livekit-url")) || "wss://appdb.eppcom.de:7443";
+  var LIVEKIT_URL = (script && script.getAttribute("data-livekit-url")) || "wss://appdb.eppcom.de/lk";
   var COLOR = (script && (script.getAttribute("data-color") || script.getAttribute("data-accent"))) || "#0042DA";
   var AUTO_OPEN = (script && script.getAttribute("data-auto-open")) === "true";
 

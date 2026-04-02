@@ -1950,7 +1950,7 @@ async def public_voice_token(request: Request):
     ).rstrip(b"=")
     token = (signing_input + b"." + signature).decode()
 
-    return {"token": token, "url": os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de:7443")}
+    return {"token": token, "url": os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de/lk")}
 
 
 @app.post("/api/public/chat")
@@ -2397,7 +2397,7 @@ async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_a
     ).rstrip(b"=")
     token = (signing_input + b"." + signature).decode()
 
-    return {"token": token, "url": os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de:7443")}
+    return {"token": token, "url": os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de/lk")}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

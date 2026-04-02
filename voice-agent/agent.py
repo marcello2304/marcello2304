@@ -16,21 +16,13 @@ import json
 import logging
 import os
 import re
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
 import httpx
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, llm
+from livekit.agents import Agent, AgentSession, APIConnectOptions, JobContext, WorkerOptions, cli, llm
 from livekit.plugins import cartesia, openai, silero
 
-from constants import (
-    SENTENCE_PATTERN,
-    MAX_SENTENCE_LENGTH,
-    TRUNCATION_SUFFIX,
-)
-
-# Regex to strip <think>...</think> blocks from qwen3 models
-THINK_TAG_PATTERN = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
 # ─── Logging Setup ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -311,157 +303,61 @@ class NexoAgent(Agent):
 
 # ─── Nexo Streaming Agent Class ──────────────────────────────────────────
 class NexoStreamingAgent(Agent):
-    """Voice agent with sentence-level streaming buffering + RAG integration."""
+    """Voice agent with RAG integration (livekit-agents v1.5 API)."""
 
     def __init__(self, instructions: str = ""):
-        """Initialize streaming agent with system instructions."""
         super().__init__(instructions=instructions)
 
-    async def llm_node(
-        self,
-        chat_ctx: "agents.ChatContext",
-        tools: Optional[list] = None,
-        **kwargs
-    ) -> AsyncGenerator:
+    async def llm_node(self, chat_ctx, tools, model_settings):
         """
-        Override LLM node to enable:
-        - Token-streaming (yielding partial responses)
-        - RAG context injection
-        - Sentence-level buffering
-        - Robust error handling with detailed logging
-
-        Args:
-            chat_ctx: Chat context with messages
-            tools: Available tools/functions
-            **kwargs: Additional arguments
-
-        Yields:
-            ChatChunk: Complete sentences ready for TTS
+        Override LLM node for RAG context injection.
+        Delegates streaming to the framework's default implementation.
         """
+        # ─── Fetch RAG Context ───────────────────────────────────────────
         try:
-            # ─── Fetch RAG Context (async, non-blocking) ───────────────────────────
-            rag_context = None
-            try:
-                if chat_ctx.messages:
-                    user_message = chat_ctx.messages[-1].content if chat_ctx.messages else ""
-                    if isinstance(user_message, str) and user_message.strip():
-                        logger.debug(f"Fetching RAG context for: {user_message[:100]}...")
-                        rag_context = await fetch_rag_context(user_message)
-                        if rag_context:
-                            logger.info(f"✓ RAG context injected: {len(rag_context)} chars")
-            except Exception as e:
-                logger.warning(f"RAG context fetch failed (proceeding without): {e}")
-                rag_context = None
+            user_msg = ""
+            for item in reversed(chat_ctx.items):
+                if hasattr(item, 'role') and item.role == 'user':
+                    user_msg = getattr(item, 'text_content', '') or ''
+                    break
 
-            # ─── Inject RAG into system prompt if available ───────────────────────
-            enhanced_instructions = self.instructions
-            if rag_context:
-                enhanced_instructions += f"\n\nVerfügbare Kontextinformationen:\n{rag_context}"
-
-            # ─── Create new chat context with enhanced system prompt ──────────────
-            modified_ctx = agents.ChatContext(
-                messages=[
-                    agents.ChatMessage(role="system", content=enhanced_instructions),
-                    *chat_ctx.messages
-                ]
-            )
-
-            # Use built-in LLM streaming API (livekit-agents v1.4+)
-            logger.debug("Starting LLM streaming...")
-            async with self.llm.chat(chat_ctx=modified_ctx, tools=tools) as stream:
-                buffer = ""
-                sentence_count = 0
-
-                async for chunk in stream:
-                    try:
-                        # chunk is ChatChunk with .text, .tool_calls, .usage
-                        if chunk.text:
-                            buffer += chunk.text
-                            # Strip <think>...</think> blocks from qwen3 models
-                            buffer = THINK_TAG_PATTERN.sub("", buffer)
-                            logger.debug(f"LLM token received: {chunk.text[:50]}...")
-
-                            # Check for sentence boundaries
-                            while re.search(SENTENCE_PATTERN, buffer):
-                                # Split on sentence boundary (regex)
-                                sentences = re.split(
-                                    SENTENCE_PATTERN, buffer, maxsplit=1
-                                )
-                                sentence = sentences[0].strip()
-                                buffer = sentences[1] if len(sentences) > 1 else ""
-
-                                # Handle oversized sentences (TTS input limit)
-                                if len(sentence) > MAX_SENTENCE_LENGTH:
-                                    max_len = (
-                                        MAX_SENTENCE_LENGTH -
-                                        len(TRUNCATION_SUFFIX)
-                                    )
-                                    sentence = (
-                                        sentence[:max_len] + TRUNCATION_SUFFIX
-                                    )
-
-                                if sentence:
-                                    # Yield complete sentence as ChatChunk
-                                    sentence_count += 1
-                                    logger.info(
-                                        f"Sentence #{sentence_count}: {sentence[:60]}..."
-                                    )
-                                    yield llm.ChatChunk(text=sentence)
-
-                        else:
-                            # Non-text chunks (tool calls, usage) pass through
-                            if chunk.tool_calls:
-                                logger.debug(f"Tool calls: {chunk.tool_calls}")
-                            yield chunk
-
-                    except Exception as e:
-                        logger.error(f"Error processing chunk: {e}", exc_info=True)
-                        raise
-
-                # Yield remaining text at end (if not empty)
-                if buffer.strip():
-                    # Strip any remaining <think> tags from qwen3 models
-                    buffer = THINK_TAG_PATTERN.sub("", buffer)
-                    final_text = buffer.strip()
-                    if len(final_text) > MAX_SENTENCE_LENGTH:
-                        max_len = (
-                            MAX_SENTENCE_LENGTH -
-                            len(TRUNCATION_SUFFIX)
-                        )
-                        final_text = (
-                            final_text[:max_len] + TRUNCATION_SUFFIX
-                        )
-                    sentence_count += 1
-                    logger.info(f"Final sentence #{sentence_count}: {final_text[:60]}...")
-                    yield llm.ChatChunk(text=final_text)
-
-                if sentence_count == 0:
-                    logger.warning("⚠️  No sentences yielded from LLM!")
-
+            if user_msg.strip():
+                rag_context = await fetch_rag_context(user_msg)
+                if rag_context:
+                    logger.info(f"RAG context injected: {len(rag_context)} chars")
+                    chat_ctx = chat_ctx.copy()
+                    chat_ctx.add_message(
+                        role="system",
+                        content=f"Kontextinformationen:\n{rag_context}",
+                    )
         except Exception as e:
-            logger.error(f"CRITICAL ERROR in llm_node: {e}", exc_info=True)
-            # Yield error message for user
-            yield llm.ChatChunk(text="Entschuldigung, es gab einen Fehler bei der Verarbeitung. Bitte versuche es später erneut.")
+            logger.warning(f"RAG fetch failed (proceeding without): {e}")
+
+        # ─── Delegate to default LLM node (handles streaming natively) ───
+        return Agent.default.llm_node(self, chat_ctx, tools, model_settings)
 
 
-# ─── Agent Entrypoint (v1.4 API) ────────────────────────────────────────
+# ─── Agent Entrypoint (v1.5 API) ────────────────────────────────────────
 async def entrypoint(ctx: JobContext):
     """
-    Main agent entrypoint for livekit-agents v1.4.
-    - Connects to LiveKit room
-    - Creates AgentSession with STT/LLM/TTS/VAD
-    - Starts agent and waits for interactions
+    Main agent entrypoint for livekit-agents v1.5.
     """
 
     await ctx.connect()
     logger.info(f"Connected to room: {ctx.room.name}")
 
-    # Create agent session with optimized latency settings
+    # Ollama needs higher timeout (model cold-start can take 15-30s)
+    from livekit.agents.voice.agent_session import SessionConnectOptions
+    conn_opts = SessionConnectOptions(
+        llm_conn_options=APIConnectOptions(max_retry=3, retry_interval=2.0, timeout=60.0),
+    )
+
     session = AgentSession(
         stt=_get_stt(),
         llm=_get_llm(),
         tts=_get_tts(),
         vad=silero.VAD.load(),
+        conn_options=conn_opts,
     )
 
     # Select agent class based on streaming configuration
@@ -472,11 +368,13 @@ async def entrypoint(ctx: JobContext):
         agent_class = NexoAgent
         logger.info("Using NexoAgent (streaming disabled)")
 
-    # Start agent with selected class
-    await session.start(room=ctx.room, agent=agent_class(instructions=SYSTEM_PROMPT))
+    agent = agent_class(instructions=SYSTEM_PROMPT)
+    await session.start(room=ctx.room, agent=agent)
     logger.info("Agent started and listening")
 
-    # Keep session alive and handle interactions
+    # Greeting message
+    await session.say("Hallo! Ich bin Nexo, der KI-Assistent von EPPCOM. Wie kann ich dir helfen?")
+
     await asyncio.Event().wait()
 
 
