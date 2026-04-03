@@ -14,7 +14,9 @@ from datetime import datetime
 
 
 async def main():
-    db_url = os.environ.get("DATABASE_URL", "postgresql://appuser:MXeuHHCnuYDCa88ly3sEGl6agCK8f5UUSdKES8cD@postgres-rag:5432/app_db")
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL environment variable is required")
     db = await asyncpg.connect(db_url)
 
     print("\n" + "=" * 80)
