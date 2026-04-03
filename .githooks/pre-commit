@@ -1,0 +1,54 @@
+#!/bin/bash
+# Pre-commit hook: Block commits containing secrets
+# Install: git config core.hooksPath .githooks
+
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Patterns that should NEVER be committed
+SECRET_PATTERNS=(
+    'sk_car_[a-zA-Z0-9]{10,}'
+    'sk-[a-zA-Z0-9]{20,}'
+    'password.*=.*[a-f0-9]{16,}'
+    'postgresql://[^:]+:[^@]{8,}@'
+    'LIVEKIT_API_SECRET=.{20,}'
+    'CARTESIA_API_KEY=sk_'
+    'S3_SECRET_KEY=[a-zA-Z0-9+/]{20,}'
+    'ADMIN_API_KEY=[a-f0-9]{32,}'
+    'OLLAMA_BEARER_TOKEN=[a-f0-9]{20,}'
+    'JWT_APP_SECRET=[a-f0-9]{32,}'
+    'JICOFO_.*_SECRET=[a-f0-9]{16,}'
+    'AUTH_PASSWORD=[a-f0-9]{16,}'
+    'XMPP_PASSWORD=[a-f0-9]{16,}'
+    'RECORDER_PASSWORD=[a-f0-9]{16,}'
+)
+
+BLOCKED=0
+
+for pattern in "${SECRET_PATTERNS[@]}"; do
+    # Check staged files only (not .env.example files)
+    matches=$(git diff --cached --diff-filter=ACMR -U0 -- ':!*.example' ':!*.md' ':!.githooks/*' | grep -E "^\+" | grep -oE "$pattern" 2>/dev/null)
+    if [ -n "$matches" ]; then
+        echo -e "${RED}BLOCKED: Secret detected matching pattern: ${pattern}${NC}"
+        echo "  Found: ${matches:0:30}..."
+        BLOCKED=1
+    fi
+done
+
+# Also check if .env files are being committed (they shouldn't be)
+STAGED_ENV=$(git diff --cached --name-only | grep -E '^\.(env|env\..*)$' | grep -v '.example')
+if [ -n "$STAGED_ENV" ]; then
+    echo -e "${RED}BLOCKED: .env file staged for commit:${NC}"
+    echo "  $STAGED_ENV"
+    echo "  These files should be in .gitignore!"
+    BLOCKED=1
+fi
+
+if [ $BLOCKED -eq 1 ]; then
+    echo ""
+    echo -e "${RED}Commit aborted. Remove secrets before committing.${NC}"
+    echo "If this is a false positive, use: git commit --no-verify"
+    exit 1
+fi
+
+exit 0
