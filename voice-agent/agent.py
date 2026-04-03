@@ -68,8 +68,8 @@ RAG_TENANT_ID = os.getenv("RAG_TENANT_ID", "a0000000-0000-0000-0000-000000000001
 # Voice Agent Configuration (Ultra-Low Latency for <2s target)
 # Task C: Cartesia TTS + Deepgram STT + Token-Streaming LLM
 VAD_THRESHOLD = float(os.getenv("VAD_THRESHOLD", "0.5"))
-# Ultra-aggressive VAD: 200ms → 100ms für <2s target
-VAD_SILENCE_DURATION_MS = int(os.getenv("VAD_SILENCE_DURATION_MS", "100"))
+# 300ms is a good balance: catches natural pauses without cutting off speech
+VAD_SILENCE_DURATION_MS = int(os.getenv("VAD_SILENCE_DURATION_MS", "300"))
 
 # ─── Streaming Configuration ──────────────────────────────────────────────
 # Token-Streaming aktiviert für -50% Latency (3-7s statt 6-15s)
@@ -239,19 +239,20 @@ def _get_tts():
             f"(German voice, ultra-low latency <100ms)"
         )
         try:
-            # Build Cartesia TTS kwargs - only add voice if not "default"
-            cartesia_kwargs = {
-                "api_key": CARTESIA_API_KEY,
-                "model": CARTESIA_MODEL,
-                "encoding": "pcm_s16le",
-                "sample_rate": 24000,
-            }
+            # German voice: "Alina - Engaging Assistant"
+            GERMAN_VOICE_DEFAULT = "38aabb6a-f52b-4fb0-a3d1-988518f4dc06"
+            voice_id = CARTESIA_VOICE_ID
+            if not voice_id or voice_id.lower() == "default":
+                voice_id = GERMAN_VOICE_DEFAULT
 
-            # Only set voice if not default
-            if CARTESIA_VOICE_ID and CARTESIA_VOICE_ID.lower() != "default":
-                cartesia_kwargs["voice"] = CARTESIA_VOICE_ID
-
-            return cartesia.TTS(**cartesia_kwargs)
+            return cartesia.TTS(
+                api_key=CARTESIA_API_KEY,
+                model=CARTESIA_MODEL,
+                language="de",
+                voice=voice_id,
+                encoding="pcm_s16le",
+                sample_rate=24000,
+            )
 
         except Exception as e:
             logger.error(f"Cartesia TTS failed: {e}")
@@ -310,30 +311,10 @@ class NexoStreamingAgent(Agent):
 
     async def llm_node(self, chat_ctx, tools, model_settings):
         """
-        Override LLM node for RAG context injection.
+        Override LLM node. RAG temporarily disabled for latency optimization.
         Delegates streaming to the framework's default implementation.
         """
-        # ─── Fetch RAG Context ───────────────────────────────────────────
-        try:
-            user_msg = ""
-            for item in reversed(chat_ctx.items):
-                if hasattr(item, 'role') and item.role == 'user':
-                    user_msg = getattr(item, 'text_content', '') or ''
-                    break
-
-            if user_msg.strip():
-                rag_context = await fetch_rag_context(user_msg)
-                if rag_context:
-                    logger.info(f"RAG context injected: {len(rag_context)} chars")
-                    chat_ctx = chat_ctx.copy()
-                    chat_ctx.add_message(
-                        role="system",
-                        content=f"Kontextinformationen:\n{rag_context}",
-                    )
-        except Exception as e:
-            logger.warning(f"RAG fetch failed (proceeding without): {e}")
-
-        # ─── Delegate to default LLM node (handles streaming natively) ───
+        # TODO: Re-enable RAG when webhook is fixed and latency is acceptable
         return Agent.default.llm_node(self, chat_ctx, tools, model_settings)
 
 
