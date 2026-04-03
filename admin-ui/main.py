@@ -2981,6 +2981,75 @@ async def voice_debug():
         content = f.read()
     return HTMLResponse(content)
 
+@app.get("/voice-config", response_class=HTMLResponse)
+async def voice_config():
+    with open("static/voice-config.html") as f:
+        content = f.read()
+    return HTMLResponse(content)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Voice Configuration API
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/voices")
+async def list_voices():
+    """Fetch available German voices from Cartesia."""
+    cartesia_key = os.getenv("CARTESIA_API_KEY", "")
+    if not cartesia_key:
+        raise HTTPException(status_code=500, detail="CARTESIA_API_KEY not configured")
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.cartesia.ai/voices",
+            headers={"X-API-Key": cartesia_key, "Cartesia-Version": "2024-06-10"},
+        )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Cartesia API error")
+        voices = resp.json()
+    # Filter German voices and sort alphabetically
+    de_voices = [v for v in voices if v.get("language") == "de"]
+    de_voices.sort(key=lambda v: v["name"])
+    return de_voices
+
+
+@app.get("/api/cartesia-key")
+async def get_cartesia_key():
+    """Proxy Cartesia key for frontend voice preview."""
+    cartesia_key = os.getenv("CARTESIA_API_KEY", "")
+    if not cartesia_key:
+        raise HTTPException(status_code=500, detail="CARTESIA_API_KEY not configured")
+    return {"key": cartesia_key}
+
+
+@app.get("/api/voice-config")
+async def get_voice_config():
+    """Get current voice agent configuration."""
+    db = await get_db()
+    row = await db.fetchrow(
+        "SELECT value FROM app_settings WHERE key = 'voicebot_voice_id'"
+    )
+    current_voice_id = row["value"] if row else "38aabb6a-f52b-4fb0-a3d1-988518f4dc06"
+    return {"voice_id": current_voice_id}
+
+
+@app.post("/api/voice-config")
+async def set_voice_config(request: Request):
+    """Set voice agent configuration and restart agent."""
+    data = await request.json()
+    voice_id = data.get("voice_id", "").strip()
+    if not voice_id:
+        raise HTTPException(status_code=400, detail="voice_id required")
+
+    db = await get_db()
+    await db.execute(
+        """INSERT INTO app_settings (key, value, updated_at)
+           VALUES ('voicebot_voice_id', $1, NOW())
+           ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()""",
+        voice_id,
+    )
+    return {"status": "ok", "voice_id": voice_id}
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     with open("static/index.html") as f:

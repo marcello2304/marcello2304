@@ -220,8 +220,27 @@ def _get_llm():
         )
 
 
+# ─── Voice Config from Admin-UI ──────────────────────────────────────────
+async def _fetch_voice_id() -> str:
+    """Fetch configured voice_id from admin-ui. Falls back to env/default."""
+    import aiohttp
+    admin_url = os.getenv("ADMIN_UI_URL", "http://eppcom-admin-ui:8080")
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3)) as s:
+            async with s.get(f"{admin_url}/api/voice-config") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    vid = data.get("voice_id", "")
+                    if vid:
+                        logger.info(f"Voice config from admin-ui: {vid}")
+                        return vid
+    except Exception as e:
+        logger.debug(f"Could not fetch voice config from admin-ui: {e}")
+    return ""
+
+
 # ─── TTS Provider (Cartesia Primary > OpenAI Fallback) ──────────────────
-def _get_tts():
+def _get_tts(voice_id_override: str = ""):
     """
     Get TTS provider with natural German voices.
 
@@ -241,7 +260,7 @@ def _get_tts():
         try:
             # German voice: "Alina - Engaging Assistant"
             GERMAN_VOICE_DEFAULT = "38aabb6a-f52b-4fb0-a3d1-988518f4dc06"
-            voice_id = CARTESIA_VOICE_ID
+            voice_id = voice_id_override or CARTESIA_VOICE_ID
             if not voice_id or voice_id.lower() == "default":
                 voice_id = GERMAN_VOICE_DEFAULT
 
@@ -327,6 +346,9 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
     logger.info(f"Connected to room: {ctx.room.name}")
 
+    # Load voice config from admin-ui (if available)
+    configured_voice = await _fetch_voice_id()
+
     # Ollama needs higher timeout (model cold-start can take 15-30s)
     from livekit.agents.voice.agent_session import SessionConnectOptions
     conn_opts = SessionConnectOptions(
@@ -336,7 +358,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=_get_stt(),
         llm=_get_llm(),
-        tts=_get_tts(),
+        tts=_get_tts(voice_id_override=configured_voice),
         vad=silero.VAD.load(),
         conn_options=conn_opts,
     )

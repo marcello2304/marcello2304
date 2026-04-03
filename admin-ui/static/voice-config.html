@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPPCOM Voice Config</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e1e4ea; min-height: 100vh; }
+
+        .header { background: #161822; border-bottom: 1px solid #2a2d3a; padding: 20px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header .subtitle { color: #8b8fa3; font-size: 14px; }
+        .back-link { color: #6c8aff; text-decoration: none; font-size: 14px; margin-left: auto; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        .current-voice { background: #161822; border: 1px solid #2a2d3a; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
+        .current-voice .label { color: #8b8fa3; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .current-voice .name { font-size: 18px; font-weight: 600; color: #6c8aff; }
+        .current-voice .badge { background: #1a3a2a; color: #4ade80; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+
+        .filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-btn { background: #1e2030; border: 1px solid #2a2d3a; color: #8b8fa3; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+        .filter-btn:hover { border-color: #6c8aff; color: #e1e4ea; }
+        .filter-btn.active { background: #6c8aff; border-color: #6c8aff; color: #fff; }
+
+        .search-box { background: #1e2030; border: 1px solid #2a2d3a; color: #e1e4ea; padding: 10px 14px; border-radius: 8px; font-size: 14px; width: 250px; }
+        .search-box::placeholder { color: #555; }
+        .search-box:focus { outline: none; border-color: #6c8aff; }
+
+        .voices-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+
+        .voice-card { background: #161822; border: 1px solid #2a2d3a; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .voice-card:hover { border-color: #6c8aff; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(108, 138, 255, 0.1); }
+        .voice-card.selected { border-color: #6c8aff; background: #1a1e30; }
+        .voice-card.selected::after { content: ''; position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; background: #6c8aff; border-radius: 50%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"); background-size: 16px; background-repeat: no-repeat; background-position: center; }
+
+        .voice-card .voice-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+        .voice-card .voice-desc { color: #8b8fa3; font-size: 13px; line-height: 1.4; margin-bottom: 12px; min-height: 36px; }
+        .voice-card .voice-meta { display: flex; gap: 8px; align-items: center; }
+        .voice-card .gender-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .gender-badge.feminine { background: #2a1a3a; color: #c084fc; }
+        .gender-badge.masculine { background: #1a2a3a; color: #60a5fa; }
+        .voice-card .voice-id { color: #555; font-size: 11px; font-family: monospace; }
+
+        .voice-card .preview-btn { background: #1e2030; border: 1px solid #2a2d3a; color: #e1e4ea; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+        .voice-card .preview-btn:hover { border-color: #6c8aff; background: #252840; }
+        .voice-card .preview-btn.playing { background: #6c8aff; border-color: #6c8aff; color: #fff; }
+
+        .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #161822; border-top: 1px solid #2a2d3a; padding: 16px 32px; display: none; align-items: center; justify-content: space-between; z-index: 100; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); }
+        .save-bar.visible { display: flex; }
+        .save-bar .info { font-size: 14px; }
+        .save-bar .info strong { color: #6c8aff; }
+        .save-btn { background: #6c8aff; border: none; color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .save-btn:hover { background: #5a7aef; }
+        .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .loading { text-align: center; padding: 60px; color: #8b8fa3; }
+        .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #2a2d3a; border-top-color: #6c8aff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast { position: fixed; top: 20px; right: 20px; background: #1a3a2a; color: #4ade80; border: 1px solid #2a4a3a; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 200; opacity: 0; transition: opacity 0.3s; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #3a1a1a; color: #f87171; border-color: #4a2a2a; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Voice Konfiguration</h1>
+            <div class="subtitle">Stimme fuer den EPPCOM Voicebot auswaehlen</div>
+        </div>
+        <a href="/voice-test" class="back-link">Voice Test &rarr;</a>
+    </div>
+
+    <div class="container">
+        <div class="current-voice" id="currentVoice">
+            <div>
+                <div class="label">Aktuelle Stimme</div>
+                <div class="name" id="currentVoiceName">Laden...</div>
+            </div>
+            <div class="badge" id="currentBadge" style="display:none">AKTIV</div>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">Alle</button>
+            <button class="filter-btn" data-filter="feminine">Weiblich</button>
+            <button class="filter-btn" data-filter="masculine">Maennlich</button>
+            <input type="text" class="search-box" id="searchBox" placeholder="Stimme suchen...">
+        </div>
+
+        <div id="voicesGrid" class="voices-grid">
+            <div class="loading"><div class="spinner"></div><br>Stimmen werden geladen...</div>
+        </div>
+    </div>
+
+    <div class="save-bar" id="saveBar">
+        <div class="info">Neue Stimme: <strong id="selectedName">—</strong></div>
+        <button class="save-btn" id="saveBtn" onclick="saveVoice()">Speichern & Aktivieren</button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <audio id="previewAudio" style="display:none"></audio>
+
+    <script>
+        let voices = [];
+        let currentVoiceId = '';
+        let selectedVoiceId = '';
+        let activeFilter = 'all';
+        let currentlyPlaying = null;
+
+        async function init() {
+            const [voicesResp, configResp] = await Promise.all([
+                fetch('/api/voices'),
+                fetch('/api/voice-config'),
+            ]);
+            voices = await voicesResp.json();
+            const config = await configResp.json();
+            currentVoiceId = config.voice_id;
+            selectedVoiceId = currentVoiceId;
+
+            const current = voices.find(v => v.id === currentVoiceId);
+            document.getElementById('currentVoiceName').textContent = current ? current.name : currentVoiceId.substring(0, 12) + '...';
+            document.getElementById('currentBadge').style.display = 'inline-block';
+
+            renderVoices();
+        }
+
+        function renderVoices() {
+            const search = document.getElementById('searchBox').value.toLowerCase();
+            const filtered = voices.filter(v => {
+                if (activeFilter !== 'all' && v.gender !== activeFilter) return false;
+                if (search && !v.name.toLowerCase().includes(search) && !(v.description || '').toLowerCase().includes(search)) return false;
+                return true;
+            });
+
+            const grid = document.getElementById('voicesGrid');
+            grid.innerHTML = filtered.map(v => `
+                <div class="voice-card ${v.id === selectedVoiceId ? 'selected' : ''}" onclick="selectVoice('${v.id}')">
+                    <div class="voice-name">${esc(v.name)}</div>
+                    <div class="voice-desc">${esc(v.description || 'Keine Beschreibung')}</div>
+                    <div class="voice-meta">
+                        <span class="gender-badge ${v.gender}">${v.gender === 'feminine' ? 'Weiblich' : v.gender === 'masculine' ? 'Maennlich' : '?'}</span>
+                        <button class="preview-btn" onclick="event.stopPropagation(); previewVoice('${v.id}', this)">&#9654; Vorhoeren</button>
+                        <span class="voice-id">${v.id.substring(0, 8)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectVoice(id) {
+            selectedVoiceId = id;
+            renderVoices();
+            const v = voices.find(x => x.id === id);
+            document.getElementById('selectedName').textContent = v ? v.name : id;
+            const bar = document.getElementById('saveBar');
+            bar.classList.toggle('visible', id !== currentVoiceId);
+        }
+
+        async function previewVoice(voiceId, btn) {
+            if (currentlyPlaying) {
+                currentlyPlaying.btn.classList.remove('playing');
+                currentlyPlaying.btn.textContent = '\u25B6 Vorhoeren';
+            }
+
+            btn.classList.add('playing');
+            btn.textContent = '... Laden';
+
+            try {
+                const resp = await fetch('https://api.cartesia.ai/tts/bytes', {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': await getCartesiaKey(),
+                        'Cartesia-Version': '2024-06-10',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model_id: 'sonic-2',
+                        transcript: 'Hallo! Ich bin der KI-Assistent von EPPCOM. Wie kann ich Ihnen heute helfen?',
+                        voice: { mode: 'id', id: voiceId },
+                        language: 'de',
+                        output_format: { container: 'mp3', bit_rate: 128000, sample_rate: 44100 },
+                    }),
+                });
+
+                if (!resp.ok) throw new Error('TTS error ' + resp.status);
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const audio = document.getElementById('previewAudio');
+                audio.src = url;
+                audio.play();
+                btn.textContent = '&#9724; Stop';
+                currentlyPlaying = { btn, url };
+                audio.onended = () => {
+                    btn.classList.remove('playing');
+                    btn.textContent = '\u25B6 Vorhoeren';
+                    URL.revokeObjectURL(url);
+                    currentlyPlaying = null;
+                };
+            } catch (e) {
+                btn.classList.remove('playing');
+                btn.textContent = '\u25B6 Vorhoeren';
+                showToast('Vorschau fehlgeschlagen: ' + e.message, true);
+            }
+        }
+
+        let _cartesiaKey = null;
+        async function getCartesiaKey() {
+            // Proxy through backend to avoid exposing key in frontend
+            // For now use a simple endpoint
+            if (!_cartesiaKey) {
+                const resp = await fetch('/api/cartesia-key');
+                const data = await resp.json();
+                _cartesiaKey = data.key;
+            }
+            return _cartesiaKey;
+        }
+
+        async function saveVoice() {
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.textContent = 'Wird gespeichert...';
+
+            try {
+                const resp = await fetch('/api/voice-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voice_id: selectedVoiceId }),
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    currentVoiceId = selectedVoiceId;
+                    const v = voices.find(x => x.id === currentVoiceId);
+                    document.getElementById('currentVoiceName').textContent = v ? v.name : currentVoiceId;
+                    document.getElementById('saveBar').classList.remove('visible');
+                    showToast('Stimme gespeichert! Der Voicebot verwendet ab dem naechsten Anruf die neue Stimme.');
+                } else {
+                    throw new Error(data.detail || 'Unbekannter Fehler');
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
+            btn.disabled = false;
+            btn.textContent = 'Speichern & Aktivieren';
+        }
+
+        function showToast(msg, isError) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => t.className = 'toast', 3000);
+        }
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeFilter = btn.dataset.filter;
+                renderVoices();
+            });
+        });
+
+        document.getElementById('searchBox').addEventListener('input', renderVoices);
+
+        init();
+    </script>
+</body>
+</html>
