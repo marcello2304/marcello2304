@@ -77,7 +77,8 @@ VOICEBOT_STREAMING_ENABLED = os.getenv("VOICEBOT_STREAMING_ENABLED", "true").low
 ENABLE_PARTIAL_TRANSCRIPTS = os.getenv("ENABLE_PARTIAL_TRANSCRIPTS", "true").lower() == "true"
 
 # ─── System Prompt with RAG Context ─────────────────────────────────────
-SYSTEM_PROMPT = """Du bist Nexo, der KI-Assistent von EPPCOM Solutions - Experte für Workflow-Automatisierung und KI-Chatbots.
+SYSTEM_PROMPT = """Du bist Nexo, der KI-Assistent von Eppkom Solutions - Experte für Workflow-Automatisierung und KI-Chatbots.
+WICHTIG: Schreibe den Firmennamen IMMER als "Eppkom" (nicht "EPPCOM"), damit die Sprachausgabe ihn korrekt als Wort ausspricht.
 
 ANTWORTSTIL:
 - Formuliere IMMER in eigenen Worten, nie copy-paste
@@ -376,7 +377,7 @@ async def entrypoint(ctx: JobContext):
     logger.info("Agent started and listening")
 
     # Greeting message
-    await session.say("Hallo! Ich bin Nexo, der KI-Assistent von EPPCOM. Wie kann ich dir helfen?")
+    await session.say("Hallo! Ich bin Nexo, der KI-Assistent von Eppkom Solutions. Wie kann ich dir helfen?")
 
     await asyncio.Event().wait()
 
