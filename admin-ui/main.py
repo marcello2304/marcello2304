@@ -470,6 +470,32 @@ async def login(body: LoginRequest):
     }
 
 
+class PasswordResetRequest(BaseModel):
+    email: str
+
+@app.post("/api/password-reset")
+async def password_reset(body: PasswordResetRequest):
+    """Self-service password reset. Generates a temporary password."""
+    email = body.email.strip().lower()
+    db = await get_db()
+    user = await db.fetchrow(
+        "SELECT id, email, is_active FROM public.users WHERE email=$1", email
+    )
+    if not user:
+        # Don't reveal if email exists
+        raise HTTPException(400, "Falls ein Account existiert, wurde das Passwort zurückgesetzt.")
+    if not user["is_active"]:
+        raise HTTPException(403, "Account deaktiviert")
+
+    temp_pw = secrets.token_urlsafe(10)
+    pw_hash = _hash_password(temp_pw)
+    await db.execute(
+        "UPDATE public.users SET password_hash=$1 WHERE id=$2",
+        pw_hash, user["id"]
+    )
+    return {"temp_password": temp_pw, "message": "Bitte nach dem Login ändern."}
+
+
 @app.post("/api/logout")
 async def logout(x_session_token: str = Header(None)):
     if x_session_token and x_session_token in _sessions:
