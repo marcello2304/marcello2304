@@ -42,7 +42,7 @@ DEEPGRAM_MODEL = os.getenv("DEEPGRAM_MODEL", "nova-2")
 
 # Local Whisper Configuration (self-hosted, zero-cost)
 USE_LOCAL_WHISPER = os.getenv("USE_LOCAL_WHISPER", "true").lower() == "true"
-WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")  # tiny, small, base, medium, large
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "tiny")  # tiny=~1s CPU, small=~4s, base, medium, large
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "auto")  # auto, cuda, cpu
 
 # LLM Configuration (Ollama local)
@@ -68,8 +68,8 @@ RAG_TENANT_ID = os.getenv("RAG_TENANT_ID", "a0000000-0000-0000-0000-000000000001
 # Voice Agent Configuration (Ultra-Low Latency for <2s target)
 # Task C: Cartesia TTS + Deepgram STT + Token-Streaming LLM
 VAD_THRESHOLD = float(os.getenv("VAD_THRESHOLD", "0.5"))
-# 300ms is a good balance: catches natural pauses without cutting off speech
-VAD_SILENCE_DURATION_MS = int(os.getenv("VAD_SILENCE_DURATION_MS", "300"))
+# 200ms: schneller als 300ms ohne Sprechunterbrechungen bei normalem Tempo
+VAD_SILENCE_DURATION_MS = int(os.getenv("VAD_SILENCE_DURATION_MS", "200"))
 
 # ─── Streaming Configuration ──────────────────────────────────────────────
 # Token-Streaming aktiviert für -50% Latency (3-7s statt 6-15s)
@@ -382,6 +382,27 @@ async def entrypoint(ctx: JobContext):
     await asyncio.Event().wait()
 
 
+# ─── Ollama Pre-Warm (eliminiert Kaltstart-Latenz beim ersten Gespräch) ──
+async def _prewarm_ollama():
+    """
+    Sendet einen Dummy-Request an Ollama beim Worker-Start, damit das Modell
+    im RAM gehalten wird und der erste echte Anruf nicht 15-30s wartet.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            logger.info(f"Pre-warming Ollama model '{OLLAMA_MODEL}'...")
+            resp = await client.post(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                json={"model": OLLAMA_MODEL, "prompt": "hi", "stream": False, "options": {"num_predict": 1}},
+            )
+            if resp.status_code == 200:
+                logger.info("✓ Ollama model pre-warmed and ready")
+            else:
+                logger.warning(f"Ollama pre-warm returned HTTP {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"Ollama pre-warm failed (non-fatal): {e}")
+
+
 # ─── Worker Options & CLI ───────────────────────────────────────────────
 if __name__ == "__main__":
     worker_opts = WorkerOptions(
@@ -389,5 +410,6 @@ if __name__ == "__main__":
         api_key=LIVEKIT_API_KEY,
         api_secret=LIVEKIT_API_SECRET,
         ws_url=LIVEKIT_URL,
+        prewarm_fnc=_prewarm_ollama,
     )
     cli.run_app(worker_opts)

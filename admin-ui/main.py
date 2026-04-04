@@ -2478,6 +2478,73 @@ async def get_livekit_token(body: dict, session: SessionInfo = Depends(require_a
     return {"token": token, "url": os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de/lk")}
 
 
+# ─── Öffentlicher Token-Endpunkt (für Homepage-Widget, kein Login nötig) ─────
+import time as _time_module
+_lk_token_rate: dict[str, list] = {}  # IP → [timestamps]
+
+@app.get("/api/lk-token")
+async def get_lk_token_public(
+    room: str = "eppcom-voice",
+    user: str = "visitor",
+    request: Request = None,
+):
+    """
+    Öffentlicher LiveKit-Token für das Homepage-Voicebot-Widget.
+    Kein Login nötig, aber Rate-Limit: 10 Tokens/Minute pro IP.
+    """
+    if not LIVEKIT_KEY or not LIVEKIT_SECRET:
+        raise HTTPException(503, "LiveKit nicht konfiguriert")
+
+    # Rate-Limit: max 10 Anfragen/Minute pro IP
+    client_ip = (request.headers.get("x-forwarded-for") or request.client.host) if request else "unknown"
+    now_ts = _time_module.time()
+    history = _lk_token_rate.get(client_ip, [])
+    history = [t for t in history if now_ts - t < 60]
+    if len(history) >= 10:
+        raise HTTPException(429, "Zu viele Anfragen – bitte warte kurz")
+    history.append(now_ts)
+    _lk_token_rate[client_ip] = history
+
+    # Sicherer Raumname (nur alphanumerisch + Bindestrich)
+    import re as _re
+    safe_room = _re.sub(r"[^a-zA-Z0-9\-]", "", room)[:40] or "eppcom-voice"
+    safe_user = _re.sub(r"[^a-zA-Z0-9\-_]", "", user)[:30] or "visitor"
+    identity   = f"widget-{safe_user}-{uuid.uuid4().hex[:6]}"
+
+    import hmac as _hmac, base64 as _b64
+    header = _b64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=")
+    now_i  = int(now_ts)
+    payload_data = {
+        "iss": LIVEKIT_KEY,
+        "sub": identity,
+        "iat": now_i,
+        "exp": now_i + 3600,
+        "nbf": now_i,
+        "jti": str(uuid.uuid4()),
+        "video": {
+            "roomCreate": True,
+            "roomJoin":   True,
+            "room":       safe_room,
+            "canPublish": True,
+            "canSubscribe": True,
+            "canPublishData": True,
+        },
+        "metadata": json.dumps({"name": safe_user, "source": "homepage-widget"}),
+    }
+    payload       = _b64.urlsafe_b64encode(json.dumps(payload_data).encode()).rstrip(b"=")
+    signing_input = header + b"." + payload
+    signature     = _b64.urlsafe_b64encode(
+        _hmac.new(LIVEKIT_SECRET.encode(), signing_input, hashlib.sha256).digest()
+    ).rstrip(b"=")
+    token = (signing_input + b"." + signature).decode()
+
+    return {
+        "token": token,
+        "url":   os.getenv("LIVEKIT_PUBLIC_URL", "wss://appdb.eppcom.de/lk"),
+        "room":  safe_room,
+    }
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Jitsi Meet Token Endpoint
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3062,6 +3129,14 @@ async def voice_debug():
 @app.get("/voice-config", response_class=HTMLResponse)
 async def voice_config():
     with open("static/voice-config.html") as f:
+        content = f.read()
+    return HTMLResponse(content)
+
+
+@app.get("/voice-widget", response_class=HTMLResponse)
+async def voice_widget():
+    """Öffentlich einbettbares Voicebot-Widget (kein Login nötig)."""
+    with open("static/voice-widget.html") as f:
         content = f.read()
     return HTMLResponse(content)
 
