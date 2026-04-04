@@ -473,19 +473,47 @@ async def login(body: LoginRequest):
 class PasswordResetRequest(BaseModel):
     email: str
 
+
+def _send_email(to: str, subject: str, body_html: str):
+    """Send email via SMTP (IONOS, Gmail, etc.)."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    smtp_host = os.getenv("SMTP_HOST", "")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASSWORD", "")
+    smtp_from = os.getenv("SMTP_FROM", smtp_user)
+
+    if not smtp_host or not smtp_user:
+        raise RuntimeError("SMTP nicht konfiguriert")
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"EPPCOM Platform <{smtp_from}>"
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body_html, "html", "utf-8"))
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_from, to, msg.as_string())
+
+
 @app.post("/api/password-reset")
 async def password_reset(body: PasswordResetRequest):
-    """Self-service password reset. Generates a temporary password."""
+    """Password reset via email. Only works if user exists."""
     email = body.email.strip().lower()
     db = await get_db()
     user = await db.fetchrow(
-        "SELECT id, email, is_active FROM public.users WHERE email=$1", email
+        "SELECT id, email, display_name, is_active FROM public.users WHERE email=$1", email
     )
-    if not user:
-        # Don't reveal if email exists
-        raise HTTPException(400, "Falls ein Account existiert, wurde das Passwort zurückgesetzt.")
-    if not user["is_active"]:
-        raise HTTPException(403, "Account deaktiviert")
+    # Always return same message to prevent email enumeration
+    ok_msg = {"message": "Falls ein Account mit dieser E-Mail existiert, wurde ein neues Passwort gesendet."}
+
+    if not user or not user["is_active"]:
+        return ok_msg
 
     temp_pw = secrets.token_urlsafe(10)
     pw_hash = _hash_password(temp_pw)
@@ -493,7 +521,31 @@ async def password_reset(body: PasswordResetRequest):
         "UPDATE public.users SET password_hash=$1 WHERE id=$2",
         pw_hash, user["id"]
     )
-    return {"temp_password": temp_pw, "message": "Bitte nach dem Login ändern."}
+
+    try:
+        _send_email(
+            to=email,
+            subject="EPPCOM Platform — Neues Passwort",
+            body_html=f"""
+            <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+                <h2 style="color: #1a33f5;">Passwort zurückgesetzt</h2>
+                <p>Hallo {user['display_name'] or 'Nutzer'},</p>
+                <p>dein temporäres Passwort für <strong>appdb.eppcom.de</strong> lautet:</p>
+                <div style="background: #f0f4ff; border: 2px solid #1a33f5; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">
+                    <code style="font-size: 20px; font-weight: bold; color: #1a33f5;">{temp_pw}</code>
+                </div>
+                <p>Bitte ändere das Passwort nach dem Login.</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+                <p style="color: #888; font-size: 12px;">EPPCOM Solutions — KI-Automatisierung</p>
+            </div>
+            """,
+        )
+    except Exception as e:
+        # If email fails, still return OK but log the error
+        import logging
+        logging.getLogger("admin-ui").error(f"Password reset email failed for {email}: {e}")
+
+    return ok_msg
 
 
 @app.post("/api/logout")
