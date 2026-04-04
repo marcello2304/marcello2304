@@ -142,6 +142,25 @@ async def get_db() -> asyncpg.Pool:
 @app.on_event("startup")
 async def startup():
     db = await get_db()
+
+    # Session-Tabelle sicherstellen (DB-persistente Sessions)
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS public.user_sessions (
+            token       TEXT PRIMARY KEY,
+            user_id     UUID NOT NULL,
+            email       TEXT NOT NULL,
+            display_name TEXT,
+            role        TEXT,
+            tenant_id   UUID,
+            tenant_slug TEXT,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+    # Abgelaufene Sessions aufräumen
+    await db.execute(
+        "DELETE FROM public.user_sessions WHERE created_at < NOW() - INTERVAL '24 hours'"
+    )
+
     # Super-Admin auto-erstellen falls nicht vorhanden UND Passwort gesetzt
     if SUPER_ADMIN_DEFAULT_PW:
         existing = await db.fetchval("SELECT id FROM public.users WHERE email=$1", SUPER_ADMIN_EMAIL.lower())
@@ -160,9 +179,9 @@ async def shutdown():
         await _db_pool.close()
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Auth — bcrypt-basiert mit Session-Tokens
+# Auth — bcrypt-basiert mit DB-gespeicherten Session-Tokens
+# Sessions werden in public.user_sessions gespeichert → überleben Container-Restarts
 # ──────────────────────────────────────────────────────────────────────────────
-_sessions: dict = {}
 SESSION_TTL = 86400  # 24h
 
 class SessionInfo:
@@ -203,29 +222,74 @@ class SessionInfo:
         }
 
 
-def _get_session(token: str) -> SessionInfo:
-    if not token or token not in _sessions:
+async def _create_session(token: str, session: SessionInfo):
+    """Session in DB speichern (überlebt Container-Restarts)."""
+    db = await get_db()
+    await db.execute(
+        """INSERT INTO public.user_sessions
+               (token, user_id, email, display_name, role, tenant_id, tenant_slug, created_at)
+           VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, NOW())
+           ON CONFLICT (token) DO NOTHING""",
+        token,
+        session.user_id,
+        session.email,
+        session.display_name,
+        session.role,
+        session.tenant_id,
+        session.tenant_slug,
+    )
+
+
+async def _load_session(token: str) -> SessionInfo:
+    """Session aus DB laden. Gibt None zurück wenn nicht vorhanden oder abgelaufen."""
+    db = await get_db()
+    row = await db.fetchrow(
+        """SELECT user_id::text, email, display_name, role, tenant_id::text, tenant_slug, created_at
+           FROM public.user_sessions
+           WHERE token = $1""",
+        token,
+    )
+    if not row:
+        return None
+    import datetime as _dt
+    age = (_dt.datetime.utcnow() - row["created_at"].replace(tzinfo=None)).total_seconds()
+    if age > SESSION_TTL:
+        await db.execute("DELETE FROM public.user_sessions WHERE token = $1", token)
+        return None
+    s = SessionInfo(
+        user_id=row["user_id"],
+        email=row["email"],
+        display_name=row["display_name"],
+        role=row["role"],
+        tenant_id=row["tenant_id"],
+        tenant_slug=row["tenant_slug"],
+    )
+    s.created = row["created_at"].timestamp()
+    return s
+
+
+async def _delete_session(token: str):
+    db = await get_db()
+    await db.execute("DELETE FROM public.user_sessions WHERE token = $1", token)
+
+
+async def require_auth(x_session_token: str = Header(None)) -> SessionInfo:
+    """Async Auth-Dependency — liest Session aus DB (kein In-Memory-Dict)."""
+    if not x_session_token:
+        raise HTTPException(401, "Nicht autorisiert")
+    session = await _load_session(x_session_token)
+    if not session:
         raise HTTPException(401, "Nicht angemeldet oder Session abgelaufen")
-    session = _sessions[token]
-    if time.time() - session.created > SESSION_TTL:
-        del _sessions[token]
-        raise HTTPException(401, "Session abgelaufen")
     return session
 
 
-def require_auth(x_session_token: str = Header(None)) -> SessionInfo:
-    if x_session_token:
-        return _get_session(x_session_token)
-    raise HTTPException(401, "Nicht autorisiert")
-
-
-def require_admin(session: SessionInfo = Depends(require_auth)) -> SessionInfo:
+async def require_admin(session: SessionInfo = Depends(require_auth)) -> SessionInfo:
     if not session.is_admin():
         raise HTTPException(403, "Admin-Rechte erforderlich")
     return session
 
 
-def require_superadmin(session: SessionInfo = Depends(require_auth)) -> SessionInfo:
+async def require_superadmin(session: SessionInfo = Depends(require_auth)) -> SessionInfo:
     if not session.is_superadmin():
         raise HTTPException(403, "Nur Super-Admin erlaubt")
     return session
@@ -451,7 +515,7 @@ async def login(body: LoginRequest):
         tenant_slug = t
 
     token = secrets.token_urlsafe(48)
-    _sessions[token] = SessionInfo(
+    session_obj = SessionInfo(
         user_id=str(user["id"]),
         email=user["email"],
         display_name=user["display_name"],
@@ -459,6 +523,7 @@ async def login(body: LoginRequest):
         tenant_id=tenant_id_str,
         tenant_slug=tenant_slug,
     )
+    await _create_session(token, session_obj)
 
     return {
         "token": token,
@@ -557,8 +622,8 @@ async def password_reset(body: PasswordResetRequest):
 
 @app.post("/api/logout")
 async def logout(x_session_token: str = Header(None)):
-    if x_session_token and x_session_token in _sessions:
-        del _sessions[x_session_token]
+    if x_session_token:
+        await _delete_session(x_session_token)
     return {"message": "Abgemeldet"}
 
 
