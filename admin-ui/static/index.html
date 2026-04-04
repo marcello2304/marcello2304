@@ -1986,8 +1986,16 @@ function app() {
       if (this.token) {
         try {
           await this.loadMe();
-          await this.loadInitialData();
+          // me wird null wenn Session ungültig (401) → token aufräumen
+          if (!this.me) {
+            console.warn('[Auth] Gespeicherter Token ungültig → Neuanmeldung nötig');
+            this.token = '';
+            localStorage.removeItem('rag_token');
+          } else {
+            await this.loadInitialData();
+          }
         } catch(e) {
+          console.error('[Auth] Fehler beim Laden der Session:', e);
           this.token = '';
           this.me = null;
           localStorage.removeItem('rag_token');
@@ -2087,7 +2095,15 @@ function app() {
         headers,
       });
       if (res.status === 401) {
-        this.logout();
+        // Nur bei explizit kritischen Pfaden auto-logout auslösen.
+        // Hintergrund-Datencalls (loadStats, loadSources usw.) sollen den
+        // User NICHT ausloggen — sie geben einfach null zurück.
+        if (options.logoutOn401 === true) {
+          console.warn('[Auth] 401 auf', path, '→ logout');
+          this.logout();
+        } else {
+          console.warn('[Auth] 401 auf', path, '(kein auto-logout für Datencall)');
+        }
         return null;
       }
       if (!res.ok) {
@@ -2181,7 +2197,8 @@ function app() {
     },
 
     async loadMe() {
-      this.me = await this.api('/api/me');
+      // logoutOn401: true → ungültige Session beim Laden der Seite räumt Token auf
+      this.me = await this.api('/api/me', { logoutOn401: true });
     },
 
     async loadInitialData() {
