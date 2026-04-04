@@ -13,6 +13,7 @@ Features:
   - Chat-Tester (Proxy zu n8n)
 """
 import asyncio
+import logging
 import os
 import re
 import uuid
@@ -522,6 +523,7 @@ async def password_reset(body: PasswordResetRequest):
         pw_hash, user["id"]
     )
 
+    _pw_reset_logger = logging.getLogger("admin-ui.password-reset")
     try:
         _send_email(
             to=email,
@@ -540,10 +542,15 @@ async def password_reset(body: PasswordResetRequest):
             </div>
             """,
         )
+        _pw_reset_logger.info(f"Password reset email sent successfully to {email}")
+    except RuntimeError as e:
+        # SMTP not configured at all
+        _pw_reset_logger.error(f"SMTP NOT CONFIGURED — password reset email NOT sent: {e}")
+        _pw_reset_logger.error("Set SMTP_HOST, SMTP_USER, SMTP_PASSWORD in .env to enable email")
     except Exception as e:
-        # If email fails, still return OK but log the error
-        import logging
-        logging.getLogger("admin-ui").error(f"Password reset email failed for {email}: {e}")
+        # SMTP credentials wrong or network issue
+        _pw_reset_logger.error(f"SMTP ERROR — password reset email failed for {email}: {e}")
+        _pw_reset_logger.error(f"Check SMTP_HOST/USER/PASSWORD env vars (SMTP error: {type(e).__name__})")
 
     return ok_msg
 
